@@ -1,0 +1,22 @@
+[
+  {
+    "article_id": "nvda_art_1",
+    "provider": "YFINANCE",
+    "source_name": "Reuters",
+    "canonical_url": "https://www.reuters.com/technology/nvidia-faces-new-export-restrictions-and-supply-delay-2026-10-16",
+    "title": "Nvidia Faces Stricter Chip Export Restrictions and Guidance Cut",
+    "summary": "Nvidia warned of a material revenue decline after regulators announced expanded international license requirements for high-performance AI accelerators.",
+    "published_at_utc": "2026-10-16T17:00:00Z",
+    "retrieved_at_utc": "2026-10-16T17:15:00Z"
+  },
+  {
+    "article_id": "nvda_art_2",
+    "provider": "YFINANCE",
+    "source_name": "Wall Street Journal",
+    "canonical_url": "https://www.wsj.com/articles/nvidia-slashes-data-center-revenue-projections-2026-10-16",
+    "title": "Nvidia Slashes Forward Growth Estimates on Data Center Delivery Stalls",
+    "summary": "Shares dropped as Nvidia management trimmed next quarter gross margins citing component bottlenecks and export headwinds.",
+    "published_at_utc": "2026-10-16T18:00:00Z",
+    "retrieved_at_utc": "2026-10-16T18:10:00Z"
+  }
+]

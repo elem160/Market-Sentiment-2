@@ -1,0 +1,32 @@
+[
+  {
+    "article_id": "aapl_art_1",
+    "provider": "YFINANCE",
+    "source_name": "Reuters",
+    "canonical_url": "https://www.reuters.com/technology/apple-q4-earnings-beat-consensus-services-growth-2026-10-16",
+    "title": "Apple Reports Record Q4 Revenue Beat Driven by Robust Services Expansion",
+    "summary": "Apple Inc posted fourth-quarter revenue and earnings per share that exceeded Wall Street expectations, bolstered by double-digit growth in cloud and App Store services.",
+    "published_at_utc": "2026-10-16T18:00:00Z",
+    "retrieved_at_utc": "2026-10-16T18:15:00Z"
+  },
+  {
+    "article_id": "aapl_art_2",
+    "provider": "YFINANCE",
+    "source_name": "CNBC",
+    "canonical_url": "https://www.cnbc.com/2026/10/16/apple-earnings-preview-services-surge.html",
+    "title": "Apple Services Revenue Accelerates, Outperforming Hardware Consensus",
+    "summary": "Analysts cheered Apple's profit margins as services revenue jumped 14% year-over-year, dampening concerns about smartphone upgrade cycles.",
+    "published_at_utc": "2026-10-16T19:00:00Z",
+    "retrieved_at_utc": "2026-10-16T19:10:00Z"
+  },
+  {
+    "article_id": "aapl_art_3",
+    "provider": "GOOGLE_RSS_AGGREGATOR",
+    "source_name": "Bloomberg",
+    "canonical_url": "https://www.bloomberg.com/news/articles/2026-10-16/apple-unveils-new-enterprise-cloud-partnership",
+    "title": "Apple Unveils Major Enterprise Cloud Expansion in Data Centers",
+    "summary": "Apple announced new corporate software deployments and expanding enterprise cloud infrastructure investments.",
+    "published_at_utc": "2026-10-16T19:30:00Z",
+    "retrieved_at_utc": "2026-10-16T19:40:00Z"
+  }
+]

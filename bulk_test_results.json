@@ -1,0 +1,722 @@
+[
+    {
+        "ticker": "AAPL",
+        "valid_articles": 350,
+        "positive": 63,
+        "negative": 61,
+        "neutral": 226,
+        "average_score": -0.004625299913542612,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "MSFT",
+        "valid_articles": 359,
+        "positive": 56,
+        "negative": 78,
+        "neutral": 225,
+        "average_score": -0.07112774427222675,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "NVDA",
+        "valid_articles": 350,
+        "positive": 73,
+        "negative": 46,
+        "neutral": 231,
+        "average_score": 0.04739189386367798,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "TSLA",
+        "valid_articles": 350,
+        "positive": 48,
+        "negative": 83,
+        "neutral": 219,
+        "average_score": -0.09692312070301601,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "AMZN",
+        "valid_articles": 360,
+        "positive": 62,
+        "negative": 78,
+        "neutral": 220,
+        "average_score": -0.04562056288123131,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "GOOGL",
+        "valid_articles": 346,
+        "positive": 63,
+        "negative": 73,
+        "neutral": 210,
+        "average_score": -0.030947719436849472,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "META",
+        "valid_articles": 360,
+        "positive": 45,
+        "negative": 91,
+        "neutral": 224,
+        "average_score": -0.10729995783832338,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "NFLX",
+        "valid_articles": 360,
+        "positive": 39,
+        "negative": 76,
+        "neutral": 245,
+        "average_score": -0.09174288262923559,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "JPM",
+        "valid_articles": 359,
+        "positive": 59,
+        "negative": 65,
+        "neutral": 235,
+        "average_score": -0.022664993752344074,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "V",
+        "valid_articles": 360,
+        "positive": 37,
+        "negative": 53,
+        "neutral": 270,
+        "average_score": -0.037553036792410746,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "WMT",
+        "valid_articles": 354,
+        "positive": 67,
+        "negative": 84,
+        "neutral": 203,
+        "average_score": -0.05428504724960543,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "PG",
+        "valid_articles": 337,
+        "positive": 45,
+        "negative": 68,
+        "neutral": 224,
+        "average_score": -0.053224140529462775,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "UNH",
+        "valid_articles": 332,
+        "positive": 65,
+        "negative": 87,
+        "neutral": 180,
+        "average_score": -0.06146978766444218,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "HD",
+        "valid_articles": 332,
+        "positive": 53,
+        "negative": 57,
+        "neutral": 222,
+        "average_score": -0.0073456452733062835,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "MA",
+        "valid_articles": 360,
+        "positive": 43,
+        "negative": 56,
+        "neutral": 261,
+        "average_score": -0.03782778961790933,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "BAC",
+        "valid_articles": 328,
+        "positive": 70,
+        "negative": 42,
+        "neutral": 216,
+        "average_score": 0.06085565549934783,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "DIS",
+        "valid_articles": 339,
+        "positive": 27,
+        "negative": 72,
+        "neutral": 240,
+        "average_score": -0.10866540441822513,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "CVX",
+        "valid_articles": 333,
+        "positive": 92,
+        "negative": 55,
+        "neutral": 186,
+        "average_score": 0.0823966580647248,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "KO",
+        "valid_articles": 327,
+        "positive": 50,
+        "negative": 51,
+        "neutral": 226,
+        "average_score": -0.004896056214603809,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "PEP",
+        "valid_articles": 349,
+        "positive": 66,
+        "negative": 55,
+        "neutral": 228,
+        "average_score": 0.023117721934714768,
+        "category": "Stocks"
+    },
+    {
+        "ticker": "EUR/USD",
+        "valid_articles": 284,
+        "positive": 74,
+        "negative": 87,
+        "neutral": 123,
+        "average_score": -0.057753345915968986,
+        "category": "Forex"
+    },
+    {
+        "ticker": "GBP/USD",
+        "valid_articles": 279,
+        "positive": 71,
+        "negative": 101,
+        "neutral": 107,
+        "average_score": -0.10601891571902887,
+        "category": "Forex"
+    },
+    {
+        "ticker": "USD/JPY",
+        "valid_articles": 312,
+        "positive": 71,
+        "negative": 125,
+        "neutral": 116,
+        "average_score": -0.14271344817601717,
+        "category": "Forex"
+    },
+    {
+        "ticker": "AUD/USD",
+        "valid_articles": 285,
+        "positive": 77,
+        "negative": 89,
+        "neutral": 119,
+        "average_score": -0.048610238547910724,
+        "category": "Forex"
+    },
+    {
+        "ticker": "USD/CAD",
+        "valid_articles": 258,
+        "positive": 54,
+        "negative": 68,
+        "neutral": 136,
+        "average_score": -0.0593585763559785,
+        "category": "Forex"
+    },
+    {
+        "ticker": "USD/CHF",
+        "valid_articles": 204,
+        "positive": 39,
+        "negative": 50,
+        "neutral": 115,
+        "average_score": -0.053597104023484624,
+        "category": "Forex"
+    },
+    {
+        "ticker": "NZD/USD",
+        "valid_articles": 226,
+        "positive": 52,
+        "negative": 71,
+        "neutral": 103,
+        "average_score": -0.08886939484988694,
+        "category": "Forex"
+    },
+    {
+        "ticker": "EUR/GBP",
+        "valid_articles": 259,
+        "positive": 56,
+        "negative": 81,
+        "neutral": 122,
+        "average_score": -0.1017399508520443,
+        "category": "Forex"
+    },
+    {
+        "ticker": "EUR/JPY",
+        "valid_articles": 249,
+        "positive": 41,
+        "negative": 99,
+        "neutral": 109,
+        "average_score": -0.1903449890603981,
+        "category": "Forex"
+    },
+    {
+        "ticker": "GBP/JPY",
+        "valid_articles": 181,
+        "positive": 36,
+        "negative": 53,
+        "neutral": 92,
+        "average_score": -0.0938012484687468,
+        "category": "Forex"
+    },
+    {
+        "ticker": "AUD/JPY",
+        "valid_articles": 229,
+        "positive": 55,
+        "negative": 89,
+        "neutral": 85,
+        "average_score": -0.13063518123855758,
+        "category": "Forex"
+    },
+    {
+        "ticker": "EUR/CHF",
+        "valid_articles": 154,
+        "positive": 24,
+        "negative": 42,
+        "neutral": 88,
+        "average_score": -0.09972733897822243,
+        "category": "Forex"
+    },
+    {
+        "ticker": "EUR/AUD",
+        "valid_articles": 201,
+        "positive": 31,
+        "negative": 67,
+        "neutral": 103,
+        "average_score": -0.15850983582325837,
+        "category": "Forex"
+    },
+    {
+        "ticker": "GBP/AUD",
+        "valid_articles": 200,
+        "positive": 45,
+        "negative": 60,
+        "neutral": 95,
+        "average_score": -0.06978035807609557,
+        "category": "Forex"
+    },
+    {
+        "ticker": "USD/MXN",
+        "valid_articles": 125,
+        "positive": 15,
+        "negative": 33,
+        "neutral": 77,
+        "average_score": -0.12351241874694824,
+        "category": "Forex"
+    },
+    {
+        "ticker": "USD/ZAR",
+        "valid_articles": 171,
+        "positive": 34,
+        "negative": 60,
+        "neutral": 77,
+        "average_score": -0.1391789029564774,
+        "category": "Forex"
+    },
+    {
+        "ticker": "USD/SGD",
+        "valid_articles": 134,
+        "positive": 31,
+        "negative": 35,
+        "neutral": 68,
+        "average_score": -0.027206760289064096,
+        "category": "Forex"
+    },
+    {
+        "ticker": "USD/HKD",
+        "valid_articles": 179,
+        "positive": 32,
+        "negative": 59,
+        "neutral": 88,
+        "average_score": -0.1491871124872282,
+        "category": "Forex"
+    },
+    {
+        "ticker": "EUR/CAD",
+        "valid_articles": 153,
+        "positive": 21,
+        "negative": 28,
+        "neutral": 104,
+        "average_score": -0.04773129961069893,
+        "category": "Forex"
+    },
+    {
+        "ticker": "GBP/CAD",
+        "valid_articles": 149,
+        "positive": 10,
+        "negative": 28,
+        "neutral": 111,
+        "average_score": -0.10522657392809055,
+        "category": "Forex"
+    },
+    {
+        "ticker": "Gold",
+        "valid_articles": 349,
+        "positive": 60,
+        "negative": 85,
+        "neutral": 204,
+        "average_score": -0.06837784466907425,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Silver",
+        "valid_articles": 350,
+        "positive": 67,
+        "negative": 79,
+        "neutral": 204,
+        "average_score": -0.05098469538348062,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Crude Oil",
+        "valid_articles": 350,
+        "positive": 58,
+        "negative": 121,
+        "neutral": 171,
+        "average_score": -0.1517559064286096,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Brent Crude",
+        "valid_articles": 345,
+        "positive": 64,
+        "negative": 141,
+        "neutral": 140,
+        "average_score": -0.19497421340665955,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Natural Gas",
+        "valid_articles": 350,
+        "positive": 78,
+        "negative": 62,
+        "neutral": 210,
+        "average_score": 0.026077821595328194,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Copper",
+        "valid_articles": 349,
+        "positive": 67,
+        "negative": 53,
+        "neutral": 229,
+        "average_score": 0.028408272730928438,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Corn",
+        "valid_articles": 331,
+        "positive": 55,
+        "negative": 81,
+        "neutral": 195,
+        "average_score": -0.07288288241786899,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Wheat",
+        "valid_articles": 303,
+        "positive": 53,
+        "negative": 108,
+        "neutral": 142,
+        "average_score": -0.15684361249306808,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Soybeans",
+        "valid_articles": 298,
+        "positive": 78,
+        "negative": 64,
+        "neutral": 156,
+        "average_score": 0.019066489182862658,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Coffee",
+        "valid_articles": 350,
+        "positive": 72,
+        "negative": 57,
+        "neutral": 221,
+        "average_score": 0.030810363718441553,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Sugar",
+        "valid_articles": 342,
+        "positive": 41,
+        "negative": 55,
+        "neutral": 246,
+        "average_score": -0.03437628104672794,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Cotton",
+        "valid_articles": 267,
+        "positive": 22,
+        "negative": 51,
+        "neutral": 194,
+        "average_score": -0.0906692272268431,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Cocoa",
+        "valid_articles": 327,
+        "positive": 46,
+        "negative": 85,
+        "neutral": 196,
+        "average_score": -0.10249581805427505,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Palladium",
+        "valid_articles": 298,
+        "positive": 57,
+        "negative": 77,
+        "neutral": 164,
+        "average_score": -0.06140051722126519,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Platinum",
+        "valid_articles": 350,
+        "positive": 74,
+        "negative": 43,
+        "neutral": 233,
+        "average_score": 0.06329437375068664,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Aluminum",
+        "valid_articles": 326,
+        "positive": 59,
+        "negative": 92,
+        "neutral": 175,
+        "average_score": -0.08945126868098792,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Zinc",
+        "valid_articles": 289,
+        "positive": 65,
+        "negative": 60,
+        "neutral": 164,
+        "average_score": -0.001710289489851691,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Nickel",
+        "valid_articles": 301,
+        "positive": 45,
+        "negative": 74,
+        "neutral": 182,
+        "average_score": -0.09046848449992183,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Lead",
+        "valid_articles": 350,
+        "positive": 76,
+        "negative": 63,
+        "neutral": 211,
+        "average_score": 0.01934789410659245,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "Lean Hogs",
+        "valid_articles": 123,
+        "positive": 27,
+        "negative": 42,
+        "neutral": 54,
+        "average_score": -0.11892444283012452,
+        "category": "Commodities"
+    },
+    {
+        "ticker": "ES=F",
+        "valid_articles": 161,
+        "positive": 21,
+        "negative": 40,
+        "neutral": 100,
+        "average_score": -0.10050406367142008,
+        "category": "Futures"
+    },
+    {
+        "ticker": "NQ=F",
+        "valid_articles": 80,
+        "positive": 9,
+        "negative": 32,
+        "neutral": 39,
+        "average_score": -0.23248001895844936,
+        "category": "Futures"
+    },
+    {
+        "ticker": "YM=F",
+        "valid_articles": 137,
+        "positive": 14,
+        "negative": 49,
+        "neutral": 74,
+        "average_score": -0.22131820033936606,
+        "category": "Futures"
+    },
+    {
+        "ticker": "RTY=F",
+        "valid_articles": 60,
+        "positive": 5,
+        "negative": 9,
+        "neutral": 46,
+        "average_score": -0.04659301439921061,
+        "category": "Futures"
+    },
+    {
+        "ticker": "CL=F",
+        "valid_articles": 265,
+        "positive": 37,
+        "negative": 79,
+        "neutral": 149,
+        "average_score": -0.1398078642926126,
+        "category": "Futures"
+    },
+    {
+        "ticker": "GC=F",
+        "valid_articles": 207,
+        "positive": 34,
+        "negative": 70,
+        "neutral": 103,
+        "average_score": -0.14093872616832384,
+        "category": "Futures"
+    },
+    {
+        "ticker": "SI=F",
+        "valid_articles": 270,
+        "positive": 41,
+        "negative": 52,
+        "neutral": 177,
+        "average_score": -0.0521468589703242,
+        "category": "Futures"
+    },
+    {
+        "ticker": "ZC=F",
+        "valid_articles": 44,
+        "positive": 13,
+        "negative": 12,
+        "neutral": 19,
+        "average_score": 0.0003440393642945723,
+        "category": "Futures"
+    },
+    {
+        "ticker": "ZW=F",
+        "valid_articles": 25,
+        "positive": 2,
+        "negative": 6,
+        "neutral": 17,
+        "average_score": -0.14610157251358033,
+        "category": "Futures"
+    },
+    {
+        "ticker": "ZS=F",
+        "valid_articles": 128,
+        "positive": 15,
+        "negative": 15,
+        "neutral": 98,
+        "average_score": 0.002555995248258114,
+        "category": "Futures"
+    },
+    {
+        "ticker": "SB=F",
+        "valid_articles": 245,
+        "positive": 14,
+        "negative": 35,
+        "neutral": 196,
+        "average_score": -0.05827221578481246,
+        "category": "Futures"
+    },
+    {
+        "ticker": "CT=F",
+        "valid_articles": 185,
+        "positive": 14,
+        "negative": 30,
+        "neutral": 141,
+        "average_score": -0.06659740741188462,
+        "category": "Futures"
+    },
+    {
+        "ticker": "KC=F",
+        "valid_articles": 186,
+        "positive": 11,
+        "negative": 59,
+        "neutral": 116,
+        "average_score": -0.19947501776679868,
+        "category": "Futures"
+    },
+    {
+        "ticker": "HG=F",
+        "valid_articles": 200,
+        "positive": 40,
+        "negative": 24,
+        "neutral": 136,
+        "average_score": 0.05106169804930687,
+        "category": "Futures"
+    },
+    {
+        "ticker": "NG=F",
+        "valid_articles": 219,
+        "positive": 36,
+        "negative": 53,
+        "neutral": 130,
+        "average_score": -0.07564175999872216,
+        "category": "Futures"
+    },
+    {
+        "ticker": "ZB=F",
+        "valid_articles": 4,
+        "positive": 1,
+        "negative": 0,
+        "neutral": 3,
+        "average_score": 0.190947487950325,
+        "category": "Futures"
+    },
+    {
+        "ticker": "ZN=F",
+        "valid_articles": 26,
+        "positive": 1,
+        "negative": 4,
+        "neutral": 21,
+        "average_score": -0.11014804244041443,
+        "category": "Futures"
+    },
+    {
+        "ticker": "ZF=F",
+        "valid_articles": 43,
+        "positive": 4,
+        "negative": 14,
+        "neutral": 25,
+        "average_score": -0.2233462513879288,
+        "category": "Futures"
+    },
+    {
+        "ticker": "ZT=F",
+        "valid_articles": 19,
+        "positive": 0,
+        "negative": 2,
+        "neutral": 17,
+        "average_score": -0.09967876421777826,
+        "category": "Futures"
+    },
+    {
+        "ticker": "HE=F",
+        "valid_articles": 332,
+        "positive": 28,
+        "negative": 45,
+        "neutral": 259,
+        "average_score": -0.04643852532987135,
+        "category": "Futures"
+    }
+]
