@@ -155,8 +155,17 @@ async def analyze_ticker(
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)
-async def get_job_status(job_id: str, db: Session = Depends(get_db)):
+async def get_job_status(
+    job_id: str,
+    db: Session = Depends(get_db),
+    client_ip: str = Depends(get_client_ip),
+):
     """Polling fallback for background job progression."""
+    try:
+        rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
+    except SentimentAppException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
     job = SentimentRepository.get_job(db, job_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
@@ -175,11 +184,18 @@ async def get_job_status(job_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/jobs/{job_id}/events")
-async def stream_job_events(job_id: str):
+async def stream_job_events(
+    job_id: str,
+    client_ip: str = Depends(get_client_ip),
+):
     """
     Server-Sent Events (SSE) stream for real-time live pipeline progress.
     Emits stage updates, completed (with run_id), and failed events.
     """
+    try:
+        rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
+    except SentimentAppException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     async def event_generator():
         last_stage = None
         last_pct = -1.0

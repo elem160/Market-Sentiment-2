@@ -54,6 +54,11 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
                 15m Cache Hit
               </span>
             )}
+            {result.data_status === 'NO_FRESH_NEWS' && (
+              <span className="badge badge-neutral" style={{ color: '#f59e0b', borderColor: '#f59e0b' }}>
+                No Fresh News
+              </span>
+            )}
           </div>
           <div className="asset-name">{result.company_name}</div>
         </div>
@@ -65,6 +70,29 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
           </div>
         </div>
       </div>
+
+      {result.data_status === 'NO_FRESH_NEWS' && (
+        <div
+          className="no-fresh-news-banner"
+          style={{
+            background: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            margin: '12px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            color: '#fcd34d',
+            fontSize: '0.88rem',
+          }}
+        >
+          <AlertTriangle size={18} style={{ flexShrink: 0, color: '#f59e0b' }} />
+          <span>
+            <strong>NO FRESH NEWS IN SESSION:</strong> Zero articles satisfied current session window freshness criteria. The HOLD verdict is an uncorroborated default for zero active headlines.
+          </span>
+        </div>
+      )}
 
       <div className="metrics-strip">
         <div className="metric-item">

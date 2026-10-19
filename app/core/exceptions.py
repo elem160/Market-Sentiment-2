@@ -33,11 +33,14 @@ class UnsupportedAssetException(SentimentAppException):
 
 class TickerNotFoundException(SentimentAppException):
     """Raised when a ticker cannot be resolved with the market data provider."""
-    def __init__(self, ticker: str):
+    def __init__(self, ticker: str, reason: str = ""):
+        msg = f"Ticker '{ticker}' could not be resolved or is not an actively listed US equity/ETF."
+        if reason:
+            msg = f"{msg} ({reason})"
         super().__init__(
-            message=f"Ticker '{ticker}' could not be resolved or is not an actively listed US equity/ETF.",
+            message=msg,
             status_code=404,
-            details={"ticker": ticker}
+            details={"ticker": ticker, "reason": reason} if reason else {"ticker": ticker}
         )
 
 

@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import patch
 from app.core.models import Asset
 from app.core.enums import AssetType
+from app.config import settings
 
 
 @pytest.mark.asyncio
@@ -84,3 +85,20 @@ async def test_history_endpoint(async_client):
 async def test_job_not_found(async_client):
     response = await async_client.get("/api/v1/jobs/00000000-0000-0000-0000-000000000000")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_jobs_rate_limiting(async_client):
+    """Verify F-15: /jobs/{id} endpoint enforces rate limiting."""
+    from app.utils.rate_limiter import rate_limiter
+    rate_limiter.reset()
+
+    # Rapidly send requests up to rate limit
+    for _ in range(settings.RATE_LIMIT_JOBS_PER_MINUTE):
+        resp = await async_client.get("/api/v1/jobs/test-rate-limit-id")
+        assert resp.status_code in [404, 200]
+
+    # The 61st request in the same minute window must be rejected with 429
+    resp_limit = await async_client.get("/api/v1/jobs/test-rate-limit-id")
+    assert resp_limit.status_code == 429
+    rate_limiter.reset()

@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, PropertyMock
 from app.services.ticker_service import TickerService
 from app.core.exceptions import (
     InvalidTickerException,
@@ -59,6 +59,13 @@ def test_multi_asset_resolution():
     assert eth.asset_type == AssetType.CRYPTO
 
 
+@pytest.fixture(autouse=True)
+def clear_ticker_cache():
+    TickerService.clear_cache()
+    yield
+    TickerService.clear_cache()
+
+
 def test_successful_ticker_resolution():
     with patch("yfinance.Ticker") as mock_yf:
         mock_instance = MagicMock()
@@ -85,4 +92,72 @@ def test_successful_etf_resolution():
         asset = TickerService.validate_and_resolve("SPY")
         assert asset.ticker == "SPY"
         assert asset.asset_type == AssetType.ETF
+
+
+def test_dollar_prefix_bypasses_commodity_aliases():
+    """Verify F-18: $ prefix bypasses commodity/crypto aliases, resolving as equity."""
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_instance = MagicMock()
+        mock_instance.fast_info.quote_type = "EQUITY"
+        mock_instance.fast_info.long_name = "Barrick Gold Corporation"
+        mock_instance.fast_info.exchange = "NYQ"
+        mock_yf.return_value = mock_instance
+
+        # Unprefixed GOLD resolves to commodity futures
+        gold_commodity = TickerService.validate_and_resolve("GOLD")
+        assert gold_commodity.ticker == "GC=F"
+        assert gold_commodity.asset_type == AssetType.COMMODITY
+
+        # Prefixed $GOLD resolves as listed equity
+        gold_equity = TickerService.validate_and_resolve("$GOLD")
+        assert gold_equity.ticker == "GOLD"
+        assert gold_equity.yf_symbol == "GOLD"
+        assert gold_equity.asset_type == AssetType.EQUITY
+
+
+def test_ticker_resolution_caching():
+    """Verify resolution is cached in-memory and avoids repeated external queries."""
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_instance = MagicMock()
+        mock_instance.fast_info.quote_type = "EQUITY"
+        mock_instance.fast_info.long_name = "Microsoft Corporation"
+        mock_instance.fast_info.exchange = "NMS"
+        mock_yf.return_value = mock_instance
+
+        # First call hits mock_yf
+        asset1 = TickerService.validate_and_resolve("MSFT")
+        assert mock_yf.call_count == 1
+
+        # Second call hits resolution cache
+        asset2 = TickerService.validate_and_resolve("MSFT")
+        assert mock_yf.call_count == 1  # No additional network call
+        assert asset1.ticker == asset2.ticker
+        assert asset1.company_name == asset2.company_name
+
+
+def test_missing_instrument_raises_404_not_found():
+    """Verify F-18: When Yahoo explicitly reports 404 / Not Found and symbol is not known, raise 404."""
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_instance = MagicMock()
+        type(mock_instance).fast_info = PropertyMock(side_effect=Exception("404 Client Error: Not Found for url"))
+        type(mock_instance).info = PropertyMock(side_effect=Exception("404 Client Error: Not Found"))
+        mock_yf.return_value = mock_instance
+
+        with pytest.raises(TickerNotFoundException) as exc_info:
+            TickerService.validate_and_resolve("NOTFND")
+        assert exc_info.value.status_code == 404
+
+
+def test_throttled_or_empty_response_does_not_404():
+    """Verify F-18: Throttled (429) or empty responses log warning and do NOT raise 404."""
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_instance = MagicMock()
+        type(mock_instance).fast_info = PropertyMock(side_effect=Exception("429 Client Error: Too Many Requests"))
+        type(mock_instance).info = PropertyMock(side_effect=Exception("Rate limit exceeded"))
+        mock_yf.return_value = mock_instance
+
+        # Must not raise TickerNotFoundException; falls back with warning
+        asset = TickerService.validate_and_resolve("THROTL")
+        assert asset.ticker == "THROTL"
+        assert asset.company_name == "THROTL"
 

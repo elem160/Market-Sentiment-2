@@ -27,7 +27,15 @@ class Settings(BaseSettings):
 
     # External Provider Credentials
     OPENROUTER_API_KEY: str = ""
-    FINNHUB_API_KEY: str = ""
+
+    # Security & Networking
+    TRUST_PROXY_HEADERS: bool = False
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
 
     # Budget & Token Controls
     MAX_RETAINED_ARTICLES: int = 350

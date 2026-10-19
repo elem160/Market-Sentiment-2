@@ -74,6 +74,13 @@ KNOWN_DISPLAY_NAMES = {
 
 
 class TickerService:
+    _resolution_cache: dict[str, Asset] = {}
+
+    @classmethod
+    def clear_cache(cls):
+        """Clear the in-memory resolution cache."""
+        cls._resolution_cache.clear()
+
     @staticmethod
     def normalize_ticker(raw_ticker: str) -> str:
         """Strip whitespace, leading $, and uppercase with syntax validation."""
@@ -102,19 +109,24 @@ class TickerService:
     def format_yf_ticker(cls, raw: str) -> tuple[str, str, AssetType]:
         """
         Determines the display ticker, yfinance symbol, and AssetType.
+        If the ticker explicitly begins with '$', aliases (like GOLD -> GC=F) are bypassed
+        so the symbol resolves directly as a listed equity.
         Returns: (display_ticker, yf_symbol, asset_type)
         """
+        raw_stripped = raw.strip() if raw else ""
+        bypass_aliases = raw_stripped.startswith("$")
         cleaned = cls.normalize_ticker(raw)
 
-        # 1. Commodity Aliases
-        if cleaned in COMMODITY_ALIASES:
-            yf_sym = COMMODITY_ALIASES[cleaned]
-            return yf_sym, yf_sym, AssetType.COMMODITY
+        if not bypass_aliases:
+            # 1. Commodity Aliases
+            if cleaned in COMMODITY_ALIASES:
+                yf_sym = COMMODITY_ALIASES[cleaned]
+                return yf_sym, yf_sym, AssetType.COMMODITY
 
-        # 2. Crypto Aliases
-        if cleaned in CRYPTO_ALIASES:
-            yf_sym = CRYPTO_ALIASES[cleaned]
-            return yf_sym, yf_sym, AssetType.CRYPTO
+            # 2. Crypto Aliases
+            if cleaned in CRYPTO_ALIASES:
+                yf_sym = CRYPTO_ALIASES[cleaned]
+                return yf_sym, yf_sym, AssetType.CRYPTO
 
         # 3. Forex with slash notation (e.g. EUR/USD)
         if "/" in cleaned:
@@ -157,17 +169,27 @@ class TickerService:
                 yf_sym = "EURUSD=X"
             return display, yf_sym, AssetType.FOREX
 
-        # 9. Standard Equities and ETFs (e.g. AAPL, NVDA, SPY, QQQ, BRK-B)
+        # 9. Standard Equities and ETFs (e.g. AAPL, NVDA, SPY, QQQ, BRK-B, or $GOLD)
         return cleaned, cleaned, AssetType.EQUITY
 
     @classmethod
     def validate_and_resolve(cls, raw_ticker: str) -> Asset:
         """
         Universal asset resolution for Equities, ETFs, Forex, Commodities, and Crypto.
+        Resolution results are cached in-memory per ticker.
         """
+        cache_key = raw_ticker.strip().upper()
+        if cache_key in cls._resolution_cache:
+            return cls._resolution_cache[cache_key]
+
         display_ticker, yf_symbol, detected_type = cls.format_yf_ticker(raw_ticker)
 
         # Check known display names first
+        is_known = (
+            display_ticker in KNOWN_DISPLAY_NAMES
+            or yf_symbol in KNOWN_DISPLAY_NAMES
+            or detected_type in (AssetType.FOREX, AssetType.COMMODITY, AssetType.CRYPTO)
+        )
         company_name = KNOWN_DISPLAY_NAMES.get(display_ticker) or KNOWN_DISPLAY_NAMES.get(yf_symbol)
         exchange = "US" if detected_type in (AssetType.EQUITY, AssetType.ETF) else ("CCY" if detected_type == AssetType.FOREX else "CME")
         sector = "Financials" if detected_type == AssetType.FOREX else ("Commodities" if detected_type == AssetType.COMMODITY else "")
@@ -181,18 +203,12 @@ class TickerService:
             if fast_info is not None:
                 try:
                     q = getattr(fast_info, "quote_type", None) or getattr(fast_info, "quoteType", None)
-                    if isinstance(q, str):
+                    if isinstance(q, str) and detected_type in (AssetType.EQUITY, AssetType.ETF):
                         quote_str = q.upper()
                         if "ETF" in quote_str:
                             asset_type = AssetType.ETF
                         elif "EQUITY" in quote_str:
                             asset_type = AssetType.EQUITY
-                        elif "CRYPTOCURRENCY" in quote_str or "CRYPTO" in quote_str:
-                            asset_type = AssetType.CRYPTO
-                        elif "CURRENCY" in quote_str or "FOREX" in quote_str:
-                            asset_type = AssetType.FOREX
-                        elif "COMMODITY" in quote_str or "FUTURE" in quote_str:
-                            asset_type = AssetType.COMMODITY
 
                     ex = getattr(fast_info, "exchange", None)
                     if isinstance(ex, str) and ex:
@@ -202,6 +218,10 @@ class TickerService:
                     if isinstance(nm, str) and nm and not company_name:
                         company_name = nm
                 except Exception as ex:
+                    ex_str = str(ex).lower()
+                    if ("404" in ex_str or "not found" in ex_str or "delisted" in ex_str) and not any(k in ex_str for k in ["429", "too many", "rate limit", "throttl"]):
+                        if not is_known:
+                            raise TickerNotFoundException(raw_ticker, f"Ticker '{raw_ticker}' was not found on Yahoo Finance: {ex}")
                     logger.debug(f"Could not read fast_info for {yf_symbol}: {ex}")
 
             # Fallback to info dict if name still needed
@@ -210,21 +230,34 @@ class TickerService:
                     info = getattr(ticker_obj, "info", None)
                     if isinstance(info, dict) and info:
                         q = info.get("quoteType", "")
-                        if "ETF" in q.upper():
+                        if "ETF" in q.upper() and detected_type in (AssetType.EQUITY, AssetType.ETF):
                             asset_type = AssetType.ETF
                         company_name = info.get("longName") or info.get("shortName")
                         exchange = info.get("exchange") or exchange
                         sector = info.get("sector") or sector
                 except Exception as ex:
+                    ex_str = str(ex).lower()
+                    if ("404" in ex_str or "not found" in ex_str or "delisted" in ex_str) and not any(k in ex_str for k in ["429", "too many", "rate limit", "throttl"]):
+                        if not is_known:
+                            raise TickerNotFoundException(raw_ticker, f"Ticker '{raw_ticker}' was not found on Yahoo Finance: {ex}")
                     logger.debug(f"Could not read info for {yf_symbol}: {ex}")
 
+        except TickerNotFoundException:
+            raise
         except Exception as e:
-            logger.warning(f"Error querying yfinance for {yf_symbol}: {e}")
+            err_str = str(e).lower()
+            if ("404" in err_str or "not found" in err_str or "delisted" in err_str) and not any(k in err_str for k in ["429", "too many", "rate limit", "throttl"]):
+                if not is_known:
+                    raise TickerNotFoundException(raw_ticker, f"Ticker '{raw_ticker}' was not found on Yahoo Finance: {e}")
+            elif any(k in err_str for k in ["429", "too many", "rate limit", "throttl"]):
+                logger.warning(f"Yahoo Finance rate limit or throttling warning for {yf_symbol}: {e}")
+            else:
+                logger.warning(f"Warning / empty response querying yfinance for {yf_symbol}: {e}")
 
         if not company_name:
             company_name = display_ticker
 
-        return Asset(
+        asset = Asset(
             ticker=display_ticker,
             company_name=company_name,
             exchange=exchange,
@@ -233,3 +266,7 @@ class TickerService:
             is_active=True,
             yf_symbol=yf_symbol,
         )
+
+        cls._resolution_cache[cache_key] = asset
+        cls._resolution_cache[display_ticker] = asset
+        return asset

@@ -21,7 +21,7 @@
 - **Universal Multi-Asset Coverage**:
   - **Equities & ETFs**: `$NVDA`, `$AAPL`, `$MSFT`, `$TSLA`, `$SPY`, `$QQQ`, `$BRK-B`
   - **Forex Currency Pairs**: `EUR/USD`, `USD/JPY`, `GBP/USD`, `AUD/USD`, `EURUSD=X`
-  - **Commodities & Futures**: `GC=F` (Gold), `CL=F` (Crude Oil), `SI=F` (Silver), `NG=F` (Natural Gas)
+  - **Commodities & Futures**: `GC=F` (Gold), `CL=F` (Crude Oil), `SI=F` (Silver), `NG=F` (Natural Gas). *Note: Prefixing with `$` (e.g., `$GOLD`, `$CORN`) bypasses commodity aliases to resolve listed equity instruments.*
   - **Cryptocurrencies**: `BTC-USD` (Bitcoin), `ETH-USD` (Ethereum), `SOL-USD` (Solana)
 - **High-Throughput Multi-Feed Ingestion (100–350+ Headlines)**:
   - Parallel multi-source sweep: Yahoo Finance (API + RSS), Google News RSS (Reuters, Bloomberg, CNBC, Wall Street Journal, MarketWatch, Seeking Alpha, Motley Fool), and dedicated Forex feeds (Investing.com Forex, FXStreet).

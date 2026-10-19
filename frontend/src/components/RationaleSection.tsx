@@ -11,13 +11,14 @@ export const RationaleSection: React.FC<RationaleSectionProps> = ({ rationale })
   const inferences = rationale?.inferences || [];
   const summary = rationale?.summary || 'No summary available.';
 
-  const formatTime = (iso: string) => {
-    if (!iso) return '';
+  const formatTime = (iso?: string | null) => {
+    if (!iso) return 'Undated';
     try {
       const d = new Date(iso);
+      if (isNaN(d.getTime())) return 'Undated';
       return d.toISOString().replace('T', ' ').slice(11, 16) + ' UTC';
     } catch {
-      return '';
+      return 'Undated';
     }
   };
 

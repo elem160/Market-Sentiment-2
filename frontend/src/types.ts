@@ -17,7 +17,7 @@ export interface ScoredArticle {
   canonical_publisher: string;
   canonical_url: string;
   title: string;
-  published_at_utc: string;
+  published_at_utc?: string | null;
   lead_text?: string;
   finbert_positive: number;
   finbert_negative: number;
@@ -28,15 +28,20 @@ export interface ScoredArticle {
   catalyst_category?: string | null;
   exclusion_reason?: string | null;
   final_weight: number;
+  effective_weight?: number;
+  age_hours?: number;
   cluster_id: string;
 }
 
 export interface ObservedFact {
   fact_id?: string;
   statement: string;
+  cited_article_id?: string;
   source_article_id?: string;
-  source_publisher: string;
-  published_at_utc: string;
+  source_publisher?: string;
+  catalyst_category?: string;
+  impact?: string;
+  published_at_utc?: string | null;
 }
 
 export interface PipelineRationale {
@@ -67,6 +72,8 @@ export interface PipelineMetrics {
   articles_deduplicated: number;
   articles_scored_local: number;
   articles_sent_to_llm: number;
+  excluded_out_of_window?: number;
+  excluded_missing_timestamp?: number;
   prompt_tokens: number;
   completion_tokens: number;
   estimated_cost_usd: number;
@@ -91,6 +98,8 @@ export interface AnalysisResult {
   warnings: string[];
   pipeline_mode: string;
   cache_status: string;
+  data_status?: 'OK' | 'NO_FRESH_NEWS' | string;
+  llm_summary?: string | null;
   model_versions: Record<string, string>;
   config_version: string;
 }
