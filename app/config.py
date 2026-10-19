@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     RATE_LIMIT_ANALYSIS_PER_MINUTE: int = 15
     RATE_LIMIT_JOBS_PER_MINUTE: int = 60
 
+    # Pipeline Execution Timeout (in seconds)
+    PIPELINE_TIMEOUT_SECONDS: int = 90
+
     # Cache Buckets (in minutes)
     CACHE_INTRADAY_BUCKET_MINUTES: int = 15
     CACHE_OFF_MARKET_BUCKET_MINUTES: int = 60

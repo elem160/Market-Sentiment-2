@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from typing import Callable
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 from app.config import settings
@@ -9,6 +10,7 @@ from app.utils.logging import logger
 
 class FinBERTService:
     _instance: "FinBERTService | None" = None
+    _lock = threading.Lock()
     _pipeline = None
     _tokenizer = None
     _is_mock: bool = False
@@ -17,7 +19,9 @@ class FinBERTService:
     @classmethod
     def get_instance(cls) -> "FinBERTService":
         if cls._instance is None:
-            cls._instance = cls()
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
         return cls._instance
 
     @classmethod
@@ -35,22 +39,24 @@ class FinBERTService:
         if self._is_mock:
             return
         if self._pipeline is None:
-            logger.info(f"Loading local FinBERT model ({settings.FINBERT_MODEL_NAME})...")
-            try:
-                self._tokenizer = AutoTokenizer.from_pretrained(settings.FINBERT_MODEL_NAME)
-                model = AutoModelForSequenceClassification.from_pretrained(settings.FINBERT_MODEL_NAME)
-                # top_k=None ensures all 3 classes: positive, negative, neutral are returned
-                self._pipeline = pipeline(
-                    "sentiment-analysis",
-                    model=model,
-                    tokenizer=self._tokenizer,
-                    top_k=None,
-                    device=-1  # CPU inference
-                )
-                logger.info("FinBERT model successfully loaded into memory.")
-            except Exception as e:
-                logger.error(f"Failed to load FinBERT model: {e}")
-                raise
+            with self._lock:
+                if self._pipeline is None:
+                    logger.info(f"Loading local FinBERT model ({settings.FINBERT_MODEL_NAME})...")
+                    try:
+                        self._tokenizer = AutoTokenizer.from_pretrained(settings.FINBERT_MODEL_NAME)
+                        model = AutoModelForSequenceClassification.from_pretrained(settings.FINBERT_MODEL_NAME)
+                        # top_k=None ensures all 3 classes: positive, negative, neutral are returned
+                        self._pipeline = pipeline(
+                            "sentiment-analysis",
+                            model=model,
+                            tokenizer=self._tokenizer,
+                            top_k=None,
+                            device=-1  # CPU inference
+                        )
+                        logger.info("FinBERT model successfully loaded into memory.")
+                    except Exception as e:
+                        logger.error(f"Failed to load FinBERT model: {e}")
+                        raise
 
     def _prepare_text(self, title: str, summary: str) -> str:
         """Tokenize text and truncate strictly to 512 tokens using FinBERT tokenizer."""

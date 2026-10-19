@@ -10,10 +10,30 @@ from app.db.database import SessionLocal
 from app.db.repository import SentimentRepository
 from app.api.routes import router as api_router
 from app.utils.logging import logger
+from alembic.config import Config
+from alembic import command
+
+
+def run_migrations():
+    """Run Alembic migrations programmatically to bring the database schema to head."""
+    ini_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "alembic.ini")
+    if not os.path.exists(ini_path):
+        ini_path = "alembic.ini"
+    alembic_cfg = Config(ini_path)
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    command.upgrade(alembic_cfg, "head")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: Run Alembic migrations programmatically
+    logger.info("Running database migrations via Alembic...")
+    try:
+        run_migrations()
+        logger.info("Database schema successfully upgraded to head.")
+    except Exception as e:
+        logger.warning(f"Alembic migration notice: {e}")
+
     # Startup: recover any leftover jobs from unexpected crash/restart
     logger.info("Initializing Market Sentiment Analysis application...")
     db = SessionLocal()

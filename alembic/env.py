@@ -12,7 +12,10 @@ from app.db.database import Base
 import app.db.models  # Ensure all models are registered
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+target_url = config.get_main_option("sqlalchemy.url")
+if not target_url or target_url == "sqlite:///./data/sentiment.db":
+    target_url = settings.DATABASE_URL
+    config.set_main_option("sqlalchemy.url", target_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -33,7 +36,9 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
+    db_url = config.get_main_option("sqlalchemy.url") or settings.DATABASE_URL
+    is_sqlite = db_url.startswith("sqlite")
+    connect_args = {"check_same_thread": False} if is_sqlite else {}
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -45,7 +50,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
-            render_as_batch=True if settings.DATABASE_URL.startswith("sqlite") else False,
+            render_as_batch=True if is_sqlite else False,
         )
 
         with context.begin_transaction():

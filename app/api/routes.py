@@ -36,6 +36,9 @@ from app.utils.logging import logger
 
 router = APIRouter(prefix="/api/v1")
 
+# Strong reference set to prevent background tasks from being garbage collected mid-execution (F-03)
+_background_tasks: set[asyncio.Task] = set()
+
 
 async def run_background_job(job_id: str, ticker: str, force_refresh: bool, enable_llm: bool):
     """
@@ -54,15 +57,22 @@ async def run_background_job(job_id: str, ticker: str, force_refresh: bool, enab
                 finally:
                     prog_db.close()
 
-            result = await AnalysisOrchestrator.run_pipeline(
-                ticker=ticker,
-                db=db,
-                force_refresh=force_refresh,
-                enable_llm=enable_llm,
-                on_progress=on_progress,
+            result = await asyncio.wait_for(
+                AnalysisOrchestrator.run_pipeline(
+                    ticker=ticker,
+                    db=db,
+                    force_refresh=force_refresh,
+                    enable_llm=enable_llm,
+                    on_progress=on_progress,
+                ),
+                timeout=float(settings.PIPELINE_TIMEOUT_SECONDS),
             )
             SentimentRepository.complete_job(db, job_id, result.run_id)
             logger.info(f"Job {job_id} for {ticker} completed successfully -> Run ID: {result.run_id}")
+        except asyncio.TimeoutError:
+            timeout_msg = f"Pipeline execution timed out after {settings.PIPELINE_TIMEOUT_SECONDS}s"
+            logger.error(f"Job {job_id} for {ticker} timed out: {timeout_msg}")
+            SentimentRepository.fail_job(db, job_id, timeout_msg)
         except SentimentAppException as e:
             logger.warning(f"Job {job_id} for {ticker} failed with domain error: {e.message}")
             SentimentRepository.fail_job(db, job_id, e.message)
@@ -98,9 +108,9 @@ async def analyze_ticker(
     except SentimentAppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
-    # 2. Early ticker normalization & validation
+    # 2. Early ticker normalization & validation (run in thread pool to prevent event loop blocking)
     try:
-        asset = TickerService.validate_and_resolve(req.ticker)
+        asset = await asyncio.to_thread(TickerService.validate_and_resolve, req.ticker)
         normalized_ticker = asset.ticker
     except SentimentAppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
@@ -122,8 +132,8 @@ async def analyze_ticker(
     job_id = str(uuid.uuid4())
     SentimentRepository.create_job(db, job_id, normalized_ticker)
 
-    # Launch in-app async background task
-    asyncio.create_task(
+    # Launch in-app async background task with strong reference to prevent GC collection (F-03)
+    task = asyncio.create_task(
         run_background_job(
             job_id=job_id,
             ticker=normalized_ticker,
@@ -131,6 +141,8 @@ async def analyze_ticker(
             enable_llm=req.enable_llm,
         )
     )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     response.status_code = status.HTTP_202_ACCEPTED
     return JobCreatedResponse(
@@ -176,11 +188,14 @@ async def stream_job_events(job_id: str):
         start_time = asyncio.get_event_loop().time()
 
         while True:
-            db: Session = SessionLocal()
-            try:
-                job = SentimentRepository.get_job(db, job_id)
-            finally:
-                db.close()
+            def _fetch_job():
+                db: Session = SessionLocal()
+                try:
+                    return SentimentRepository.get_job(db, job_id)
+                finally:
+                    db.close()
+
+            job = await asyncio.to_thread(_fetch_job)
 
             if not job:
                 yield f"id: {event_id}\nevent: failed\ndata: {json.dumps({'error': 'Job not found'})}\n\n"
