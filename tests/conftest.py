@@ -61,11 +61,14 @@ async def async_client(db_session):
     app.dependency_overrides.clear()
 
 
+from datetime import datetime, timezone, timedelta
+
 @pytest.fixture
 def sample_aapl_articles() -> list[IngestedArticle]:
     path = os.path.join(os.path.dirname(__file__), "fixtures", "news_aapl_positive.json")
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
+    now = datetime.now(timezone.utc)
     return [
         IngestedArticle(
             article_id=d["article_id"],
@@ -74,11 +77,11 @@ def sample_aapl_articles() -> list[IngestedArticle]:
             canonical_url=d["canonical_url"],
             title=d["title"],
             summary=d["summary"],
-            published_at_utc=datetime.fromisoformat(d["published_at_utc"].replace("Z", "+00:00")),
-            retrieved_at_utc=datetime.fromisoformat(d["retrieved_at_utc"].replace("Z", "+00:00")),
+            published_at_utc=now - timedelta(minutes=(30 - idx * 5)),
+            retrieved_at_utc=now,
             raw_provider_metadata={},
         )
-        for d in data
+        for idx, d in enumerate(data)
     ]
 
 
@@ -87,6 +90,7 @@ def sample_nvda_articles() -> list[IngestedArticle]:
     path = os.path.join(os.path.dirname(__file__), "fixtures", "news_nvda_negative.json")
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
+    now = datetime.now(timezone.utc)
     return [
         IngestedArticle(
             article_id=d["article_id"],
@@ -95,9 +99,10 @@ def sample_nvda_articles() -> list[IngestedArticle]:
             canonical_url=d["canonical_url"],
             title=d["title"],
             summary=d["summary"],
-            published_at_utc=datetime.fromisoformat(d["published_at_utc"].replace("Z", "+00:00")),
-            retrieved_at_utc=datetime.fromisoformat(d["retrieved_at_utc"].replace("Z", "+00:00")),
+            published_at_utc=now - timedelta(minutes=(30 - idx * 5)),
+            retrieved_at_utc=now,
             raw_provider_metadata={},
         )
-        for d in data
+        for idx, d in enumerate(data)
     ]
+

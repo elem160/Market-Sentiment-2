@@ -100,7 +100,7 @@ class SentimentRepository:
         return count
 
     @staticmethod
-    def get_cached_run(db: Session, cache_key: str) -> AnalysisResult | None:
+    def get_cached_run(db: Session, cache_key: str, max_age_seconds: int | None = None) -> AnalysisResult | None:
         run_record = (
             db.query(AnalysisRunDB)
             .filter(AnalysisRunDB.cache_key == cache_key)
@@ -109,6 +109,18 @@ class SentimentRepository:
         )
         if not run_record:
             return None
+
+        if max_age_seconds is not None:
+            now = datetime.now(timezone.utc)
+            created = run_record.created_at
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            # F-04: If NO_FRESH_NEWS, cap TTL to min(max_age_seconds, 300)
+            data_status = getattr(run_record, "data_status", "OK")
+            effective_ttl = min(max_age_seconds, 300) if data_status == "NO_FRESH_NEWS" else max_age_seconds
+            if (now - created).total_seconds() > effective_ttl:
+                return None
+
         return SentimentRepository._to_analysis_result(run_record, cache_status=CacheStatus.HIT)
 
     @staticmethod
@@ -138,6 +150,8 @@ class SentimentRepository:
             cache_status=result.cache_status.value,
             metrics_json=json.dumps(result.metrics.model_dump()),
             warnings_json=json.dumps(result.warnings),
+            data_status=result.data_status,
+            llm_summary=result.llm_summary,
             created_at=datetime.now(timezone.utc),
         )
         db.add(run_record)
@@ -163,6 +177,8 @@ class SentimentRepository:
                 catalyst_category=art.catalyst_category.value if art.catalyst_category else None,
                 exclusion_reason=art.exclusion_reason.value if art.exclusion_reason else None,
                 final_weight=art.final_weight,
+                effective_weight=art.effective_weight,
+                age_hours=art.age_hours,
                 cluster_id=art.cluster_id,
             )
             db.add(art_record)
@@ -223,8 +239,11 @@ class SentimentRepository:
                 canonical_publisher=a.canonical_publisher,
                 canonical_url=a.canonical_url,
                 title=a.title,
-                published_at_utc=a.published_at_utc.replace(tzinfo=timezone.utc)
-                if a.published_at_utc.tzinfo is None else a.published_at_utc,
+                published_at_utc=(
+                    a.published_at_utc.replace(tzinfo=timezone.utc)
+                    if a.published_at_utc and a.published_at_utc.tzinfo is None
+                    else a.published_at_utc
+                ),
                 lead_text=a.lead_text,
                 finbert_positive=a.finbert_positive,
                 finbert_negative=a.finbert_negative,
@@ -235,6 +254,8 @@ class SentimentRepository:
                 catalyst_category=CatalystCategory(a.catalyst_category) if a.catalyst_category else None,
                 exclusion_reason=ExclusionReason(a.exclusion_reason) if a.exclusion_reason else None,
                 final_weight=a.final_weight,
+                effective_weight=getattr(a, "effective_weight", 0.0) or 0.0,
+                age_hours=getattr(a, "age_hours", 0.0) or 0.0,
                 cluster_id=a.cluster_id,
             )
             for a in record.articles
@@ -277,6 +298,9 @@ class SentimentRepository:
             warnings=warnings,
             pipeline_mode=PipelineMode(record.pipeline_mode),
             cache_status=cache_status,
+            data_status=getattr(record, "data_status", "OK") or "OK",
+            llm_summary=getattr(record, "llm_summary", None),
             model_versions=model_versions,
             config_version=record.config_version,
         )
+

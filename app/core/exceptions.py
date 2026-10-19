@@ -89,3 +89,40 @@ class AnalysisRunNotFoundException(SentimentAppException):
             status_code=404,
             details={"run_id": run_id}
         )
+
+
+class FreshnessViolationException(SentimentAppException):
+    """Raised when an out-of-window article violates the core freshness invariant."""
+    def __init__(
+        self,
+        article_id: str = "",
+        timestamp_str: str = "",
+        window_start: str = "",
+        window_end: str = "",
+        message: str | None = None,
+    ):
+        msg = message or (
+            f"Core Invariant Violation: Article '{article_id}' timestamp ({timestamp_str}) "
+            f"lies outside session window [{window_start}, {window_end}]."
+        )
+        super().__init__(
+            message=msg,
+            status_code=500,
+            details={
+                "article_id": article_id,
+                "timestamp": timestamp_str,
+                "window_start": window_start,
+                "window_end": window_end,
+            }
+        )
+
+
+class NewsUnavailableException(SentimentAppException):
+    """Raised when all external news providers fail (total outage)."""
+    def __init__(self, message: str = "External news providers are currently unavailable."):
+        super().__init__(
+            message=message,
+            status_code=503,
+            details={"reason": "ALL_PROVIDERS_FAILED"}
+        )
+

@@ -19,11 +19,18 @@ class SessionWindow:
     run_timestamp_utc: datetime
     run_timestamp_et: datetime
 
-    def is_timestamp_in_window(self, dt_utc: datetime) -> bool:
-        """Check if an article's UTC timestamp falls within this session window."""
+    def is_timestamp_in_window(self, dt_utc: datetime | None) -> bool:
+        """
+        Check if an article's UTC timestamp falls within this session window,
+        allowing at most 5 minutes of future clock skew. Returns False if timestamp is None.
+        """
+        if dt_utc is None:
+            return False
         if dt_utc.tzinfo is None:
             dt_utc = dt_utc.replace(tzinfo=timezone.utc)
-        return self.window_start_utc <= dt_utc <= self.window_end_utc
+        skew_allowance = timedelta(minutes=5)
+        return self.window_start_utc <= dt_utc <= (self.window_end_utc + skew_allowance)
+
 
 
 def _calculate_easter(year: int) -> date:
@@ -184,3 +191,29 @@ def compute_session_window(reference_time: datetime | None = None) -> SessionWin
         run_timestamp_utc=run_utc,
         run_timestamp_et=run_et,
     )
+
+
+def compute_session_bucket(session: SessionWindow, now: datetime | None = None) -> tuple[str, int]:
+    """
+    Computes deterministic session cache bucket string and bucket duration in seconds.
+    - REGULAR_HOURS: floored to CACHE_INTRADAY_BUCKET_MINUTES
+    - Non-regular sessions: floored to CACHE_OFF_MARKET_BUCKET_MINUTES
+    Returns: (bucket_str, bucket_seconds)
+    """
+    from app.config import settings
+    ref_dt = now or session.run_timestamp_utc
+    if ref_dt.tzinfo is None:
+        ref_dt = ref_dt.replace(tzinfo=timezone.utc)
+    ref_et = ref_dt.astimezone(EASTERN_TZ)
+
+    if session.session_type == SessionType.REGULAR_HOURS:
+        bucket_mins = settings.CACHE_INTRADAY_BUCKET_MINUTES
+    else:
+        bucket_mins = settings.CACHE_OFF_MARKET_BUCKET_MINUTES
+
+    floored_minute = (ref_et.minute // bucket_mins) * bucket_mins
+    floored_et = ref_et.replace(minute=floored_minute, second=0, microsecond=0)
+    bucket_str = f"{session.session_type.value}_{floored_et.strftime('%Y%m%d%H%M')}"
+    bucket_seconds = bucket_mins * 60
+    return bucket_str, bucket_seconds
+

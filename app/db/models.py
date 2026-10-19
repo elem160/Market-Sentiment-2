@@ -51,6 +51,8 @@ class AnalysisRunDB(Base):
 
     metrics_json = Column(Text, nullable=False, default="{}")
     warnings_json = Column(Text, nullable=False, default="[]")
+    data_status = Column(String(20), nullable=False, default="OK")
+    llm_summary = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
@@ -72,7 +74,7 @@ class ArticleEvidenceDB(Base):
     canonical_publisher = Column(String(100), nullable=False)
     canonical_url = Column(Text, nullable=False)
     title = Column(Text, nullable=False)
-    published_at_utc = Column(DateTime, nullable=False)
+    published_at_utc = Column(DateTime, nullable=True)
     retrieved_at_utc = Column(DateTime, nullable=False)
     lead_text = Column(Text, nullable=False)
 
@@ -86,9 +88,12 @@ class ArticleEvidenceDB(Base):
     catalyst_category = Column(String(30), nullable=True)
     exclusion_reason = Column(String(40), nullable=True)
     final_weight = Column(Float, default=0.0)
+    effective_weight = Column(Float, default=0.0)
+    age_hours = Column(Float, default=0.0)
     cluster_id = Column(String(64), default="")
 
     run = relationship("AnalysisRunDB", back_populates="articles")
+
 
 
 class ObservedFactDB(Base):

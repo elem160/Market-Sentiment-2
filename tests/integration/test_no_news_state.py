@@ -34,10 +34,12 @@ async def test_no_current_day_news_returns_clean_hold(db_session):
         assert result.decision_confidence == 0.0
         assert result.evidence_quality == 0.0
         assert len(result.articles) == 0
-        assert "No verifiable news" in result.rationale.summary
-        assert any("No current-day news" in w for w in result.warnings)
+        assert result.data_status == "NO_FRESH_NEWS"
+        assert "No articles published inside the current session window" in result.rationale.summary
+        assert any("No articles published inside the current session window" in w for w in result.warnings)
 
         # Ensure run is persisted in database
         saved = SentimentRepository.get_analysis_run(db_session, result.run_id)
         assert saved is not None
         assert saved.decision == DecisionVerdict.HOLD
+        assert saved.data_status == "NO_FRESH_NEWS"

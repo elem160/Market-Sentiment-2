@@ -55,7 +55,7 @@ def test_sparse_evidence_mandates_hold():
     assert "Sparse evidence" in rationale.summary or "Insufficient" in rationale.summary
 
 
-def test_single_publisher_warning_emitted_without_false_hold_block():
+def test_single_publisher_forces_hold_with_insufficient_corroboration():
     session = compute_session_window()
     # Two articles, both from the same publisher (Reuters)
     art1 = create_mock_scored_article("1", "Reuters", 0.80, 0.88, cluster_id="c1")
@@ -65,9 +65,9 @@ def test_single_publisher_warning_emitted_without_false_hold_block():
         "AAPL", "Apple Inc.", session, [art1, art2], [], ""
     )
 
-    # Ratio logic triggers BUY with single-source feed warning rather than false HOLD block
-    assert decision == DecisionVerdict.BUY
-    assert any("Single-source feed" in w for w in warnings)
+    # Corroboration requirement forces HOLD when < 2 distinct publishers
+    assert decision == DecisionVerdict.HOLD
+    assert any("corroboration" in w.lower() for w in warnings)
 
 
 def test_neutral_articles_do_not_dilute_positive_buy():

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "yf-curr-001",
+    "title": "Apple expands AI cloud server deployment with custom silicon",
+    "publisher": "Reuters",
+    "link": "https://finance.yahoo.com/news/apple-expands-ai-cloud-server-deployment-123456.html",
+    "pubDate": "2026-10-18T14:30:00Z"
+  },
+  {
+    "id": "yf-curr-002",
+    "title": "Apple supply chain reports increased OLED orders for next year",
+    "publisher": "Bloomberg",
+    "link": "https://finance.yahoo.com/news/apple-supply-chain-oled-789012.html",
+    "pubDate": "2026-10-10T09:00:00Z"
+  },
+  {
+    "id": "yf-curr-003",
+    "title": "Rumors swirl regarding Apple future product pipeline",
+    "publisher": "TechRadar",
+    "link": "https://finance.yahoo.com/news/apple-rumors-product-pipeline-345678.html"
+  },
+  {
+    "uuid": "yf-leg-004",
+    "title": "Apple Services division posts record quarterly profits",
+    "publisher": "CNBC",
+    "link": "https://finance.yahoo.com/news/apple-services-record-quarterly-profits-112233.html",
+    "providerPublishTime": 1792418400
+  }
+]

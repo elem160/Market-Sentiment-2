@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 from app.core.enums import (
     AssetType,
     DecisionVerdict,
@@ -32,9 +32,9 @@ class IngestedArticle(BaseModel):
     canonical_url: str                   # Cleaned URL without utm_* tracking
     title: str                           # Sanitized headline
     summary: str = ""                    # Summary or lead text (max 1000 chars)
-    published_at_utc: datetime           # Timezone-aware UTC timestamp
+    published_at_utc: datetime | None = None # None means missing or untrusted
     retrieved_at_utc: datetime           # Timestamp when ingested
-    raw_provider_metadata: dict = field(default_factory=dict)
+    raw_provider_metadata: dict = Field(default_factory=dict)
 
 
 class ScoredArticle(BaseModel):
@@ -44,7 +44,7 @@ class ScoredArticle(BaseModel):
     canonical_publisher: str             # Normalized publisher root entity
     canonical_url: str
     title: str
-    published_at_utc: datetime
+    published_at_utc: datetime | None = None # Timezone-aware UTC timestamp or None if undated
     lead_text: str
     finbert_positive: float
     finbert_negative: float
@@ -55,6 +55,8 @@ class ScoredArticle(BaseModel):
     catalyst_category: CatalystCategory | None = None
     exclusion_reason: ExclusionReason | None = None
     final_weight: float = 0.0
+    effective_weight: float = 0.0        # recency_decay * max(0.2, final_weight)
+    age_hours: float = 0.0               # Hours elapsed from publication to session run
     cluster_id: str = ""                 # Group ID for syndicated articles
 
 
@@ -80,6 +82,8 @@ class PipelineMetrics(BaseModel):
     articles_deduplicated: int = 0
     articles_scored_local: int = 0
     articles_sent_to_llm: int = 0
+    excluded_out_of_window: int = 0
+    excluded_missing_timestamp: int = 0
     prompt_tokens: int = 0
     completion_tokens: int = 0
     estimated_cost_usd: float = 0.0
@@ -104,5 +108,8 @@ class AnalysisResult(BaseModel):
     warnings: list[str] = []
     pipeline_mode: PipelineMode = PipelineMode.HYBRID_FINBERT_LLM
     cache_status: CacheStatus = CacheStatus.MISS
+    data_status: str = "OK"              # "OK" | "NO_FRESH_NEWS"
+    llm_summary: str | None = None
     model_versions: dict[str, str] = {}
     config_version: str = ""
+

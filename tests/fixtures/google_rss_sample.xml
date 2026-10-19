@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Google News - AAPL</title>
+    <link>https://news.google.com/search?q=AAPL</link>
+    <description>Google News</description>
+    <item>
+      <title>Apple Launches New High-Performance Silicon Server Lineup - Reuters</title>
+      <link>https://news.google.com/rss/articles/CBMiRGh0dHBzOi8vd3d3LnJldXRlcnMuY29tL3RlY2hub2xvZ3kvYXBwbGUtbGF1bmNoZXMtbmV3LW1hY2Jvb2stbGluZXVw0gEA?oc=5</link>
+      <guid isPermaLink="false">CBMiRGh0dHBzOi8vd3d3LnJldXRlcnMuY29tL3RlY2hub2xvZ3kvYXBwbGUtbGF1bmNoZXMtbmV3LW1hY2Jvb2stbGluZXVw0gEA</guid>
+      <pubDate>Mon, 19 Oct 2026 00:30:00 GMT</pubDate>
+      <description>&lt;a href="https://news.google.com/rss/articles/CBMi..."&gt;Apple Launches New High-Performance Silicon Server Lineup&lt;/a&gt;&amp;nbsp;&amp;nbsp;&lt;font color="#6f6f6f"&gt;Reuters&lt;/font&gt;</description>
+      <source url="https://www.reuters.com">Reuters</source>
+    </item>
+    <item>
+      <title>Historical Analysis of Apple 2018 Market Capitalization - Wall Street Journal</title>
+      <link>https://news.google.com/rss/articles/CBMiOGh0dHBzOi8vd3d3Lndzai5jb20vYXJ0aWNsZXMvYXBwbGUtMjAxOC1tYXJrZXQtY2FwLWhpc3RvcnkwgEA?oc=5</link>
+      <guid isPermaLink="false">CBMiOGh0dHBzOi8vd3d3Lndzai5jb20vYXJ0aWNsZXMvYXBwbGUtMjAxOC1tYXJrZXQtY2FwLWhpc3RvcnkwgEA</guid>
+      <pubDate>Sat, 01 Sep 2018 12:00:00 GMT</pubDate>
+      <description>&lt;a href="..."&gt;Historical Analysis of Apple 2018 Market Capitalization&lt;/a&gt;</description>
+      <source url="https://www.wsj.com">The Wall Street Journal</source>
+    </item>
+    <item>
+      <title>Speculation on Apple Hardware Without Published Date - Bloomberg</title>
+      <link>https://news.google.com/rss/articles/CBMiNGh0dHBzOi8vd3d3LmJsb29tYmVyZy5jb20vbmV3cy9hcnRpY2xlcy9hcHBsZS1zcGVjdWxhdGlvbj0gEA?oc=5</link>
+      <guid isPermaLink="false">CBMiNGh0dHBzOi8vd3d3LmJsb29tYmVyZy5jb20vbmV3cy9hcnRpY2xlcy9hcHBsZS1zcGVjdWxhdGlvbj0gEA</guid>
+      <description>Speculation about future releases without timestamp.</description>
+      <source url="https://www.bloomberg.com">Bloomberg</source>
+    </item>
+  </channel>
+</rss>
