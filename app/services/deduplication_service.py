@@ -64,12 +64,13 @@ class DeduplicationService:
 
     @staticmethod
     def normalize_publisher(source_name: str) -> str:
-        """Extracts and normalizes canonical publisher entity name."""
+        """Extracts and normalizes canonical publisher entity name using whole-word boundaries (F-11)."""
         lower = source_name.lower().strip()
-        for pattern, canonical in PUBLISHER_NORMALIZATION_MAP.items():
-            if pattern in lower:
+        # Sort patterns by length descending so longer phrases match before abbreviations (e.g. Associated Press before AP)
+        for pattern, canonical in sorted(PUBLISHER_NORMALIZATION_MAP.items(), key=lambda x: len(x[0]), reverse=True):
+            if re.search(rf"\b{re.escape(pattern)}\b", lower):
                 return canonical
-        if "google" in lower or "rss" in lower:
+        if re.search(r"\b(google|rss)\b", lower):
             return "Unknown Aggregator"
         return source_name.strip()
 
@@ -95,50 +96,56 @@ class DeduplicationService:
     def is_materially_relevant(cls, article: IngestedArticle, ticker: str, company_name: str) -> bool:
         """
         Verify that the ticker symbol, asset aliases, or company name is materially mentioned
-        in the title or summary, avoiding listicles or generic market roundups.
-        Supports Equities ($NVDA, AAPL), Forex (EUR/USD, EURUSD), Commodities (GC=F, Gold),
-        and Crypto (BTC-USD, Bitcoin).
+        in the title or summary, avoiding listicles or generic market roundups (F-10).
         """
         full_text = f"{article.title} {article.summary}".lower()
         ticker_lower = ticker.lower()
 
-        # 1. Direct or $ prefixed mention
-        if ticker_lower in full_text or f"${ticker_lower}" in full_text:
+        # 1. Cash-tag mention always counts (e.g. $AAPL, $A, $NVDA)
+        if re.search(rf"\${re.escape(ticker_lower)}\b", full_text):
             return True
 
-        # 2. Forex notation variants (EUR/USD <-> EURUSD <-> EURUSD=X)
+        # 2. Bare ticker matching:
+        # For 1-2 char tickers (e.g., A, C, F, AI, ON, IT, GE), do NOT match bare word boundary
+        # to avoid matching indefinite articles ("a"), prepositions ("on", "in", "it"), etc.
+        # Require $ prefix (checked above) or company name (checked below).
+        if len(ticker_lower) >= 3:
+            clean_ticker = re.sub(r"[^a-zA-Z0-9]", "", ticker_lower)
+            if clean_ticker and len(clean_ticker) <= 5:
+                if re.search(rf"\b{re.escape(clean_ticker)}\b", full_text):
+                    return True
+
+        # 3. Forex notation variants (EUR/USD <-> EURUSD <-> EURUSD=X)
         if "/" in ticker_lower:
             no_slash = ticker_lower.replace("/", "")
-            if no_slash in full_text:
+            if re.search(rf"\b{re.escape(no_slash)}\b", full_text):
                 return True
         if ticker_lower.endswith("=x"):
             raw_pair = ticker_lower[:-2]
-            if raw_pair in full_text:
+            if re.search(rf"\b{re.escape(raw_pair)}\b", full_text):
                 return True
 
-        # 3. Crypto / Futures variants (BTC-USD -> BTC, GC=F -> GC)
+        # 4. Crypto / Futures variants (BTC-USD -> BTC, GC=F -> GC)
         if "-" in ticker_lower:
             crypto_root = ticker_lower.split("-")[0]
             if len(crypto_root) >= 3 and re.search(rf"\b{re.escape(crypto_root)}\b", full_text):
                 return True
 
-        # 4. Standalone alphanumeric ticker word boundary check (e.g. NVDA, AAPL)
-        clean_alphanumeric = re.sub(r"[^a-zA-Z0-9]", "", ticker_lower)
-        if clean_alphanumeric and len(clean_alphanumeric) <= 5:
-            if re.search(rf"\b{re.escape(clean_alphanumeric)}\b", full_text):
-                return True
-
-        # 5. Check meaningful company name / asset tokens (e.g. NVIDIA, Apple, Gold, Euro, Bitcoin)
+        # 5. Meaningful company name tokens (stripped of generic corporate suffixes)
         stop_name_tokens = {
-            "inc", "corp", "corporation", "ltd", "company", "co", "the", "group",
-            "futures", "currency", "pair", "class", "common", "stock"
+            "inc", "incorporated", "corp", "corporation", "ltd", "limited", "company", "co",
+            "the", "group", "holdings", "holding", "plc", "llc", "class", "common", "stock",
+            "shares", "etf", "trust", "fund", "index"
         }
+        company_clean = re.sub(r"[^\w\s]", " ", company_name.lower())
         company_tokens = [
-            t for t in cls.tokenize(company_name)
+            t for t in company_clean.split()
             if t not in stop_name_tokens and len(t) >= 3
         ]
-        if company_tokens and any(t in full_text for t in company_tokens):
-            return True
+        if company_tokens:
+            for token in company_tokens:
+                if re.search(rf"\b{re.escape(token)}\b", full_text):
+                    return True
 
         return False
 
@@ -196,14 +203,14 @@ class DeduplicationService:
 
     @classmethod
     def process_and_deduplicate(
-        cls, raw_articles: list[IngestedArticle], ticker: str, company_name: str
+        cls, raw_articles: list[IngestedArticle], ticker: str, company_name: str, max_articles: int | None = None
     ) -> tuple[list[IngestedArticle], list[tuple[IngestedArticle, ExclusionReason, str]], dict[str, str]]:
         """
         Processes ingested articles:
         1. Canonicalizes URLs
         2. Filters out articles lacking material entity relevance
         3. Detects syndicated duplicates via Token-Sort Jaccard similarity (>= 0.82)
-        4. Enforces capacity limit (settings.MAX_RETAINED_ARTICLES) newest first
+        4. Enforces capacity limit (settings.MAX_RETAINED_ARTICLES or max_articles) newest first
         
         Returns:
         - retained_articles: list[IngestedArticle]
@@ -267,14 +274,15 @@ class DeduplicationService:
             reverse=True
         )
 
+        effective_limit = max_articles if max_articles is not None else settings.MAX_RETAINED_ARTICLES
         for candidate in non_dup_candidates:
-            if len(retained) < settings.MAX_RETAINED_ARTICLES:
+            if len(retained) < effective_limit:
                 retained.append(candidate)
             else:
                 excluded.append((
                     candidate,
                     ExclusionReason.CAPACITY_LIMIT,
-                    f"Retained article limit ({settings.MAX_RETAINED_ARTICLES}) reached."
+                    f"Retained article limit ({effective_limit}) reached."
                 ))
 
         return retained, excluded, cluster_map

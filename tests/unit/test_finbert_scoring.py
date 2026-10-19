@@ -92,3 +92,32 @@ def test_neutral_zero_weighting_rule():
     assert scored.finbert_neutral == 0.65
     assert scored.finbert_directional_score == 0.0
     assert scored.final_weight == 0.0
+
+
+def test_moderate_neutral_with_strong_directional_signal_not_zeroed():
+    """Verify F-12: An article with p_neu >= 0.60 but strong directional diff (>= 0.15) is not zeroed."""
+    finbert = FinBERTService.get_instance()
+    # p_pos = 0.35, p_neg = 0.05, p_neu = 0.60 -> diff = 0.30 >= 0.15 threshold
+    FinBERTService.set_mock_mode(lambda text: {"positive": 0.35, "negative": 0.05, "neutral": 0.60})
+
+    now = datetime.now(timezone.utc)
+    art = IngestedArticle(
+        article_id="test_dir_neu",
+        provider=ProviderType.YFINANCE,
+        source_name="Reuters",
+        canonical_url="https://reuters.com/test2",
+        title="Revenue expands steadily across divisions",
+        summary="Consistent positive momentum reported.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+
+    results = finbert._batch_score_articles_sync([art], {})
+    assert len(results) == 1
+    scored = results[0]
+
+    assert scored.finbert_neutral == 0.60
+    assert scored.finbert_directional_score == pytest.approx(0.30, 0.01)
+    # Weight should be proportional: confidence (0.35) * (1 - p_neu (0.60)) = 0.14
+    assert scored.final_weight == pytest.approx(0.35 * 0.40, 0.01)
+    assert scored.final_weight > 0.0

@@ -8,6 +8,8 @@ from app.services.deduplication_service import DeduplicationService
 from app.utils.logging import logger
 
 
+from app.core.constants import DIRECTIONAL_THRESHOLD
+
 class FinBERTService:
     _instance: "FinBERTService | None" = None
     _lock = threading.Lock()
@@ -117,15 +119,18 @@ class FinBERTService:
             p_neu = scores.get("neutral", 0.0)
 
             # Directional Score formula: P(pos) - P(neg) in [-1.0, 1.0]
-            directional_score = round(p_pos - p_neg, 4)
+            diff = round(p_pos - p_neg, 4)
             confidence = round(max(p_pos, p_neg), 4)
 
-            # Neutral Rule: If neutral dominates, directional score and weight are 0.0
-            if p_neu > 0.60 or abs(directional_score) < 0.15:
+            # Neutral Rule (F-12):
+            # If absolute directional difference is below threshold, article is neutral (0.0 score, 0.0 weight).
+            # If >= threshold, score is diff and weight is proportional to confidence * (1.0 - p_neu).
+            if abs(diff) < DIRECTIONAL_THRESHOLD:
                 directional_score = 0.0
                 initial_weight = 0.0
             else:
-                initial_weight = confidence
+                directional_score = diff
+                initial_weight = round(confidence * (1.0 - p_neu), 4)
 
             canonical_pub = DeduplicationService.normalize_publisher(art.source_name)
             cluster_id = cluster_map.get(art.article_id, f"clust_{art.article_id[:8]}")

@@ -134,3 +134,123 @@ def test_deduplication_pipeline():
     reasons = {e[1] for e in excluded}
     assert ExclusionReason.DUPLICATE_SYNDICATION in reasons
     assert ExclusionReason.INSUFFICIENT_ENTITY_RELEVANCE in reasons
+
+
+def test_normalize_publisher_whole_word_boundaries():
+    """Verify F-11: Short publisher abbreviations like 'ap' do not match inside words like 'Snap' or 'Apple'."""
+    # Matches genuine Associated Press
+    assert DeduplicationService.normalize_publisher("Associated Press") == "Associated Press"
+    assert DeduplicationService.normalize_publisher("AP News") == "Associated Press"
+
+    # Must NOT match 'ap' inside Snap, Apple, or Japanese
+    assert DeduplicationService.normalize_publisher("Snap Newsroom") == "Snap Newsroom"
+    assert DeduplicationService.normalize_publisher("Apple PR") == "Apple PR"
+    assert DeduplicationService.normalize_publisher("Japanese Tech Daily") == "Japanese Tech Daily"
+
+
+def test_entity_relevance_short_ticker_protection():
+    """Verify F-10: 1-2 char tickers (e.g. 'A', 'AI') require cash-tag or company name, avoiding common word matches."""
+    now = datetime.now(timezone.utc)
+
+    # False positive text containing bare 'a'
+    art_bare_a = IngestedArticle(
+        article_id="bare_a",
+        provider=ProviderType.YFINANCE,
+        source_name="Reuters",
+        canonical_url="https://example.com/a",
+        title="A major new corporate report details broad economic indicators",
+        summary="Analysts reviewed standard GDP data yesterday afternoon.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+    # Ticker 'A' without cash tag or company name MUST NOT match
+    assert DeduplicationService.is_materially_relevant(art_bare_a, "A", "Agilent Technologies Inc.") is False
+
+    # Genuine cash tag mention $A MUST match
+    art_cash_a = IngestedArticle(
+        article_id="cash_a",
+        provider=ProviderType.YFINANCE,
+        source_name="Reuters",
+        canonical_url="https://example.com/cash_a",
+        title="Investors buy shares of $A following quarterly profit beat",
+        summary="Positive momentum observed in today's trading session.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+    assert DeduplicationService.is_materially_relevant(art_cash_a, "A", "Agilent Technologies Inc.") is True
+
+    # Genuine company name mention (stripped of 'Inc.') MUST match
+    art_comp_a = IngestedArticle(
+        article_id="comp_a",
+        provider=ProviderType.YFINANCE,
+        source_name="Reuters",
+        canonical_url="https://example.com/comp_a",
+        title="Agilent announces breakthrough diagnostic equipment",
+        summary="New laboratory products launch globally.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+    assert DeduplicationService.is_materially_relevant(art_comp_a, "A", "Agilent Technologies Inc.") is True
+
+    # Substring 'ai' inside 'said' or 'daily' MUST NOT match ticker 'AI'
+    art_substring_ai = IngestedArticle(
+        article_id="sub_ai",
+        provider=ProviderType.YFINANCE,
+        source_name="Reuters",
+        canonical_url="https://example.com/sub_ai",
+        title="Executives said daily retail store traffic improved",
+        summary="Retail performance was steady.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+    assert DeduplicationService.is_materially_relevant(art_substring_ai, "AI", "C3.ai, Inc.") is False
+
+
+def test_process_and_deduplicate_sorts_newest_first_before_truncation():
+    """Verify F-05: When truncation occurs at max_articles, newest articles are retained."""
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+
+    # 3 relevant articles with distinct timestamps
+    art_oldest = IngestedArticle(
+        article_id="oldest",
+        provider=ProviderType.YFINANCE,
+        source_name="Reuters",
+        canonical_url="https://example.com/old",
+        title="Apple launches product update",
+        summary="Apple Inc product details.",
+        published_at_utc=now - timedelta(hours=3),
+        retrieved_at_utc=now,
+    )
+    art_middle = IngestedArticle(
+        article_id="middle",
+        provider=ProviderType.YFINANCE,
+        source_name="CNBC",
+        canonical_url="https://example.com/mid",
+        title="Apple reports services acceleration",
+        summary="Apple Inc services growth.",
+        published_at_utc=now - timedelta(hours=2),
+        retrieved_at_utc=now,
+    )
+    art_newest = IngestedArticle(
+        article_id="newest",
+        provider=ProviderType.YFINANCE,
+        source_name="Bloomberg",
+        canonical_url="https://example.com/new",
+        title="Apple expands enterprise cloud data centers",
+        summary="Apple Inc cloud expansion.",
+        published_at_utc=now - timedelta(hours=1),
+        retrieved_at_utc=now,
+    )
+
+    # Pass in unsorted order and truncate to max_articles=2
+    retained, excluded, clusters = DeduplicationService.process_and_deduplicate(
+        [art_oldest, art_newest, art_middle], "AAPL", "Apple Inc.", max_articles=2
+    )
+
+    assert len(retained) == 2
+    # The retained articles must be the two newest: 'newest' and 'middle'
+    retained_ids = {a.article_id for a in retained}
+    assert "newest" in retained_ids
+    assert "middle" in retained_ids
+    assert "oldest" not in retained_ids

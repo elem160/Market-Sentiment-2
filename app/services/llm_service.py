@@ -48,11 +48,13 @@ class LLMService:
             skip_reason = "NO_API_KEY" if not self.client else ("NO_DIRECTIONAL_CANDIDATES" if not eval_candidates else "LLM_DISABLED")
             return candidate_articles, [], "", {"status": "SKIPPED", "reason": skip_reason}
 
-        # Build single numbered headline catalog
+        # Build single numbered headline catalog with angle-bracket escaping (F-13)
         catalog_lines = []
         for i, art in enumerate(eval_candidates, 1):
             sentiment = "POSITIVE" if art.finbert_directional_score > 0 else "NEGATIVE"
-            catalog_lines.append(f"[{i}] {art.title} (Source: {art.canonical_publisher}, Sentiment: {sentiment})")
+            safe_title = art.title.replace("<", "&lt;").replace(">", "&gt;")
+            safe_pub = art.canonical_publisher.replace("<", "&lt;").replace(">", "&gt;")
+            catalog_lines.append(f"[{i}] {safe_title} (Source: {safe_pub}, Sentiment: {sentiment})")
         headlines_text = "\n".join(catalog_lines)
 
         system_prompt = (
@@ -63,12 +65,15 @@ class LLMService:
             "3. Identify ONLY the headlines that represent true market-moving catalysts (e.g. earnings beat/miss, major M&A, regulatory rulings, interest rate/macro decisions, material product rollouts).\n"
             "4. Classify routine price recaps, speculation, clickbait, and minor daily chatter as non-catalysts.\n"
             "5. Respond strictly in valid JSON adhering to this schema:\n"
-            '{\n  "catalyst_indices": [1, 4, ...],\n  "synthesis_summary": "1-2 sentence executive summary of the primary confirmed catalyst drivers."\n}\n'
+            '{\n  "catalysts": [{"index": 1, "category": "EARNINGS"}, ...],\n  "catalyst_indices": [1, 4, ...],\n  "synthesis_summary": "1-2 sentence executive summary of the primary confirmed catalyst drivers."\n}\n'
+            'Valid categories: EARNINGS, M_AND_A, REGULATORY, PRODUCT_EXECUTION, MACRO, ANALYST_ACTION, LITIGATION, OTHER.\n'
             'If no headlines qualify as material catalysts, return {"catalyst_indices": [], "synthesis_summary": "No material catalysts observed in current headlines."}'
         )
 
+        safe_ticker = ticker.replace("<", "&lt;").replace(">", "&gt;")
+        safe_company = company_name.replace("<", "&lt;").replace(">", "&gt;")
         user_prompt = (
-            f"Asset: {ticker} ({company_name})\n\n"
+            f"Asset: {safe_ticker} ({safe_company})\n\n"
             "<untrusted_headlines_catalog>\n"
             f"{headlines_text}\n"
             "</untrusted_headlines_catalog>\n\n"
@@ -84,6 +89,10 @@ class LLMService:
 
         t0 = time.time()
         models_to_try = [settings.LLM_MODEL_ID]
+        if getattr(settings, "LLM_FALLBACK_MODEL_ID", None):
+            fallback = settings.LLM_FALLBACK_MODEL_ID
+            if fallback and fallback not in models_to_try:
+                models_to_try.append(fallback)
         if "nvidia/nemotron-3-super-120b-a12b:free" not in models_to_try:
             models_to_try.append("nvidia/nemotron-3-super-120b-a12b:free")
 
@@ -117,7 +126,7 @@ class LLMService:
 
         try:
             raw_content = response.choices[0].message.content or "{}"
-            catalyst_indices, synthesis_summary = self._parse_llm_response(raw_content, len(eval_candidates))
+            catalyst_map, synthesis_summary = self._parse_llm_response(raw_content, len(eval_candidates))
             latency_ms = round((time.time() - t0) * 1000, 1)
 
             prompt_tokens = response.usage.prompt_tokens if response.usage else est_prompt_tokens
@@ -137,12 +146,12 @@ class LLMService:
 
         # Apply catalyst confirmations
         verified_facts: list[ObservedFact] = []
-        confirmed_set = set(catalyst_indices)
 
         for i, art in enumerate(eval_candidates, 1):
-            if i in confirmed_set:
+            if i in catalyst_map:
+                category = catalyst_map[i]
                 art.is_llm_catalyst = True
-                art.catalyst_category = CatalystCategory.OTHER
+                art.catalyst_category = category
                 art.final_weight = round(art.final_weight * 1.25, 4)
 
                 polarity = (
@@ -154,7 +163,7 @@ class LLMService:
                     ObservedFact(
                         statement=art.title.strip(),
                         cited_article_id=art.article_id,
-                        catalyst_category=CatalystCategory.OTHER,
+                        catalyst_category=category,
                         impact=polarity,
                     )
                 )
@@ -162,8 +171,10 @@ class LLMService:
         return candidate_articles, verified_facts, synthesis_summary, usage_telemetry
 
     @classmethod
-    def _parse_llm_response(cls, raw: str, max_index: int) -> tuple[list[int], str]:
-        """Robust parser handling JSON schemas or plain comma-separated integers."""
+    def _parse_llm_response(
+        cls, raw: str, max_index: int
+    ) -> tuple[dict[int, CatalystCategory], str]:
+        """Strict JSON parser extracting catalyst confirmations and categories without regex digit fallback (F-13)."""
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             lines = cleaned.splitlines()
@@ -173,29 +184,46 @@ class LLMService:
                 lines = lines[:-1]
             cleaned = "\n".join(lines).strip()
 
-        # Try JSON parsing
-        try:
-            match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-            if match:
-                payload = json.loads(match.group(0))
-                indices = []
-                if "catalyst_indices" in payload and isinstance(payload["catalyst_indices"], list):
-                    indices = [int(x) for x in payload["catalyst_indices"] if isinstance(x, (int, str)) and str(x).isdigit()]
-                elif "catalysts" in payload and isinstance(payload["catalysts"], list):
-                    for item in payload["catalysts"]:
-                        if isinstance(item, dict):
-                            idx = item.get("article_index") or item.get("index")
-                            if idx and str(idx).isdigit():
-                                indices.append(int(idx))
-                        elif isinstance(item, (int, str)) and str(item).isdigit():
-                            indices.append(int(item))
-                summary = payload.get("synthesis_summary", "")
-                valid_indices = [idx for idx in indices if 1 <= idx <= max_index]
-                return valid_indices, summary
-        except Exception:
-            pass
+        catalyst_map: dict[int, CatalystCategory] = {}
+        summary = ""
 
-        # Fallback: regex search for integers
-        integers = [int(m) for m in re.findall(r"\b\d+\b", cleaned)]
-        valid_indices = [idx for idx in integers if 1 <= idx <= max_index]
-        return valid_indices, "Observed financial catalyst momentum from current headlines."
+        # Find outer-most JSON object {...}
+        first_brace = cleaned.find("{")
+        last_brace = cleaned.rfind("}")
+        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+            json_str = cleaned[first_brace : last_brace + 1]
+            try:
+                payload = json.loads(json_str)
+                if isinstance(payload, dict):
+                    # Check structured catalysts array
+                    if "catalysts" in payload and isinstance(payload["catalysts"], list):
+                        for item in payload["catalysts"]:
+                            if isinstance(item, dict):
+                                idx = item.get("article_index") or item.get("index")
+                                cat_str = str(item.get("category", "OTHER")).upper()
+                                if idx is not None and str(idx).isdigit():
+                                    idx_int = int(idx)
+                                    if 1 <= idx_int <= max_index:
+                                        try:
+                                            cat = CatalystCategory[cat_str]
+                                        except KeyError:
+                                            cat = CatalystCategory.OTHER
+                                        catalyst_map[idx_int] = cat
+                            elif isinstance(item, (int, str)) and str(item).isdigit():
+                                idx_int = int(item)
+                                if 1 <= idx_int <= max_index:
+                                    catalyst_map[idx_int] = CatalystCategory.OTHER
+
+                    # Check catalyst_indices integer array
+                    if "catalyst_indices" in payload and isinstance(payload["catalyst_indices"], list):
+                        for x in payload["catalyst_indices"]:
+                            if isinstance(x, (int, str)) and str(x).isdigit():
+                                idx_int = int(x)
+                                if 1 <= idx_int <= max_index and idx_int not in catalyst_map:
+                                    catalyst_map[idx_int] = CatalystCategory.OTHER
+
+                    summary = str(payload.get("synthesis_summary", "")).strip()
+            except Exception:
+                pass
+
+        return catalyst_map, summary

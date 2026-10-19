@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # Model Identifiers
     FINBERT_MODEL_NAME: str = "ProsusAI/finbert"
     LLM_MODEL_ID: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
+    LLM_FALLBACK_MODEL_ID: str = "openai/gpt-4o-mini"
     ENABLE_LLM: bool = True
 
     # External Provider Credentials
