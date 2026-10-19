@@ -117,13 +117,13 @@ async def analyze_ticker(
 
     # 3. Quick Cache Check
     if not req.force_refresh:
-        from app.core.session_window import compute_session_window
+        from app.core.session_window import compute_session_window, compute_session_bucket
         session = compute_session_window()
-        session_bucket = f"{session.session_type.value}_{session.window_start_et.strftime('%Y%m%d%H')}"
+        session_bucket, bucket_seconds = compute_session_bucket(session)
         cache_key = AnalysisOrchestrator.compute_cache_key(
-            normalized_ticker, session_bucket, "yfinance_finnhub_rss", req.enable_llm
+            normalized_ticker, session_bucket, "yfinance_rss", req.enable_llm
         )
-        cached = SentimentRepository.get_cached_run(db, cache_key)
+        cached = SentimentRepository.get_cached_run(db, cache_key, max_age_seconds=bucket_seconds)
         if cached:
             response.status_code = status.HTTP_200_OK
             return cached

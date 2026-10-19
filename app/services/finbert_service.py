@@ -65,7 +65,7 @@ class FinBERTService:
         combined = f"{title}. {summary}".strip()
         if self._is_mock or self._tokenizer is None:
             # Word slicing fallback for mock mode
-            words = combined.split()[:250]
+            words = combined.split()[: settings.MAX_EXCERPT_TOKENS]
             return " ".join(words)[:1200]
         
         tokens = self._tokenizer.encode(combined, max_length=512, truncation=True)

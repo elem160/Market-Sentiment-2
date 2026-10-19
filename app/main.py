@@ -16,23 +16,29 @@ from alembic import command
 
 def run_migrations():
     """Run Alembic migrations programmatically to bring the database schema to head."""
-    ini_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "alembic.ini")
-    if not os.path.exists(ini_path):
-        ini_path = "alembic.ini"
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    ini_path = os.path.join(base_dir, "alembic.ini")
     alembic_cfg = Config(ini_path)
-    alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    alembic_cfg.set_main_option("script_location", os.path.join(base_dir, "alembic"))
+
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("sqlite") and ":memory:" not in db_url:
+        db_path = db_url.replace("sqlite:///", "").replace("sqlite://", "")
+        if not os.path.isabs(db_path):
+            db_path = os.path.normpath(os.path.join(base_dir, db_path))
+            db_url = f"sqlite:///{db_path}"
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
     command.upgrade(alembic_cfg, "head")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Run Alembic migrations programmatically
+    # Startup: Run Alembic migrations programmatically (failures raise and are not swallowed)
     logger.info("Running database migrations via Alembic...")
-    try:
-        run_migrations()
-        logger.info("Database schema successfully upgraded to head.")
-    except Exception as e:
-        logger.warning(f"Alembic migration notice: {e}")
+    run_migrations()
+    logger.info("Database schema successfully upgraded to head.")
 
     # Startup: recover any leftover jobs from unexpected crash/restart
     logger.info("Initializing Market Sentiment Analysis application...")
@@ -49,7 +55,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Market Sentiment Analysis API",
-    description="Empirical research and directional market-sentiment classification for US Equities and ETFs.",
+    description="Empirical research and directional market-sentiment classification for US Equities, ETFs, Forex pairs, Cryptocurrencies, and Commodities.",
     version="1.0.0",
     lifespan=lifespan,
 )

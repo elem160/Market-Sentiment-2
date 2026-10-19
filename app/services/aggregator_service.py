@@ -9,7 +9,7 @@ from app.core.models import (
 )
 from app.core.session_window import SessionWindow
 from app.core.exceptions import FreshnessViolationException
-from app.core.constants import DIRECTIONAL_THRESHOLD
+from app.core.constants import DIRECTIONAL_THRESHOLD, DEFAULT_WEIGHT_FLOOR
 
 # 14-hour half life for exponential recency decay
 LAMBDA_DECAY = math.log(2.0) / 14.0
@@ -93,7 +93,7 @@ class AggregatorService:
             recency_decay = math.exp(-LAMBDA_DECAY * delta_hours)
 
             # Compute effective_weight once per article
-            effective_weight = round(recency_decay * max(0.2, art.final_weight), 4)
+            effective_weight = round(recency_decay * max(DEFAULT_WEIGHT_FLOOR, art.final_weight), 4)
             art.effective_weight = effective_weight
             art.age_hours = round(delta_hours, 2)
 

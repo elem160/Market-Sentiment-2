@@ -15,6 +15,7 @@ from app.core.models import (
 from app.core.enums import PipelineStage, PipelineMode, CacheStatus, DecisionVerdict
 from app.core.session_window import compute_session_window, compute_session_bucket
 from app.core.exceptions import FreshnessViolationException, NewsUnavailableException
+from app.core.constants import DIRECTIONAL_THRESHOLD
 from app.services.ticker_service import TickerService
 from app.services.news_service import NewsService
 from app.services.deduplication_service import DeduplicationService
@@ -76,7 +77,7 @@ class AnalysisOrchestrator:
 
         # Multi-dimensional cache key calculation (F-03)
         session_bucket, bucket_seconds = compute_session_bucket(session)
-        provider_hash = "yfinance_finnhub_rss"
+        provider_hash = "yfinance_rss"
         cache_key = cls.compute_cache_key(asset.ticker, session_bucket, provider_hash, enable_llm)
 
         # Check Cache
@@ -108,6 +109,22 @@ class AnalysisOrchestrator:
         if provider_outcomes and all(outcome.get("status") == "FAILED" for outcome in provider_outcomes.values()):
             logger.error(f"All external news providers failed for {asset.ticker}.")
             raise NewsUnavailableException("All external news providers failed to respond.")
+
+        # RSS-specific health check: if all RSS providers fail, add warning and do not cache
+        rss_keys = [
+            k for k in provider_outcomes
+            if k.startswith("rss_") or k.startswith("forex_") or k == "google_news_rss_total"
+        ]
+        all_rss_failed = bool(rss_keys) and all(
+            provider_outcomes[k].get("status") == "FAILED" for k in rss_keys
+        )
+        rss_failure_warning = (
+            "All RSS news providers failed during ingestion sweep; analysis completed with degraded evidence and will not be cached."
+            if all_rss_failed
+            else None
+        )
+        if rss_failure_warning:
+            logger.warning(rss_failure_warning)
 
         # ---------------------------------------------------------------------
         # Stage 2.5: Freshness Filtering (F-01 / F-07 Core Invariant)
@@ -189,7 +206,7 @@ class AnalysisOrchestrator:
                 rationale=rationale,
                 metrics=metrics,
                 articles=sample_excluded_articles,
-                warnings=[summary],
+                warnings=[summary] if not rss_failure_warning else [summary, rss_failure_warning],
                 pipeline_mode=PipelineMode.DETERMINISTIC_FINBERT_ONLY,
                 cache_status=CacheStatus.MISS,
                 data_status="NO_FRESH_NEWS",
@@ -198,8 +215,11 @@ class AnalysisOrchestrator:
                 config_version=settings.get_config_hash(),
             )
 
-            # Cache NO_FRESH_NEWS result for min(bucket length, 5 minutes)
-            SentimentRepository.save_analysis_run(db, no_news_result, cache_key, provider_outcomes)
+            # Cache NO_FRESH_NEWS result for min(bucket length, 5 minutes) unless all RSS providers failed
+            if not all_rss_failed:
+                SentimentRepository.save_analysis_run(db, no_news_result, cache_key, provider_outcomes)
+            else:
+                logger.warning(f"Skipping analysis run cache for {asset.ticker} due to total RSS provider failure.")
 
             if on_progress:
                 await on_progress(PipelineStage.DONE, 1.0, "Analysis complete (No fresh news).")
@@ -340,7 +360,7 @@ class AnalysisOrchestrator:
             articles_retained=len(scored_retained),
             articles_deduplicated=len(excluded_articles),
             articles_scored_local=len(scored_retained),
-            articles_sent_to_llm=min(settings.MAX_LLM_CANDIDATES, len([a for a in scored_retained if abs(a.finbert_directional_score) >= 0.15 and a.exclusion_reason is None])),
+            articles_sent_to_llm=min(settings.MAX_LLM_CANDIDATES, len([a for a in scored_retained if abs(a.finbert_directional_score) >= DIRECTIONAL_THRESHOLD and a.exclusion_reason is None])),
             excluded_out_of_window=excluded_out_of_window,
             excluded_missing_timestamp=excluded_missing_ts,
             prompt_tokens=llm_telemetry.get("prompt_tokens", 0),
@@ -356,6 +376,9 @@ class AnalysisOrchestrator:
             "finbert": settings.FINBERT_MODEL_NAME,
             "llm": used_llm_model if pipeline_mode == PipelineMode.HYBRID_FINBERT_LLM else "NONE",
         }
+
+        if rss_failure_warning and rss_failure_warning not in warnings:
+            warnings.append(rss_failure_warning)
 
         result = AnalysisResult(
             run_id=run_id,
@@ -380,8 +403,11 @@ class AnalysisOrchestrator:
             config_version=settings.get_config_hash(),
         )
 
-        # Persist run and evidence in database
-        SentimentRepository.save_analysis_run(db, result, cache_key, provider_outcomes)
+        # Persist run and evidence in database unless all RSS providers failed
+        if not all_rss_failed:
+            SentimentRepository.save_analysis_run(db, result, cache_key, provider_outcomes)
+        else:
+            logger.warning(f"Skipping analysis run cache for {asset.ticker} due to total RSS provider failure.")
 
         if on_progress:
             await on_progress(PipelineStage.DONE, 1.0, "Analysis complete.")

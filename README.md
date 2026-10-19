@@ -263,7 +263,7 @@ Returns system status, database connectivity, and model configuration.
 
 ## 7. Testing & Quality Assurance
 
-SentimentPulse maintains an enterprise test suite with 77 unit, integration, and E2E regression tests, guaranteeing that news parser freshness, session window constraints, thread safety, and ratio aggregation invariants are strictly preserved.
+SentimentPulse maintains an enterprise test suite with 83 unit, integration, and E2E regression tests, guaranteeing that news parser freshness, session window constraints, thread safety, and ratio aggregation invariants are strictly preserved.
 
 ```bash
 # Run default automated test suite (excluding live network and slow model tests)
@@ -280,9 +280,9 @@ pytest -m slow
 ```
 
 ### Coverage Benchmarks
-- **Overall Codebase Coverage**: **86%**
+- **Overall Codebase Coverage**: **87%**
 - **News Parser (`news_service.py`)**: **91%**
-- **All 77 test cases pass** with zero failures or regressions out-of-the-box.
+- **All 83 test cases pass** with zero failures or regressions out-of-the-box.
 
 ---
 
@@ -295,7 +295,7 @@ The codebase has undergone a comprehensive independent audit remediating defects
 3. **Robust Directional Polarity (F-12)**: FinBERT signals are scored as directional whenever $|P_{\text{pos}} - P_{\text{neg}}| \ge 0.15$; blunt neutral zeroing eliminated.
 4. **Reliability & Concurrency (F-02, F-03, F-04, F-14)**: SQLite migrations use Alembic `batch_alter_table` on startup; async event loop offloading via `asyncio.to_thread`; strong task reference sets preventing GC loss; FinBERT double-checked thread safety locks.
 5. **Entity Relevance & Ticker Resolution (F-09, F-10, F-11, F-18)**: Word-boundary regexes `\b` for publishers; cash-tag requirements for 1–2 char tickers; `$TICKER` prefix bypass for listed equities; in-memory ticker resolution caching.
-6. **LLM Hardening (F-13)**: XML angle bracket escaping against prompt injection; structured JSON parsing; automated failover to `openai/gpt-4o-mini`.
+6. **LLM Hardening (F-13)**: XML angle bracket escaping against prompt injection; structured JSON parsing; automated failover to optional configured fallback.
 7. **Security & Memory Protection (F-15, F-17)**: Sliding window rate limiter key pruning preventing unbounded memory growth; rate-limited job polling and SSE streams; `TRUST_PROXY_HEADERS` verification; CORS origin allowlisting.
 
 ---

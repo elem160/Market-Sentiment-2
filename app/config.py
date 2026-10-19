@@ -13,8 +13,6 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     APP_HOST: str = "127.0.0.1"
     APP_PORT: int = 8000
-    DEBUG: bool = False
-    SECRET_KEY: str = "development-secret-key-change-in-production"
 
     # Database
     DATABASE_URL: str = "sqlite:///./data/sentiment.db"
@@ -22,7 +20,7 @@ class Settings(BaseSettings):
     # Model Identifiers
     FINBERT_MODEL_NAME: str = "ProsusAI/finbert"
     LLM_MODEL_ID: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
-    LLM_FALLBACK_MODEL_ID: str = "openai/gpt-4o-mini"
+    LLM_FALLBACK_MODEL_ID: str = ""
     ENABLE_LLM: bool = True
 
     # External Provider Credentials

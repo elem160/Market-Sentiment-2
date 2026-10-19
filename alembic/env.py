@@ -38,6 +38,14 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     db_url = config.get_main_option("sqlalchemy.url") or settings.DATABASE_URL
     is_sqlite = db_url.startswith("sqlite")
+    if is_sqlite and ":memory:" not in db_url:
+        db_path = db_url.replace("sqlite:///", "").replace("sqlite://", "")
+        if not os.path.isabs(db_path):
+            base_dir = os.path.dirname(os.path.dirname(__file__))
+            db_path = os.path.normpath(os.path.join(base_dir, db_path))
+            db_url = f"sqlite:///{db_path}"
+            config.set_main_option("sqlalchemy.url", db_url)
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
     connect_args = {"check_same_thread": False} if is_sqlite else {}
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),

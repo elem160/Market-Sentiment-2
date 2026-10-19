@@ -7,6 +7,8 @@ from app.core.enums import ExclusionReason
 from app.core.session_window import SessionWindow
 
 
+from app.core.constants import MAX_EXCLUDED_SAMPLES_PER_REASON
+
 STOP_WORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
     "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by",
@@ -46,6 +48,20 @@ PUBLISHER_NORMALIZATION_MAP = {
     "ap": "Associated Press",
 }
 
+GENERIC_COMPANY_TOKENS = {
+    "inc", "incorporated", "corp", "corporation", "ltd", "limited", "company", "co",
+    "the", "group", "holdings", "holding", "plc", "llc", "class", "common", "stock",
+    "shares", "etf", "trust", "fund", "index",
+    "platforms", "technologies", "systems", "solutions",
+    "international", "general", "advanced", "bank", "america",
+    "target",
+}
+
+LEGAL_CORPORATE_SUFFIXES = {
+    "inc", "incorporated", "corp", "corporation", "ltd", "limited", "company", "co",
+    "plc", "llc", "class", "common", "shares", "stock", "etf", "trust", "fund", "index"
+}
+
 
 class DeduplicationService:
     @staticmethod
@@ -65,14 +81,26 @@ class DeduplicationService:
     @staticmethod
     def normalize_publisher(source_name: str) -> str:
         """Extracts and normalizes canonical publisher entity name using whole-word boundaries (F-11)."""
-        lower = source_name.lower().strip()
-        # Sort patterns by length descending so longer phrases match before abbreviations (e.g. Associated Press before AP)
+        stripped = source_name.strip()
+        # For syndicated "Yahoo - X", return the normalized X (not "Yahoo Finance")
+        syndicated_match = re.match(
+            r"^yahoo(?:\s*!\s*finance|\s+finance)?\s*[-–—:]\s*(.+)$",
+            stripped,
+            flags=re.IGNORECASE
+        )
+        if syndicated_match:
+            sub_source = syndicated_match.group(1).strip()
+            if sub_source:
+                return DeduplicationService.normalize_publisher(sub_source)
+
+        lower = stripped.lower()
+        # Sort patterns by length descending so longer phrases match before abbreviations
         for pattern, canonical in sorted(PUBLISHER_NORMALIZATION_MAP.items(), key=lambda x: len(x[0]), reverse=True):
             if re.search(rf"\b{re.escape(pattern)}\b", lower):
                 return canonical
         if re.search(r"\b(google|rss)\b", lower):
             return "Unknown Aggregator"
-        return source_name.strip()
+        return stripped
 
     @staticmethod
     def tokenize(text: str) -> set[str]:
@@ -101,12 +129,17 @@ class DeduplicationService:
         full_text = f"{article.title} {article.summary}".lower()
         ticker_lower = ticker.lower()
 
-        # 1. Cash-tag mention always counts (e.g. $AAPL, $A, $NVDA)
+        # 1. Special case: match "AT&T" on its raw form (preserves & symbol)
+        if "at&t" in company_name.lower() or ticker_lower == "t":
+            if re.search(r"\bat&t\b", full_text):
+                return True
+
+        # 2. Cash-tag mention always counts (e.g. $AAPL, $A, $NVDA, $TGT)
         if re.search(rf"\${re.escape(ticker_lower)}\b", full_text):
             return True
 
-        # 2. Bare ticker matching:
-        # For 1-2 char tickers (e.g., A, C, F, AI, ON, IT, GE), do NOT match bare word boundary
+        # 3. Bare ticker matching:
+        # For 1-2 char tickers (e.g., A, C, F, AI, ON, IT, GE, T), do NOT match bare word boundary
         # to avoid matching indefinite articles ("a"), prepositions ("on", "in", "it"), etc.
         # Require $ prefix (checked above) or company name (checked below).
         if len(ticker_lower) >= 3:
@@ -115,7 +148,7 @@ class DeduplicationService:
                 if re.search(rf"\b{re.escape(clean_ticker)}\b", full_text):
                     return True
 
-        # 3. Forex notation variants (EUR/USD <-> EURUSD <-> EURUSD=X)
+        # 4. Forex notation variants (EUR/USD <-> EURUSD <-> EURUSD=X)
         if "/" in ticker_lower:
             no_slash = ticker_lower.replace("/", "")
             if re.search(rf"\b{re.escape(no_slash)}\b", full_text):
@@ -125,27 +158,39 @@ class DeduplicationService:
             if re.search(rf"\b{re.escape(raw_pair)}\b", full_text):
                 return True
 
-        # 4. Crypto / Futures variants (BTC-USD -> BTC, GC=F -> GC)
+        # 5. Crypto / Futures variants (BTC-USD -> BTC, GC=F -> GC)
         if "-" in ticker_lower:
             crypto_root = ticker_lower.split("-")[0]
             if len(crypto_root) >= 3 and re.search(rf"\b{re.escape(crypto_root)}\b", full_text):
                 return True
 
-        # 5. Meaningful company name tokens (stripped of generic corporate suffixes)
-        stop_name_tokens = {
-            "inc", "incorporated", "corp", "corporation", "ltd", "limited", "company", "co",
-            "the", "group", "holdings", "holding", "plc", "llc", "class", "common", "stock",
-            "shares", "etf", "trust", "fund", "index"
-        }
-        company_clean = re.sub(r"[^\w\s]", " ", company_name.lower())
-        company_tokens = [
-            t for t in company_clean.split()
-            if t not in stop_name_tokens and len(t) >= 3
-        ]
-        if company_tokens:
-            for token in company_tokens:
-                if re.search(rf"\b{re.escape(token)}\b", full_text):
+        # 6. Company name matching:
+        # Stop matching on any single token. Require the full name, or the first distinctive token.
+        raw_name_words = [w for w in re.findall(r"[a-z0-9]+", company_name.lower()) if len(w) >= 2]
+        core_words = [w for w in raw_name_words if w not in LEGAL_CORPORATE_SUFFIXES]
+
+        # 6a. Full company name matching
+        full_core_name = " ".join(core_words).strip()
+        # If core words consist solely of a single generic token (e.g. "target"), require the full corporate name
+        if full_core_name and len(full_core_name) >= 3:
+            if not (len(core_words) == 1 and core_words[0] in GENERIC_COMPANY_TOKENS):
+                if re.search(rf"\b{re.escape(full_core_name)}\b", full_text):
                     return True
+
+        full_raw_name = " ".join(raw_name_words).strip()
+        if full_raw_name and len(full_raw_name) >= 3 and full_raw_name != full_core_name:
+            if re.search(rf"\b{re.escape(full_raw_name)}\b", full_text):
+                return True
+
+        # 6b. First distinctive token (first token not in GENERIC_COMPANY_TOKENS)
+        distinctive_tokens = [
+            w for w in core_words
+            if w not in GENERIC_COMPANY_TOKENS and len(w) >= 3
+        ]
+        if distinctive_tokens:
+            first_distinctive = distinctive_tokens[0]
+            if re.search(rf"\b{re.escape(first_distinctive)}\b", full_text):
+                return True
 
         return False
 
@@ -154,7 +199,7 @@ class DeduplicationService:
         cls,
         articles: list[IngestedArticle],
         session: SessionWindow,
-        max_samples_per_reason: int = 20,
+        max_samples_per_reason: int = MAX_EXCLUDED_SAMPLES_PER_REASON,
     ) -> tuple[list[IngestedArticle], list[tuple[IngestedArticle, ExclusionReason, str]], int, int]:
         """
         Freshness stage (F-01/F-07):

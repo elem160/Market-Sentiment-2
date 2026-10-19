@@ -254,3 +254,104 @@ def test_process_and_deduplicate_sorts_newest_first_before_truncation():
     assert "newest" in retained_ids
     assert "middle" in retained_ids
     assert "oldest" not in retained_ids
+
+
+def test_normalize_publisher_yahoo_x():
+    """Verify normalize_publisher handles 'Yahoo - X' by returning normalized X, not 'Yahoo Finance'."""
+    assert DeduplicationService.normalize_publisher("Yahoo - Reuters") == "Reuters"
+    assert DeduplicationService.normalize_publisher("Yahoo - Bloomberg") == "Bloomberg"
+    assert DeduplicationService.normalize_publisher("Yahoo - CNBC") == "CNBC"
+    assert DeduplicationService.normalize_publisher("Yahoo - Benzinga") == "Benzinga"
+    assert DeduplicationService.normalize_publisher("Yahoo Finance - TipRanks") == "TipRanks"
+    assert DeduplicationService.normalize_publisher("Yahoo - Wall Street Journal") == "Wall Street Journal"
+    assert DeduplicationService.normalize_publisher("Yahoo - WSJ") == "Wall Street Journal"
+
+
+def test_relevance_distinctive_tokens_and_raw_att():
+    """
+    Verify relevance matching:
+    - Stop matching on any single company-name token
+    - Require full name, or first distinctive token (excluding generic tokens)
+    - Match AT&T on its raw form
+    - Regression tests: GM vs 'General Electric', TGT vs 'target', AMD vs 'Advanced manufacturing', T vs 'AT&T raises dividend'
+    """
+    now = datetime.now(timezone.utc)
+
+    # 1. GM vs "General Electric" (False)
+    art_ge = IngestedArticle(
+        article_id="ge_1",
+        provider=ProviderType.YFINANCE,
+        source_name="Reuters",
+        canonical_url="https://reuters.com/ge1",
+        title="General Electric completes corporate separation plan",
+        summary="GE announces aerospace and energy industrial division updates.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+    assert DeduplicationService.is_materially_relevant(art_ge, "GM", "General Motors Company") is False
+
+    # 2. TGT vs "target" (False)
+    art_tgt = IngestedArticle(
+        article_id="tgt_1",
+        provider=ProviderType.YFINANCE,
+        source_name="Bloomberg",
+        canonical_url="https://bloomberg.com/tgt1",
+        title="Federal Reserve says inflation target remains 2 percent",
+        summary="Policymakers reiterated their commitment to hitting the macroeconomic target.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+    assert DeduplicationService.is_materially_relevant(art_tgt, "TGT", "Target Corporation") is False
+
+    # 3. AMD vs "Advanced manufacturing" (False)
+    art_amd = IngestedArticle(
+        article_id="amd_1",
+        provider=ProviderType.YFINANCE,
+        source_name="CNBC",
+        canonical_url="https://cnbc.com/amd1",
+        title="Advanced manufacturing investments rise across US industrial corridor",
+        summary="Factories adopt modern automated assembly line tools.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+    assert DeduplicationService.is_materially_relevant(art_amd, "AMD", "Advanced Micro Devices, Inc.") is False
+
+    # 4. T vs "AT&T raises dividend" (True)
+    art_att = IngestedArticle(
+        article_id="att_1",
+        provider=ProviderType.YFINANCE,
+        source_name="Wall Street Journal",
+        canonical_url="https://wsj.com/att1",
+        title="AT&T raises dividend following strong fiber broadband subscribers growth",
+        summary="Telecommunications giant AT&T posts solid quarterly cash flow.",
+        published_at_utc=now,
+        retrieved_at_utc=now,
+    )
+    assert DeduplicationService.is_materially_relevant(art_att, "T", "AT&T Inc.") is True
+
+
+def test_env_example_matches_config_defaults():
+    """Verify .env.example defaults match config.py settings exactly."""
+    import os
+    from app.config import settings
+
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env.example")
+    assert os.path.exists(env_path)
+
+    env_vars = {}
+    with open(env_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env_vars[k.strip()] = v.strip()
+
+    assert int(env_vars["MAX_RETAINED_ARTICLES"]) == settings.MAX_RETAINED_ARTICLES == 350
+    assert int(env_vars["MAX_LLM_CANDIDATES"]) == settings.MAX_LLM_CANDIDATES == 100
+    assert int(env_vars["MAX_EXCERPT_TOKENS"]) == settings.MAX_EXCERPT_TOKENS == 150
+    assert int(env_vars["MAX_PROMPT_TOKENS"]) == settings.MAX_PROMPT_TOKENS == 8000
+    assert int(env_vars["MAX_COMPLETION_TOKENS"]) == settings.MAX_COMPLETION_TOKENS == 1000
+    assert float(env_vars["MAX_COST_PER_RUN_USD"]) == settings.MAX_COST_PER_RUN_USD == 0.05
+    assert env_vars["LLM_MODEL_ID"] == settings.LLM_MODEL_ID == "nvidia/nemotron-3-ultra-550b-a55b:free"
+    assert env_vars["FINBERT_MODEL_NAME"] == settings.FINBERT_MODEL_NAME == "ProsusAI/finbert"
+    assert env_vars["LLM_FALLBACK_MODEL_ID"] == settings.LLM_FALLBACK_MODEL_ID == ""

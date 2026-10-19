@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, date, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from app.core.enums import SessionType
+from app.core.constants import FUTURE_CLOCK_SKEW_MINUTES
 
 EASTERN_TZ = ZoneInfo("America/New_York")
 
@@ -22,13 +23,13 @@ class SessionWindow:
     def is_timestamp_in_window(self, dt_utc: datetime | None) -> bool:
         """
         Check if an article's UTC timestamp falls within this session window,
-        allowing at most 5 minutes of future clock skew. Returns False if timestamp is None.
+        allowing at most FUTURE_CLOCK_SKEW_MINUTES minutes of future clock skew. Returns False if timestamp is None.
         """
         if dt_utc is None:
             return False
         if dt_utc.tzinfo is None:
             dt_utc = dt_utc.replace(tzinfo=timezone.utc)
-        skew_allowance = timedelta(minutes=5)
+        skew_allowance = timedelta(minutes=FUTURE_CLOCK_SKEW_MINUTES)
         return self.window_start_utc <= dt_utc <= (self.window_end_utc + skew_allowance)
 
 
