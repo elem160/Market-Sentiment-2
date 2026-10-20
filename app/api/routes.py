@@ -16,7 +16,7 @@ from app.core.exceptions import (
     AnalysisRunNotFoundException,
 )
 from app.core.enums import PipelineStage, JobStatus
-from app.core.models import AnalysisResult
+from app.core.models import AnalysisResult, Asset
 from app.api.schemas import (
     AnalyzeRequest,
     HealthResponse,
@@ -46,7 +46,13 @@ router = APIRouter(prefix="/api/v1")
 _background_tasks: set[asyncio.Task] = set()
 
 
-async def run_background_job(job_id: str, ticker: str, force_refresh: bool, enable_llm: bool):
+async def run_background_job(
+    job_id: str,
+    ticker: str,
+    force_refresh: bool,
+    enable_llm: bool,
+    asset: Asset | None = None,
+):
     """
     Durable in-app asynchronous background worker:
     Executes the 6-stage pipeline under a per-ticker mutex for request coalescing,
@@ -70,6 +76,7 @@ async def run_background_job(job_id: str, ticker: str, force_refresh: bool, enab
                     force_refresh=force_refresh,
                     enable_llm=enable_llm,
                     on_progress=on_progress,
+                    asset=asset,
                 ),
                 timeout=float(settings.PIPELINE_TIMEOUT_SECONDS),
             )
@@ -112,8 +119,8 @@ async def analyze_ticker(
     # 1. IP Rate Limiting
     rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_ANALYSIS_PER_MINUTE)
 
-    # 2. Early ticker normalization & validation (run in thread pool to prevent event loop blocking)
-    asset = await asyncio.to_thread(TickerService.validate_and_resolve, req.ticker)
+    # 2. Early ticker normalization & validation (bounded by TICKER_RESOLUTION_TIMEOUT_SECONDS)
+    asset = await TickerService.resolve_ticker_async(req.ticker)
     normalized_ticker = asset.ticker
 
     # 3. Quick Cache Check
@@ -140,6 +147,7 @@ async def analyze_ticker(
             ticker=normalized_ticker,
             force_refresh=req.force_refresh,
             enable_llm=req.enable_llm,
+            asset=asset,
         )
     )
     _background_tasks.add(task)

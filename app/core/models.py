@@ -26,6 +26,8 @@ class Asset:
     asset_type: AssetType = AssetType.EQUITY
     is_active: bool = True
     yf_symbol: str = ""
+    verified: bool = True
+    resolution_warning: str | None = None
 
 
 class IngestedArticle(BaseModel):

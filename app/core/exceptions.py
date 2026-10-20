@@ -34,7 +34,7 @@ class UnsupportedAssetException(SentimentAppException):
 class TickerNotFoundException(SentimentAppException):
     """Raised when a ticker cannot be resolved with the market data provider."""
     def __init__(self, ticker: str, reason: str = ""):
-        msg = f"Ticker '{ticker}' could not be resolved or is not an actively listed US equity/ETF."
+        msg = f"Symbol '{ticker}' could not be resolved on Yahoo Finance."
         if reason:
             msg = f"{msg} ({reason})"
         super().__init__(
@@ -46,10 +46,10 @@ class TickerNotFoundException(SentimentAppException):
 
 class ProviderException(SentimentAppException):
     """Raised when an external data provider encounters an unrecoverable error."""
-    def __init__(self, provider: str, error: str):
+    def __init__(self, provider: str, error: str, status_code: int = 502):
         super().__init__(
             message=f"Provider '{provider}' error: {error}",
-            status_code=502,
+            status_code=status_code,
             details={"provider": provider, "error": error}
         )
 

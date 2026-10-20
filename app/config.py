@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     # Pipeline Execution Timeout (in seconds)
     PIPELINE_TIMEOUT_SECONDS: int = 90
 
+    # Ticker Resolution & Caching
+    TICKER_CACHE_TTL_SECONDS: int = 21600
+    TICKER_NEGATIVE_CACHE_TTL_SECONDS: int = 600
+    TICKER_RESOLUTION_TIMEOUT_SECONDS: float = 8.0
+
     # Cache Buckets (in minutes)
     CACHE_INTRADAY_BUCKET_MINUTES: int = 15
     CACHE_OFF_MARKET_BUCKET_MINUTES: int = 60

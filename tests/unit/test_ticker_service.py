@@ -1,13 +1,26 @@
-import pytest
+import asyncio
+from datetime import datetime, timezone, timedelta
 from types import SimpleNamespace
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch, MagicMock, PropertyMock, AsyncMock
+import time_machine
+import pytest
+
 from app.services.ticker_service import TickerService
 from app.core.exceptions import (
     InvalidTickerException,
-    UnsupportedAssetException,
     TickerNotFoundException,
+    ProviderException,
 )
 from app.core.enums import AssetType
+from app.core.models import Asset
+from app.services.orchestrator import AnalysisOrchestrator
+
+
+@pytest.fixture(autouse=True)
+def clear_ticker_cache():
+    TickerService.clear_cache()
+    yield
+    TickerService.clear_cache()
 
 
 def test_normalize_ticker():
@@ -76,13 +89,6 @@ def test_multi_asset_resolution(yahoo_without_profile_data):
     }
 
 
-@pytest.fixture(autouse=True)
-def clear_ticker_cache():
-    TickerService.clear_cache()
-    yield
-    TickerService.clear_cache()
-
-
 def test_successful_ticker_resolution():
     with patch("yfinance.Ticker") as mock_yf:
         mock_instance = MagicMock()
@@ -96,6 +102,8 @@ def test_successful_ticker_resolution():
         assert asset.company_name == "Apple Inc."
         assert asset.asset_type == AssetType.EQUITY
         assert asset.is_active is True
+        assert asset.verified is True
+        assert asset.resolution_warning is None
 
 
 def test_successful_etf_resolution():
@@ -111,8 +119,8 @@ def test_successful_etf_resolution():
         assert asset.asset_type == AssetType.ETF
 
 
-def test_dollar_prefix_bypasses_commodity_aliases():
-    """Verify F-18: $ prefix bypasses commodity/crypto aliases, resolving as equity."""
+def test_gold_cross_mode_isolation():
+    """Verify H5: Resolving GOLD -> GC=F, then $GOLD -> GOLD (equity), then GOLD -> still GC=F."""
     with patch("yfinance.Ticker") as mock_yf:
         mock_instance = MagicMock()
         mock_instance.fast_info.quote_type = "EQUITY"
@@ -120,49 +128,110 @@ def test_dollar_prefix_bypasses_commodity_aliases():
         mock_instance.fast_info.exchange = "NYQ"
         mock_yf.return_value = mock_instance
 
-        # Unprefixed GOLD resolves to commodity futures
+        # 1. Unprefixed GOLD resolves to commodity futures
         gold_commodity = TickerService.validate_and_resolve("GOLD")
         assert gold_commodity.ticker == "GC=F"
         assert gold_commodity.asset_type == AssetType.COMMODITY
 
-        # Prefixed $GOLD resolves as listed equity
+        # 2. Prefixed $GOLD resolves as listed equity
         gold_equity = TickerService.validate_and_resolve("$GOLD")
         assert gold_equity.ticker == "GOLD"
         assert gold_equity.yf_symbol == "GOLD"
         assert gold_equity.asset_type == AssetType.EQUITY
+        assert gold_equity.company_name == "Barrick Gold Corporation"
+
+        # 3. Subsequent call to GOLD is still GC=F (no cross-mode cache pollution)
+        gold_commodity_again = TickerService.validate_and_resolve("GOLD")
+        assert gold_commodity_again.ticker == "GC=F"
+        assert gold_commodity_again.asset_type == AssetType.COMMODITY
 
 
-def test_ticker_resolution_caching():
-    """Verify resolution is cached in-memory and avoids repeated external queries."""
+def test_dollar_corn_bypass():
+    """Verify $CORN bypasses corn futures alias (ZC=F) and resolves as equity/ETF."""
     with patch("yfinance.Ticker") as mock_yf:
         mock_instance = MagicMock()
-        mock_instance.fast_info.quote_type = "EQUITY"
-        mock_instance.fast_info.long_name = "Microsoft Corporation"
-        mock_instance.fast_info.exchange = "NMS"
+        mock_instance.fast_info.quote_type = "ETF"
+        mock_instance.fast_info.long_name = "Teucrium Corn Fund"
+        mock_instance.fast_info.exchange = "PCX"
         mock_yf.return_value = mock_instance
 
-        # First call hits mock_yf
-        asset1 = TickerService.validate_and_resolve("MSFT")
+        # Unprefixed CORN resolves to commodity futures
+        corn_fut = TickerService.validate_and_resolve("CORN")
+        assert corn_fut.ticker == "ZC=F"
+        assert corn_fut.asset_type == AssetType.COMMODITY
+
+        # Prefixed $CORN resolves as listed ETF
+        corn_etf = TickerService.validate_and_resolve("$CORN")
+        assert corn_etf.ticker == "CORN"
+        assert corn_etf.asset_type == AssetType.ETF
+        assert corn_etf.company_name == "Teucrium Corn Fund"
+
+
+def test_futures_asset_typing():
+    """Verify ES=F, NQ=F, YM=F, RTY=F and aliases resolve as AssetType.FUTURES with CME exchange."""
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_instance = MagicMock()
+        mock_instance.fast_info = SimpleNamespace(quote_type=None, exchange=None, long_name=None, short_name=None)
+        mock_instance.info = {}
+        mock_yf.return_value = mock_instance
+
+        for sym in ("ES=F", "NQ=F", "YM=F", "RTY=F"):
+            res = TickerService.validate_and_resolve(sym)
+            assert res.asset_type == AssetType.FUTURES
+            assert res.exchange == "CME"
+
+        sp500 = TickerService.validate_and_resolve("SP500")
+        assert sp500.ticker == "ES=F"
+        assert sp500.asset_type == AssetType.FUTURES
+
+        nasdaq = TickerService.validate_and_resolve("NASDAQ")
+        assert nasdaq.ticker == "NQ=F"
+        assert nasdaq.asset_type == AssetType.FUTURES
+
+
+def test_unknown_symbol_404_and_negative_cache():
+    """Verify unknown symbol raises 404, enters negative cache, and expires after TTL."""
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_instance = MagicMock()
+        mock_instance.fast_info = SimpleNamespace(quote_type=None, exchange=None, long_name=None, short_name=None)
+        mock_instance.info = {}
+        mock_instance.history.return_value = MagicMock(empty=True)
+        mock_yf.return_value = mock_instance
+
+        # 1. First call fails with 404
+        with pytest.raises(TickerNotFoundException) as exc_info:
+            TickerService.validate_and_resolve("XYZABC")
+        assert exc_info.value.status_code == 404
+        assert "could not be resolved on Yahoo Finance" in exc_info.value.message
         assert mock_yf.call_count == 1
 
-        # Second call hits resolution cache
-        asset2 = TickerService.validate_and_resolve("MSFT")
-        assert mock_yf.call_count == 1  # No additional network call
-        assert asset1.ticker == asset2.ticker
-        assert asset1.company_name == asset2.company_name
+        # 2. Second call hits negative cache without calling yfinance
+        with pytest.raises(TickerNotFoundException) as exc_info2:
+            TickerService.validate_and_resolve("XYZABC")
+        assert exc_info2.value.status_code == 404
+        assert mock_yf.call_count == 1  # No additional call
+
+        # 3. After negative TTL (600s), re-queries yfinance
+        base_time = datetime(2026, 10, 14, 15, 0, tzinfo=timezone.utc)
+        with time_machine.travel(base_time + timedelta(seconds=605)):
+            with pytest.raises(TickerNotFoundException):
+                TickerService.validate_and_resolve("XYZABC")
+            assert mock_yf.call_count == 2
 
 
-def test_missing_instrument_raises_404_not_found():
-    """Verify F-18: When Yahoo explicitly reports 404 / Not Found and symbol is not known, raise 404."""
+def test_transport_error_resolves_unverified_with_warning():
+    """Verify transport errors resolve as unverified (verified=False) with resolution_warning."""
     with patch("yfinance.Ticker") as mock_yf:
         mock_instance = MagicMock()
-        type(mock_instance).fast_info = PropertyMock(side_effect=Exception("404 Client Error: Not Found for url"))
-        type(mock_instance).info = PropertyMock(side_effect=Exception("404 Client Error: Not Found"))
+        type(mock_instance).fast_info = PropertyMock(side_effect=ConnectionError("Failed to establish a new connection"))
+        type(mock_instance).info = PropertyMock(side_effect=ConnectionError("Connection aborted"))
         mock_yf.return_value = mock_instance
 
-        with pytest.raises(TickerNotFoundException) as exc_info:
-            TickerService.validate_and_resolve("NOTFND")
-        assert exc_info.value.status_code == 404
+        asset = TickerService.validate_and_resolve("DISCON")
+        assert asset.ticker == "DISCON"
+        assert asset.verified is False
+        assert asset.resolution_warning is not None
+        assert "communication error" in asset.resolution_warning.lower() or "connection" in asset.resolution_warning.lower()
 
 
 def test_throttled_or_empty_response_does_not_404():
@@ -177,4 +246,96 @@ def test_throttled_or_empty_response_does_not_404():
         asset = TickerService.validate_and_resolve("THROTL")
         assert asset.ticker == "THROTL"
         assert asset.company_name == "THROTL"
+        assert asset.verified is False
+        assert asset.resolution_warning is not None
 
+
+def test_ttl_cache_expiry():
+    """Verify successful resolution cache expires after TICKER_CACHE_TTL_SECONDS (6h)."""
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_instance = MagicMock()
+        mock_instance.fast_info.quote_type = "EQUITY"
+        mock_instance.fast_info.long_name = "Apple Inc."
+        mock_instance.fast_info.exchange = "NMS"
+        mock_yf.return_value = mock_instance
+
+        base_time = datetime(2026, 10, 14, 12, 0, tzinfo=timezone.utc)
+        with time_machine.travel(base_time, tick=False):
+            asset1 = TickerService.validate_and_resolve("AAPL")
+            assert mock_yf.call_count == 1
+
+        # Within TTL (e.g. + 1 hour)
+        with time_machine.travel(base_time + timedelta(hours=1), tick=False):
+            asset2 = TickerService.validate_and_resolve("AAPL")
+            assert mock_yf.call_count == 1
+            assert asset2.ticker == asset1.ticker
+
+        # Beyond TTL (6 hours + 10 seconds = 21610s)
+        with time_machine.travel(base_time + timedelta(seconds=21610), tick=False):
+            asset3 = TickerService.validate_and_resolve("AAPL")
+            assert mock_yf.call_count == 2
+            assert asset3.ticker == "AAPL"
+
+
+@pytest.mark.asyncio
+async def test_resolve_ticker_async_timeout():
+    """Verify resolve_ticker_async raises ProviderException with status 503 on timeout."""
+    def slow_resolve(ticker: str):
+        import time
+        time.sleep(0.5)
+
+    with patch.object(TickerService, "validate_and_resolve", side_effect=slow_resolve), \
+         patch("app.config.settings.TICKER_RESOLUTION_TIMEOUT_SECONDS", 0.05):
+        with pytest.raises(ProviderException) as exc_info:
+            await TickerService.resolve_ticker_async("SLOWTICKER")
+        assert exc_info.value.status_code == 503
+        assert "timed out" in exc_info.value.message
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_never_calls_validate_and_resolve(db_session):
+    """Verify the orchestrator uses passed asset directly and never re-resolves."""
+    custom_asset = Asset(
+        ticker="CUSTOM",
+        company_name="Custom Unverified Corp",
+        exchange="US",
+        sector="Technology",
+        asset_type=AssetType.EQUITY,
+        is_active=True,
+        yf_symbol="CUSTOM",
+        verified=False,
+        resolution_warning="Yahoo Finance communication error for CUSTOM: connection dropped",
+    )
+
+    from app.core.models import IngestedArticle
+    from app.core.enums import ProviderType
+
+    art_yf = IngestedArticle(
+        article_id="custom_art_1",
+        provider=ProviderType.YFINANCE,
+        source_name="Reuters",
+        canonical_url="https://example.com/art1",
+        title="Custom Corp launches breakthrough product",
+        summary="Custom Corp details new product line.",
+        published_at_utc=datetime.now(timezone.utc),
+        retrieved_at_utc=datetime.now(timezone.utc),
+        raw_provider_metadata={},
+    )
+
+    with patch.object(TickerService, "validate_and_resolve") as mock_resolve, \
+         patch("app.services.news_service.NewsService.fetch_news_for_session", new=AsyncMock(return_value=([art_yf], {"yfinance": {"status": "SUCCESS", "count": 1}}))):
+        result = await AnalysisOrchestrator.run_pipeline(
+            "CUSTOM",
+            db_session,
+            force_refresh=True,
+            enable_llm=False,
+            asset=custom_asset,
+        )
+
+        # Orchestrator must NEVER have called validate_and_resolve
+        mock_resolve.assert_not_called()
+
+        assert result.ticker == "CUSTOM"
+        assert result.company_name == "Custom Unverified Corp"
+        # Warning from unverified asset must be preserved in result.warnings
+        assert any("Yahoo Finance communication error" in w for w in result.warnings)

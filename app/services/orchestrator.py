@@ -51,6 +51,7 @@ class AnalysisOrchestrator:
         enable_llm: bool = True,
         on_progress: ProgressCallback | None = None,
         resolved_asset: Asset | None = None,
+        asset: Asset | None = None,
     ) -> AnalysisResult:
         """
         Executes the 6-stage analysis pipeline with live progress reporting:
@@ -72,7 +73,10 @@ class AnalysisOrchestrator:
             await on_progress(PipelineStage.RESOLVING_TICKER, 0.15, "Resolving ticker and company profile...")
         
         t0 = time.time()
-        asset = resolved_asset or TickerService.validate_and_resolve(ticker)
+        effective_asset = asset or resolved_asset
+        if effective_asset is None:
+            effective_asset = TickerService.validate_and_resolve(ticker)
+        asset = effective_asset
         session = compute_session_window()
         stage_latencies["resolving_ticker"] = round((time.time() - t0) * 1000, 1)
 
@@ -406,6 +410,9 @@ class AnalysisOrchestrator:
 
         if rss_failure_warning and rss_failure_warning not in warnings:
             warnings.append(rss_failure_warning)
+
+        if not asset.verified and asset.resolution_warning and asset.resolution_warning not in warnings:
+            warnings.append(asset.resolution_warning)
 
         result = AnalysisResult(
             run_id=run_id,
