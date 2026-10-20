@@ -1,4 +1,5 @@
 import hashlib
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -61,6 +62,15 @@ class Settings(BaseSettings):
     # Cache Buckets (in minutes)
     CACHE_INTRADAY_BUCKET_MINUTES: int = 15
     CACHE_OFF_MARKET_BUCKET_MINUTES: int = 60
+
+    @field_validator("CACHE_INTRADAY_BUCKET_MINUTES", "CACHE_OFF_MARKET_BUCKET_MINUTES")
+    @classmethod
+    def validate_cache_bucket(cls, v: int) -> int:
+        if v < 1 or v > 1440:
+            raise ValueError(f"Cache bucket minutes must be between 1 and 1440, got {v}")
+        if 1440 % v != 0:
+            raise ValueError(f"Cache bucket minutes must divide 1440 evenly, got {v}")
+        return v
 
     # Model Token Pricing Table (USD per 1,000,000 tokens)
     MODEL_PRICING: dict[str, dict[str, float]] = {

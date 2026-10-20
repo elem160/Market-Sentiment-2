@@ -31,8 +31,9 @@
 - **Two-Stage Hybrid Intelligence**:
   - **Stage 1 (Local NLP)**: Fine-grained sentiment classification ($P_{\text{pos}}, P_{\text{neg}}, P_{\text{neu}}$) via `ProsusAI/finbert`.
   - **Stage 2 (Single-Batch Catalyst Verification)**: High-speed catalyst audit bundling candidate headlines into a single prompt for `nvidia/nemotron-3-ultra-550b-a55b:free` (with seamless automatic failover to `nvidia/nemotron-3-super-120b-a12b:free`).
-- **Session-Anchored Temporal Windows**:
-  - Strict lookback calculations anchored to `America/New_York` (ET) timezone: Pre-Market, Regular Trading Hours (RTH), Post-Market, and Weekend/Holiday lookbacks (anchored to Friday 16:00 ET close, capped at 72 hours).
+- **Session-Anchored Temporal Windows (Unified Decision D1 Rule)**:
+  - Strict lookback calculations anchored to `America/New_York` (ET) timezone with verified NYSE calendar (2025–2027 holidays, special closures like the 2025-01-09 National Day of Mourning, and 13:00 ET early closes).
+  - One unified window rule for every session: starts at the close of the most recent prior active trading day (16:00 ET, or 13:00 after early closes), capped at $\max(T_{\text{prior\_close}}, T_{\text{run}} - 72\text{h})$, ending at `run`. Captures after-hours earnings and weekend developments.
 - **Asynchronous Execution & Streaming UI**:
   - In-app durable worker architecture with per-ticker request coalescing (prevents duplicate API sweeps under concurrent load).
   - Real-time progress updates streamed via Server-Sent Events (SSE).
@@ -65,8 +66,9 @@ flowchart TD
 
 ## 3. Decision Matrix & Mathematical Formulas
 
-### Core Freshness Invariant & Session Window Bounding
+### Core Freshness Invariant & Unified Session Window Bounding
 Every article evaluated by FinBERT, the LLM, or the aggregator MUST possess a verified publication timestamp inside the active market session window $[T_{\text{start}}, T_{\text{end}} + 5\text{m}]$ (America/New_York market clock).
+- **Unified Window Rule (Decision D1)**: $T_{\text{start}}$ is anchored to the closing bell of the most recent active NYSE trading day strictly prior to today's date (16:00 ET, or 13:00 ET on early close days), capped at $\max(T_{\text{prior\_close}}, T_{\text{run}} - 72\text{h})$. $T_{\text{end}} = T_{\text{run}}$.
 - Missing timestamps are never defaulted to `now()`.
 - Out-of-window articles are filtered into an excluded sample; an explicit pre-aggregation domain assertion raises `FreshnessViolationException` if an expired headline reaches scoring.
 - When zero headlines satisfy freshness, the engine returns a clean HOLD with `data_status: "NO_FRESH_NEWS"`.
@@ -113,8 +115,9 @@ Market Sentiment/
 │   ├── core/
 │   │   ├── enums.py              # AssetType, ProviderType, DecisionVerdict
 │   │   ├── exceptions.py         # Custom domain exceptions
+│   │   ├── market_calendar.py    # NYSE trading calendar, holidays & early closes (2025-2027)
 │   │   ├── models.py             # IngestedArticle, ScoredArticle, AnalysisResult
-│   │   └── session_window.py     # America/New_York temporal market clock
+│   │   └── session_window.py     # America/New_York temporal market clock & cache buckets
 │   ├── db/
 │   │   ├── database.py           # SQLAlchemy SQLite engine (WAL mode)
 │   │   └── repository.py         # Job and run persistence operations
