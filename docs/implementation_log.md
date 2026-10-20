@@ -13,15 +13,15 @@
 | P0.2 | Clean the polluted local database (not committed) | H1 (D7) | done | — |
 | P0.3 | Keep application logs alive after migrations | H2 | done | `4221c23` |
 | P0.4 | Dependencies, tooling and CI | M17, L7, L9 | done | `400fccd` |
-| P1.1 | One backend↔frontend contract | C1 | todo | |
-| P1.2 | Robust frontend job client | C1, M6 | todo | |
-| P1.3 | Always persist results; caching becomes a flag | C2 | todo | |
-| P1.4 | Stable article IDs, truthful cache status | H13, L3, L4, M14 | todo | |
-| P1.5 | Timezone-aware timestamps end to end | M2, M14 | todo | |
-| P1.6 | Truthful UI | M1–M5, M10 | todo | |
-| P1.7 | Unified errors and an honest health check | M9 | todo | |
-| P1.8 | Hotfixes | H10, L2 | todo | |
-| P1.9 | Rebuild and commit the bundle | D4 | todo | |
+| P1.1 | One backend↔frontend contract | C1 | done | `3699230` |
+| P1.2 | Robust frontend job client | C1, M6 | done | `633e478` |
+| P1.3 | Always persist results; caching becomes a flag | C2 | done | `18aaf9e` |
+| P1.4 | Stable article IDs, truthful cache status | H13, L3, L4, M14 | done | `18aaf9e` |
+| P1.5 | Timezone-aware timestamps end to end | M2, M14 | done | `09bcb77` |
+| P1.6 | Truthful UI | M1–M5, M10 | done | `b5fd751` |
+| P1.7 | Unified errors and an honest health check | M9 | done | `3eeb71f` |
+| P1.8 | Hotfixes | H10, L2 | done | `793e3ee` |
+| P1.9 | Rebuild and commit the bundle | D4 | done | (current) |
 | P2.1 | Corroboration by direction | C4, M11, M3 | todo | |
 | P2.2 | Relevance engine rebuild | C3, H4, M15 | todo | |
 | P2.3 | Ticker resolution | H3, H5, M16 | todo | |
@@ -84,6 +84,47 @@
   - Added `.github/workflows/ci.yml` defining full backend and frontend CI pipeline.
   - Aligned `AnalysisRunDB.data_status` column length to `String(30)` in `app/db/models.py`, satisfying `alembic check`.
   - Acceptance: `pytest --cov=app --cov-fail-under=85` passed at 86.11% (94 passed, 0 warnings); `ruff check .` passed; `alembic check` passed with zero schema drift.
+
+## Phase 1 — Restore the user-facing flow
+
+### Execution (2026-10-20)
+
+- **P1.1 One backend↔frontend contract (`3699230`):**
+  - Added typed SSE event models (`JobProgressEvent`, `JobCompletedEvent`, `JobFailedEvent`) with strict validation in `app/api/schemas.py`.
+  - Exported custom OpenAPI schema with SSE event schemas included via `custom_openapi` and `scripts/export_openapi.py`.
+  - Updated routes to emit typed events (`progress`, `completed`, `failed`) and return 404 for unknown jobs on `/jobs/{id}/events`.
+  - Added SSE contract tests in `tests/contract/test_sse_contract.py` and OpenAPI snapshot test in `tests/contract/test_openapi_snapshot.py`.
+- **P1.2 Robust frontend job client (`633e478`):**
+  - Rewrote `subscribeToJob` in `frontend/src/services/api.ts` with explicit cancellation token (`{ cancelled: false }`), typed SSE listeners, backoff polling fallback (1s doubling up to 5s), and server-communicated deadline enforcement (`max_wait_seconds`).
+  - Added `activeJobRef` in `App.tsx` ensuring stale in-flight subscriptions are cancelled when navigating or submitting new searches.
+- **P1.3 & P1.4 Always persist results & integrity (`18aaf9e`):**
+  - Created migration `003_persistence_integrity.py` adding `is_cacheable` column, widening `ticker` to `VARCHAR(32)`, backfilling `article_evidence.article_id`, and enforcing a unique index on `(run_id, article_id)`.
+  - Updated `AnalysisRunDB` and `SentimentRepository` to store all runs unconditionally, separating persistence from cache eligibility (`is_cacheable`).
+  - Stored truthful `cache_status` (`MISS` on first run, `HIT` on cached return) and generated stable UUID4 fact IDs.
+  - Added integration migration test `tests/integration/test_migration_003.py` and E2E job flow test `tests/e2e/test_job_flow.py`.
+- **P1.5 Timezone-aware timestamps end to end (`09bcb77`):**
+  - Created `app/db/types.py` with `UTCDateTime(TypeDecorator)` converting aware datetimes to UTC on write and attaching `timezone.utc` on read, with zero Alembic schema drift.
+  - Replaced all database model `DateTime` columns with `UTCDateTime`.
+  - Added `@field_serializer` to `RecentRunSummary.run_timestamp_utc` ensuring ISO-8601 formatting ending with `Z`.
+  - Added unit tests in `tests/unit/test_timezone_integrity.py`.
+- **P1.6 Truthful UI (`b5fd751`):**
+  - Backend: Added `excluded_counts: dict[ExclusionReason, int]`, `articles_excluded_total`, and `directional_threshold` to `PipelineMetrics`; refined `articles_deduplicated` to count only `DUPLICATE_SYNDICATION`.
+  - Frontend: Created `frontend/src/utils/time.ts` with DST-aware ET and UTC formatters.
+  - Updated `SessionWindowBanner.tsx` (real ET), `DecisionHero.tsx` (cache badge conditional on `HIT`, retained article count, truthful confidence tiers), `EvidenceExplorer.tsx` (directional threshold filtering, grouped exclusions "N of M", age at run), `RationaleSection.tsx` (LLM Catalyst Synthesis card, facts linked to cited articles with publisher/time badges), `TelemetryDrawer.tsx`, `HistorySidebar.tsx`, and `App.tsx`.
+- **P1.7 Unified errors and an honest health check (`3eeb71f`):**
+  - Added unified exception handlers in `app/main.py` for `SentimentAppException` (with `Retry-After`), `RequestValidationError` (422), Starlette `HTTPException`, and unhandled `Exception` (500 with logged `error_id`).
+  - Updated routes in `app/api/routes.py` to raise domain exceptions directly (`JobNotFoundException`, `AnalysisRunNotFoundException`).
+  - Implemented honest model status tracking (`NOT_LOADED`, `LOADING`, `LOADED`, `FAILED`) in `FinBERTService` fixing class-vs-instance attribute bug.
+  - Updated `/health` to return 503 DEGRADED on database failure with no raw exception leakage, and reflect truthful FinBERT status.
+  - Added unit test suite `tests/unit/test_error_handling.py`.
+- **P1.8 Hotfixes (`793e3ee`):**
+  - Implemented null-safe access via `_as_dict(value) -> dict` in `NewsService.parse_yfinance_items` for `content`, `canonicalUrl`, `clickThroughUrl`, and `provider`; guaranteed `publisher = str(raw or "").strip()`.
+  - Updated `AggregatorService` to raise `FreshnessViolationException` with keyword arguments, ensuring the article ID is captured in the message and error details.
+  - Added unit tests for null-safe attribute parsing and article naming in `tests/unit/test_freshness.py`.
+- **P1.9 Rebuild and commit the bundle:**
+  - Exported up-to-date OpenAPI contract via `scripts/export_openapi.py`.
+  - Verified `tests/contract/test_openapi_snapshot.py` matches committed snapshot.
+  - Verified acceptance: 114 tests passed, 89% coverage (well above 85% requirement), `ruff check .` clean, `alembic check` clean with zero drift.
 
 ## Deviations
 
