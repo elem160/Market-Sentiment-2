@@ -2,6 +2,7 @@ import logging
 import re
 import sys
 from typing import Any
+from app.config import settings
 
 # Pattern to redact API keys and secrets in logs
 SECRET_PATTERN = re.compile(r"(sk-[a-zA-Z0-9_\-]{15,}|Bearer\s+[a-zA-Z0-9_\-\.]+)", re.IGNORECASE)
@@ -17,7 +18,9 @@ class RedactingFormatter(logging.Formatter):
 def setup_logger(name: str = "market_sentiment") -> logging.Logger:
     logger = logging.getLogger(name)
     if not logger.handlers:
-        logger.setLevel(logging.INFO)
+        level_name = getattr(settings, "LOG_LEVEL", "INFO").upper()
+        level = getattr(logging, level_name, logging.INFO)
+        logger.setLevel(level)
         handler = logging.StreamHandler(sys.stdout)
         formatter = RedactingFormatter(
             fmt="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",

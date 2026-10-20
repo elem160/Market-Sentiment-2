@@ -76,6 +76,22 @@ def test_run_migrations_failure_is_not_swallowed():
             run_migrations()
 
 
+def test_run_migrations_preserves_application_loggers():
+    """Verify run_migrations does not disable uvicorn.error or market_sentiment loggers (H2)."""
+    import logging
+    from app.main import run_migrations
+
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    uvicorn_logger.disabled = False
+    sentiment_logger = logging.getLogger("market_sentiment")
+    sentiment_logger.disabled = False
+
+    run_migrations()
+
+    assert not uvicorn_logger.disabled
+    assert not sentiment_logger.disabled
+
+
 @pytest.mark.asyncio
 async def test_all_rss_providers_fail_adds_warning_and_skips_caching(db_session):
     """Verify: When all RSS providers fail, pipeline adds a warning and does not cache the result."""

@@ -77,7 +77,7 @@ async def run_background_job(job_id: str, ticker: str, force_refresh: bool, enab
             logger.warning(f"Job {job_id} for {ticker} failed with domain error: {e.message}")
             SentimentRepository.fail_job(db, job_id, e.message)
         except Exception as e:
-            logger.error(f"Job {job_id} for {ticker} encountered unexpected error: {e}")
+            logger.exception(f"Job {job_id} for {ticker} encountered unexpected error: {e}")
             SentimentRepository.fail_job(db, job_id, f"Internal error during analysis: {str(e)}")
         finally:
             db.close()

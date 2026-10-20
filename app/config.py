@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./data/sentiment.db"
 
+    # Logging
+    LOG_LEVEL: str = "INFO"
+
     # Model Identifiers
     FINBERT_MODEL_NAME: str = "ProsusAI/finbert"
     LLM_MODEL_ID: str = "nvidia/nemotron-3-ultra-550b-a55b:free"

@@ -30,6 +30,7 @@ def run_migrations():
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
     alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+    alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
 
 
