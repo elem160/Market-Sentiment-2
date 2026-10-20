@@ -1,61 +1,99 @@
+import asyncio
 import json
 import re
 import time
 from typing import Any
+import httpx
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+
 from app.config import settings
 from app.core.models import ScoredArticle, ObservedFact
-from app.core.enums import CatalystCategory, DirectionalPolarity, ExclusionReason
+from app.core.enums import CatalystCategory, DirectionalPolarity
+from app.core.constants import DIRECTIONAL_THRESHOLD
 from app.utils.logging import logger
 
+CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
-class LLMSynthesisResponse(BaseModel):
-    catalyst_indices: list[int] = []
+
+def sanitize_text(text: str, max_chars: int | None = None) -> str:
+    """
+    Sanitizes untrusted text for safe prompt embedding:
+    1. Strips ASCII control characters.
+    2. Truncates length to max_chars.
+    3. Escapes & first, then < and > to prevent prompt XML injection.
+    """
+    cleaned = CONTROL_CHARS_RE.sub("", text)
+    if max_chars is not None and len(cleaned) > max_chars:
+        cleaned = cleaned[:max_chars]
+    return cleaned.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+class CatalystItem(BaseModel):
+    index: int | None = None
+    article_index: int | None = None
+    category: str = "OTHER"
+
+
+class LLMCatalystResponse(BaseModel):
+    catalysts: list[CatalystItem] = Field(default_factory=list)
+    catalyst_indices: list[int] = Field(default_factory=list)
     synthesis_summary: str = ""
 
 
 class LLMService:
-    def __init__(self):
-        self.client: AsyncOpenAI | None = None
-        if settings.OPENROUTER_API_KEY:
-            self.client = AsyncOpenAI(
+    _shared_client: AsyncOpenAI | None = None
+
+    @classmethod
+    def get_client(cls) -> AsyncOpenAI | None:
+        """Lazily initialize and return the shared AsyncOpenAI client."""
+        if cls._shared_client is None and settings.OPENROUTER_API_KEY:
+            cls._shared_client = AsyncOpenAI(
                 base_url="https://openrouter.ai/api/v1",
                 api_key=settings.OPENROUTER_API_KEY,
-                timeout=25.0,
+                timeout=httpx.Timeout(settings.LLM_REQUEST_TIMEOUT_SECONDS, connect=5.0),
+                max_retries=settings.LLM_MAX_RETRIES,
             )
+        return cls._shared_client
+
+    @classmethod
+    async def close_client(cls):
+        """Close shared AsyncOpenAI client at application shutdown."""
+        if cls._shared_client is not None:
+            try:
+                await cls._shared_client.close()
+            except Exception as e:
+                logger.debug(f"Error closing AsyncOpenAI client: {e}")
+            finally:
+                cls._shared_client = None
+
+    def __init__(self, client: AsyncOpenAI | None = None):
+        self.client = client if client is not None else self.get_client()
 
     async def verify_and_synthesize(
         self, ticker: str, company_name: str, candidate_articles: list[ScoredArticle]
     ) -> tuple[list[ScoredArticle], list[ObservedFact], str, dict[str, Any]]:
         """
-        High-throughput single-batch LLM catalyst verification:
-        1. Selects directional candidate headlines (|directional_score| >= 0.15).
-        2. Formats all candidates into a single numbered catalog.
-        3. Prompts Nemotron 3 Ultra to identify true market catalysts in a single call.
-        4. Boosts confirmed catalyst weights by 1.25x and registers grounded facts.
+        High-throughput single-batch LLM catalyst verification with multi-model fallback,
+        prompt hardening, and an overall deadline.
         """
         directional_candidates = [
             a for a in candidate_articles
-            if abs(a.finbert_directional_score) >= 0.15 and a.exclusion_reason is None
+            if abs(a.finbert_directional_score) >= DIRECTIONAL_THRESHOLD and a.exclusion_reason is None
         ]
-        # Rank by confidence, take up to MAX_LLM_CANDIDATES
+        # Rank by confidence descending, take up to MAX_LLM_CANDIDATES
         directional_candidates.sort(key=lambda x: x.finbert_confidence, reverse=True)
         eval_candidates = directional_candidates[: settings.MAX_LLM_CANDIDATES]
 
         # Early exit if no client or no eligible directional candidates
         if not self.client or not eval_candidates or not settings.ENABLE_LLM:
             skip_reason = "NO_API_KEY" if not self.client else ("NO_DIRECTIONAL_CANDIDATES" if not eval_candidates else "LLM_DISABLED")
-            return candidate_articles, [], "", {"status": "SKIPPED", "reason": skip_reason}
-
-        # Build single numbered headline catalog with angle-bracket escaping (F-13)
-        catalog_lines = []
-        for i, art in enumerate(eval_candidates, 1):
-            sentiment = "POSITIVE" if art.finbert_directional_score > 0 else "NEGATIVE"
-            safe_title = art.title.replace("<", "&lt;").replace(">", "&gt;")
-            safe_pub = art.canonical_publisher.replace("<", "&lt;").replace(">", "&gt;")
-            catalog_lines.append(f"[{i}] {safe_title} (Source: {safe_pub}, Sentiment: {sentiment})")
-        headlines_text = "\n".join(catalog_lines)
+            return candidate_articles, [], "", {
+                "status": "SKIPPED",
+                "reason": skip_reason,
+                "candidates_sent": 0,
+                "attempts": [],
+            }
 
         system_prompt = (
             "You are an empirical financial catalyst classifier evaluating news headlines for a market sentiment research tool.\n"
@@ -67,86 +105,79 @@ class LLMService:
             "5. Respond strictly in valid JSON adhering to this schema:\n"
             '{\n  "catalysts": [{"index": 1, "category": "EARNINGS"}, ...],\n  "catalyst_indices": [1, 4, ...],\n  "synthesis_summary": "1-2 sentence executive summary of the primary confirmed catalyst drivers."\n}\n'
             'Valid categories: EARNINGS, M_AND_A, REGULATORY, PRODUCT_EXECUTION, MACRO, ANALYST_ACTION, LITIGATION, OTHER.\n'
-            'If no headlines qualify as material catalysts, return {"catalyst_indices": [], "synthesis_summary": "No material catalysts observed in current headlines."}'
+            'If no headlines qualify as material catalysts, return {"catalysts": [], "catalyst_indices": [], "synthesis_summary": "No material catalysts observed in current headlines."}'
         )
 
-        safe_ticker = ticker.replace("<", "&lt;").replace(">", "&gt;")
-        safe_company = company_name.replace("<", "&lt;").replace(">", "&gt;")
+        safe_ticker = sanitize_text(ticker, max_chars=32)
+        safe_company = sanitize_text(company_name, max_chars=100)
+
+        # Build candidate lines and trim to fit MAX_PROMPT_TOKENS
+        base_prompt_chars = len(system_prompt) + len(f"Asset: {safe_ticker} ({safe_company})\n\n<untrusted_headlines_catalog>\n</untrusted_headlines_catalog>\n\nSelect the indices of true market-moving catalysts and provide an executive summary. Reply strictly with JSON.")
+        
+        while eval_candidates:
+            catalog_lines = []
+            for i, art in enumerate(eval_candidates, 1):
+                sentiment = "POSITIVE" if art.finbert_directional_score > 0 else "NEGATIVE"
+                safe_title = sanitize_text(art.title, max_chars=200)
+                safe_pub = sanitize_text(art.canonical_publisher, max_chars=60)
+                catalog_lines.append(f"[{i}] {safe_title} (Source: {safe_pub}, Sentiment: {sentiment})")
+            
+            catalog_text = "\n".join(catalog_lines)
+            est_total_tokens = (base_prompt_chars + len(catalog_text)) // 4
+            if est_total_tokens <= settings.MAX_PROMPT_TOKENS or len(eval_candidates) <= 1:
+                break
+            # Drop lowest-confidence candidate
+            eval_candidates.pop()
+
         user_prompt = (
             f"Asset: {safe_ticker} ({safe_company})\n\n"
             "<untrusted_headlines_catalog>\n"
-            f"{headlines_text}\n"
+            f"{catalog_text}\n"
             "</untrusted_headlines_catalog>\n\n"
             "Select the indices of true market-moving catalysts and provide an executive summary. Reply strictly with JSON."
         )
 
-        # Budget estimate check
-        est_prompt_tokens = (len(system_prompt) + len(user_prompt)) // 4
-        est_cost = settings.estimate_cost(settings.LLM_MODEL_ID, est_prompt_tokens, settings.MAX_COMPLETION_TOKENS)
-        if est_cost > settings.MAX_COST_PER_RUN_USD:
-            logger.warning(f"Estimated LLM cost (${est_cost}) exceeds max budget (${settings.MAX_COST_PER_RUN_USD}). Skipping LLM.")
-            return candidate_articles, [], "", {"status": "SKIPPED", "reason": "LLM_BUDGET_CAP_EXCEEDED"}
+        # Build candidate models: settings.LLM_MODEL_ID + optional settings.LLM_FALLBACK_MODEL_ID (no hardcoded models)
+        models_to_try: list[str] = [settings.LLM_MODEL_ID]
+        fallback = getattr(settings, "LLM_FALLBACK_MODEL_ID", "")
+        if fallback and fallback not in models_to_try:
+            models_to_try.append(fallback)
 
-        t0 = time.time()
-        models_to_try = [settings.LLM_MODEL_ID]
-        if getattr(settings, "LLM_FALLBACK_MODEL_ID", None):
-            fallback = settings.LLM_FALLBACK_MODEL_ID
-            if fallback and fallback not in models_to_try:
-                models_to_try.append(fallback)
-        if "nvidia/nemotron-3-super-120b-a12b:free" not in models_to_try:
-            models_to_try.append("nvidia/nemotron-3-super-120b-a12b:free")
-
-        response = None
-        used_model = settings.LLM_MODEL_ID
-
-        for model_candidate in models_to_try:
-            try:
-                candidate_response = await self.client.chat.completions.create(
-                    model=model_candidate,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.0,
-                    max_tokens=settings.MAX_COMPLETION_TOKENS,
-                )
-                if candidate_response and getattr(candidate_response, "choices", None) and len(candidate_response.choices) > 0:
-                    response = candidate_response
-                    used_model = model_candidate
-                    break
-                else:
-                    err = getattr(candidate_response, "error", None) or "Overloaded or empty response"
-                    logger.warning(f"OpenRouter model {model_candidate} issue: {err}. Attempting next model...")
-            except Exception as candidate_err:
-                logger.warning(f"Error calling {model_candidate}: {candidate_err}")
-
-        if not response or not getattr(response, "choices", None) or len(response.choices) == 0:
-            logger.warning("All LLM candidate models exhausted or temporarily overloaded.")
-            return candidate_articles, [], "", {"status": "FAILED", "reason": "PROVIDER_OVERLOADED"}
+        attempts_telemetry: list[dict[str, Any]] = []
 
         try:
-            raw_content = response.choices[0].message.content or "{}"
-            catalyst_map, synthesis_summary = self._parse_llm_response(raw_content, len(eval_candidates))
-            latency_ms = round((time.time() - t0) * 1000, 1)
-
-            prompt_tokens = response.usage.prompt_tokens if response.usage else est_prompt_tokens
-            completion_tokens = response.usage.completion_tokens if response.usage else 150
-            actual_cost = settings.estimate_cost(used_model, prompt_tokens, completion_tokens)
-            usage_telemetry = {
-                "status": "SUCCESS",
-                "model": used_model,
-                "prompt_tokens": prompt_tokens,
-                "completion_tokens": completion_tokens,
-                "estimated_cost_usd": actual_cost,
-                "latency_ms": latency_ms,
+            success_result = await asyncio.wait_for(
+                self._execute_model_attempts(
+                    models_to_try=models_to_try,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    candidate_count=len(eval_candidates),
+                    attempts_telemetry=attempts_telemetry,
+                ),
+                timeout=float(settings.LLM_TIMEOUT_SECONDS),
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"LLM catalyst verification timed out after {settings.LLM_TIMEOUT_SECONDS}s deadline.")
+            return candidate_articles, [], "", {
+                "status": "FAILED",
+                "reason": "TIMEOUT",
+                "attempts": attempts_telemetry,
+                "candidates_sent": len(eval_candidates),
             }
-        except Exception as e:
-            logger.warning(f"Error parsing LLM response: {e}")
-            return candidate_articles, [], "", {"status": "FAILED", "error": str(e)}
+
+        if success_result is None:
+            logger.warning("All LLM candidate models failed or exceeded budget.")
+            return candidate_articles, [], "", {
+                "status": "FAILED",
+                "reason": "ALL_MODELS_FAILED",
+                "attempts": attempts_telemetry,
+                "candidates_sent": len(eval_candidates),
+            }
+
+        used_model, catalyst_map, synthesis_summary, usage_info, total_latency_ms = success_result
 
         # Apply catalyst confirmations
         verified_facts: list[ObservedFact] = []
-
         for i, art in enumerate(eval_candidates, 1):
             if i in catalyst_map:
                 category = catalyst_map[i]
@@ -168,13 +199,158 @@ class LLMService:
                     )
                 )
 
-        return candidate_articles, verified_facts, synthesis_summary, usage_telemetry
+        telemetry = {
+            "status": "SUCCESS",
+            "model": used_model,
+            "prompt_tokens": usage_info.get("prompt_tokens", 0),
+            "completion_tokens": usage_info.get("completion_tokens", 0),
+            "estimated_cost_usd": usage_info.get("cost_usd", 0.0),
+            "latency_ms": total_latency_ms,
+            "attempts": attempts_telemetry,
+            "candidates_sent": len(eval_candidates),
+        }
+
+        return candidate_articles, verified_facts, synthesis_summary, telemetry
+
+    async def _execute_model_attempts(
+        self,
+        models_to_try: list[str],
+        system_prompt: str,
+        user_prompt: str,
+        candidate_count: int,
+        attempts_telemetry: list[dict[str, Any]],
+    ) -> tuple[str, dict[int, CatalystCategory], str, dict[str, Any], float] | None:
+        """Executes candidate model attempts in order, respecting budget, JSON mode, and schema validation."""
+        t_start = time.time()
+        est_prompt_tokens = (len(system_prompt) + len(user_prompt)) // 4
+
+        for model_candidate in models_to_try:
+            # Per-model budget cap check
+            est_cost = settings.estimate_cost(model_candidate, est_prompt_tokens, settings.MAX_COMPLETION_TOKENS)
+            if est_cost > settings.MAX_COST_PER_RUN_USD:
+                logger.warning(
+                    f"Model {model_candidate} estimated cost (${est_cost}) exceeds budget (${settings.MAX_COST_PER_RUN_USD}). Skipping."
+                )
+                attempts_telemetry.append({
+                    "model": model_candidate,
+                    "outcome": "SKIPPED_BUDGET_CAP",
+                    "latency_ms": 0.0,
+                })
+                continue
+
+            t_attempt = time.time()
+            kwargs: dict[str, Any] = {
+                "model": model_candidate,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.0,
+                "max_tokens": settings.MAX_COMPLETION_TOKENS,
+            }
+            if settings.LLM_JSON_MODE:
+                kwargs["response_format"] = {"type": "json_object"}
+            if settings.LLM_REASONING_EFFORT:
+                kwargs["extra_body"] = {"reasoning": {"effort": settings.LLM_REASONING_EFFORT, "exclude": True}}
+
+            try:
+                candidate_response = await self._call_completion(kwargs, model_candidate)
+                attempt_latency = round((time.time() - t_attempt) * 1000, 1)
+
+                if not candidate_response or not getattr(candidate_response, "choices", None):
+                    attempts_telemetry.append({
+                        "model": model_candidate,
+                        "outcome": "FAILED_NO_CHOICES",
+                        "latency_ms": attempt_latency,
+                    })
+                    continue
+
+                choice = candidate_response.choices[0]
+                if getattr(choice, "finish_reason", None) == "length":
+                    logger.warning(f"Model {model_candidate} returned finish_reason='length'. Trying next model.")
+                    attempts_telemetry.append({
+                        "model": model_candidate,
+                        "outcome": "FAILED_LENGTH",
+                        "latency_ms": attempt_latency,
+                    })
+                    continue
+
+                raw_content = getattr(choice.message, "content", None) or ""
+                if not raw_content.strip():
+                    logger.warning(f"Model {model_candidate} returned empty content.")
+                    attempts_telemetry.append({
+                        "model": model_candidate,
+                        "outcome": "FAILED_EMPTY",
+                        "latency_ms": attempt_latency,
+                    })
+                    continue
+
+                # Parse and validate with Pydantic
+                parsed_response = self._validate_and_parse_response(raw_content)
+                if parsed_response is None:
+                    logger.warning(f"Model {model_candidate} output failed LLMCatalystResponse schema.")
+                    attempts_telemetry.append({
+                        "model": model_candidate,
+                        "outcome": "FAILED_INVALID_JSON",
+                        "latency_ms": attempt_latency,
+                    })
+                    continue
+
+                catalyst_map = self._extract_catalyst_map(parsed_response, candidate_count)
+                synthesis_summary = parsed_response.synthesis_summary.strip()
+                if not synthesis_summary and not catalyst_map:
+                    synthesis_summary = "No material catalysts observed in current headlines."
+
+                # Usage tokens
+                prompt_tokens = est_prompt_tokens
+                completion_tokens = 50
+                if getattr(candidate_response, "usage", None):
+                    prompt_tokens = getattr(candidate_response.usage, "prompt_tokens", est_prompt_tokens)
+                    completion_tokens = getattr(candidate_response.usage, "completion_tokens", 50)
+                actual_cost = settings.estimate_cost(model_candidate, prompt_tokens, completion_tokens)
+
+                attempts_telemetry.append({
+                    "model": model_candidate,
+                    "outcome": "SUCCESS",
+                    "latency_ms": attempt_latency,
+                })
+                total_latency = round((time.time() - t_start) * 1000, 1)
+
+                return (
+                    model_candidate,
+                    catalyst_map,
+                    synthesis_summary,
+                    {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens, "cost_usd": actual_cost},
+                    total_latency,
+                )
+
+            except Exception as e:
+                attempt_latency = round((time.time() - t_attempt) * 1000, 1)
+                logger.warning(f"Model {model_candidate} attempt error: {e}")
+                attempts_telemetry.append({
+                    "model": model_candidate,
+                    "outcome": f"ERROR: {e}",
+                    "latency_ms": attempt_latency,
+                })
+
+        return None
+
+    async def _call_completion(self, kwargs: dict[str, Any], model: str) -> Any:
+        """Calls chat.completions.create with single retry without response_format if rejected."""
+        try:
+            return await self.client.chat.completions.create(**kwargs)
+        except Exception as err:
+            err_str = str(err).lower()
+            if "response_format" in kwargs and ("response_format" in err_str or "json_object" in err_str or "400" in err_str):
+                logger.warning(f"Model {model} rejected response_format: {err}. Retrying once without response_format...")
+                fallback_kwargs = dict(kwargs)
+                del fallback_kwargs["response_format"]
+                return await self.client.chat.completions.create(**fallback_kwargs)
+            raise
 
     @classmethod
-    def _parse_llm_response(
-        cls, raw: str, max_index: int
-    ) -> tuple[dict[int, CatalystCategory], str]:
-        """Strict JSON parser extracting catalyst confirmations and categories without regex digit fallback (F-13)."""
+    def _validate_and_parse_response(cls, raw: str) -> LLMCatalystResponse | None:
+        """Strict JSON extraction and Pydantic validation against LLMCatalystResponse."""
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             lines = cleaned.splitlines()
@@ -184,46 +360,41 @@ class LLMService:
                 lines = lines[:-1]
             cleaned = "\n".join(lines).strip()
 
-        catalyst_map: dict[int, CatalystCategory] = {}
-        summary = ""
-
-        # Find outer-most JSON object {...}
         first_brace = cleaned.find("{")
         last_brace = cleaned.rfind("}")
-        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-            json_str = cleaned[first_brace : last_brace + 1]
-            try:
-                payload = json.loads(json_str)
-                if isinstance(payload, dict):
-                    # Check structured catalysts array
-                    if "catalysts" in payload and isinstance(payload["catalysts"], list):
-                        for item in payload["catalysts"]:
-                            if isinstance(item, dict):
-                                idx = item.get("article_index") or item.get("index")
-                                cat_str = str(item.get("category", "OTHER")).upper()
-                                if idx is not None and str(idx).isdigit():
-                                    idx_int = int(idx)
-                                    if 1 <= idx_int <= max_index:
-                                        try:
-                                            cat = CatalystCategory[cat_str]
-                                        except KeyError:
-                                            cat = CatalystCategory.OTHER
-                                        catalyst_map[idx_int] = cat
-                            elif isinstance(item, (int, str)) and str(item).isdigit():
-                                idx_int = int(item)
-                                if 1 <= idx_int <= max_index:
-                                    catalyst_map[idx_int] = CatalystCategory.OTHER
+        if first_brace == -1 or last_brace == -1 or last_brace <= first_brace:
+            return None
 
-                    # Check catalyst_indices integer array
-                    if "catalyst_indices" in payload and isinstance(payload["catalyst_indices"], list):
-                        for x in payload["catalyst_indices"]:
-                            if isinstance(x, (int, str)) and str(x).isdigit():
-                                idx_int = int(x)
-                                if 1 <= idx_int <= max_index and idx_int not in catalyst_map:
-                                    catalyst_map[idx_int] = CatalystCategory.OTHER
+        json_str = cleaned[first_brace : last_brace + 1]
+        try:
+            data = json.loads(json_str)
+            if not isinstance(data, dict):
+                return None
+            return LLMCatalystResponse.model_validate(data)
+        except Exception:
+            return None
 
-                    summary = str(payload.get("synthesis_summary", "")).strip()
-            except Exception:
-                pass
+    @classmethod
+    def _extract_catalyst_map(
+        cls, response: LLMCatalystResponse, max_index: int
+    ) -> dict[int, CatalystCategory]:
+        """Maps validated catalyst items to CatalystCategory enums bounded by candidate index."""
+        catalyst_map: dict[int, CatalystCategory] = {}
 
-        return catalyst_map, summary
+        # 1. Structured catalysts list
+        for item in response.catalysts:
+            idx = item.index if item.index is not None else item.article_index
+            if idx is not None and 1 <= idx <= max_index:
+                cat_str = str(item.category or "OTHER").upper()
+                try:
+                    cat = CatalystCategory[cat_str]
+                except KeyError:
+                    cat = CatalystCategory.OTHER
+                catalyst_map[idx] = cat
+
+        # 2. Integer indices list
+        for idx in response.catalyst_indices:
+            if 1 <= idx <= max_index and idx not in catalyst_map:
+                catalyst_map[idx] = CatalystCategory.OTHER
+
+        return catalyst_map

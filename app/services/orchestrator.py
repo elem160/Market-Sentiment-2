@@ -388,7 +388,7 @@ class AnalysisOrchestrator:
             articles_retained=len(scored_retained),
             articles_deduplicated=excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
             articles_scored_local=len(scored_retained),
-            articles_sent_to_llm=min(settings.MAX_LLM_CANDIDATES, len([a for a in scored_retained if abs(a.finbert_directional_score) >= DIRECTIONAL_THRESHOLD and a.exclusion_reason is None])),
+            articles_sent_to_llm=llm_telemetry.get("candidates_sent", 0) if llm_telemetry.get("status") != "SKIPPED" else 0,
             articles_excluded_total=len(total_excluded),
             excluded_counts=excluded_counts,
             directional_threshold=DIRECTIONAL_THRESHOLD,

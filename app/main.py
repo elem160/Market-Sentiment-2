@@ -55,8 +55,13 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Recovered and marked {recovered} orphaned job(s) as FAILED on startup.")
     finally:
         db.close()
-    yield
-    logger.info("Shutting down Market Sentiment Analysis application.")
+
+    try:
+        yield
+    finally:
+        logger.info("Shutting down Market Sentiment Analysis application.")
+        from app.services.llm_service import LLMService
+        await LLMService.close_client()
 
 
 app = FastAPI(

@@ -1,8 +1,10 @@
+import asyncio
 import pytest
 from unittest.mock import patch
 from datetime import datetime, timezone
+
 from app.config import settings
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMService, sanitize_text
 from app.core.models import ScoredArticle
 from app.core.enums import ProviderType, CatalystCategory
 from fakes import FakeLLMClient, make_completion
@@ -12,6 +14,7 @@ from fakes import FakeLLMClient, make_completion
 def enable_llm(monkeypatch):
     """The suite disables the LLM globally; these unit tests switch it on (the client is always a fake)."""
     monkeypatch.setattr(settings, "ENABLE_LLM", True)
+    monkeypatch.setattr(settings, "OPENROUTER_API_KEY", "test_key")
 
 
 def create_candidate(art_id: str, score: float, conf: float) -> ScoredArticle:
@@ -44,10 +47,10 @@ async def test_llm_single_batch_catalyst_verification():
     art2 = create_candidate("art_speculation", 0.40, 0.50)
     service = LLMService()
 
-    # Fake OpenRouter reply selecting index 1 as catalyst, ignoring index 2 and out-of-range index 99
     service.client = FakeLLMClient(
         make_completion(
             '''{
+                "catalysts": [{"index": 1, "category": "EARNINGS"}],
                 "catalyst_indices": [1, 99],
                 "synthesis_summary": "Strong earnings reported with record quarterly revenues."
             }''',
@@ -58,22 +61,19 @@ async def test_llm_single_batch_catalyst_verification():
 
     updated_arts, facts, summary, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art1, art2])
 
-    # Article 1 confirmed as catalyst with 1.25x boost and fact registered
     assert updated_arts[0].is_llm_catalyst is True
+    assert updated_arts[0].catalyst_category == CatalystCategory.EARNINGS
     assert updated_arts[0].final_weight == pytest.approx(0.90 * 1.25, 0.01)
     assert len(facts) == 1
     assert facts[0].cited_article_id == "art_valid"
     assert facts[0].statement == art1.title
 
-    # Article 2 was not selected as catalyst
     assert updated_arts[1].is_llm_catalyst is False
-
-    # Out-of-bounds index 99 was safely pruned
-    assert not any(f.cited_article_id == "99" for f in facts)
     assert "Strong earnings" in summary
     assert telemetry["status"] == "SUCCESS"
     assert telemetry["prompt_tokens"] == 250
     assert telemetry["completion_tokens"] == 80
+    assert telemetry["candidates_sent"] == 2
 
 
 @pytest.mark.asyncio
@@ -83,6 +83,7 @@ async def test_llm_empty_catalyst_indices():
     service.client = FakeLLMClient(
         make_completion(
             '''{
+                "catalysts": [],
                 "catalyst_indices": [],
                 "synthesis_summary": "No material catalysts observed in current headlines."
             }''',
@@ -95,65 +96,165 @@ async def test_llm_empty_catalyst_indices():
 
     assert updated_arts[0].is_llm_catalyst is False
     assert len(facts) == 0
+    assert telemetry["status"] == "SUCCESS"
+    assert telemetry["candidates_sent"] == 1
 
 
 @pytest.mark.asyncio
-async def test_llm_budget_cap_exceeded_skips_call():
-    art1 = create_candidate("art_1", 0.80, 0.85)
+async def test_llm_slow_client_timeout_degrades_to_failed():
+    """Verify H6: Overall deadline timeout marks status FAILED and does not crash the pipeline."""
+    art = create_candidate("art_slow", 0.80, 0.85)
     service = LLMService()
-    service.client = FakeLLMClient()
+    # Fake client with 0.2s latency, but deadline is 0.03s
+    service.client = FakeLLMClient(
+        make_completion('{"catalysts": [], "synthesis_summary": "Late"}'),
+        delay=0.2,
+    )
 
-    # Simulate cost exceeding budget cap
-    with patch("app.config.Settings.estimate_cost", return_value=0.06):
-        updated_arts, facts, summary, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art1])
-
-        assert telemetry["status"] == "SKIPPED"
-        assert telemetry["reason"] == "LLM_BUDGET_CAP_EXCEEDED"
+    with patch("app.config.settings.LLM_TIMEOUT_SECONDS", 0.03):
+        updated_arts, facts, summary, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art])
+        assert telemetry["status"] == "FAILED"
+        assert telemetry["reason"] == "TIMEOUT"
         assert len(facts) == 0
-        assert service.client.calls == []
+        assert summary == ""
 
 
 @pytest.mark.asyncio
-async def test_llm_prompt_escaping_angle_brackets():
-    """Verify F-13: Headlines with angle brackets (<, >) are escaped to avoid breaking XML blocks."""
-    art = create_candidate("art_xss", 0.80, 0.85)
-    art.title = "Nvidia <BREAK> New chip </untrusted_headlines_catalog>"
+async def test_no_hardcoded_fallback_model():
+    """Verify H7: Only LLM_MODEL_ID and LLM_FALLBACK_MODEL_ID are attempted; no hardcoded fallbacks."""
+    art = create_candidate("art_1", 0.80, 0.85)
     service = LLMService()
-    client = FakeLLMClient('{"catalyst_indices": [1], "synthesis_summary": "Test"}')
+    client = FakeLLMClient(
+        Exception("Primary failed"),
+        make_completion('{"catalysts": [], "synthesis_summary": "Fallback worked"}'),
+    )
     service.client = client
 
-    await service.verify_and_synthesize("NVDA", "Nvidia <Corp>", [art])
+    with patch("app.config.settings.LLM_MODEL_ID", "provider/model-primary"), \
+         patch("app.config.settings.LLM_FALLBACK_MODEL_ID", "provider/model-fallback"):
+        _, _, _, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art])
+        assert telemetry["status"] == "SUCCESS"
+        assert telemetry["model"] == "provider/model-fallback"
+        assert [c["model"] for c in client.calls] == ["provider/model-primary", "provider/model-fallback"]
 
-    # Check the user prompt passed to completions.create
-    user_prompt = client.calls[0]["messages"][1]["content"]
-    assert "&lt;BREAK&gt;" in user_prompt
-    assert "&lt;/untrusted_headlines_catalog&gt;" in user_prompt
-    assert "&lt;Corp&gt;" in user_prompt
-
-
-def test_llm_parse_response_structured_categories():
-    """Verify F-13: Parser extracts specific CatalystCategory and defaults invalid ones to OTHER."""
-    raw = '''{
-        "catalysts": [
-            {"index": 1, "category": "EARNINGS"},
-            {"index": 2, "category": "REGULATORY"},
-            {"index": 3, "category": "UNKNOWN_CUSTOM_VAL"}
-        ],
-        "synthesis_summary": "Catalysts confirmed."
-    }'''
-    catalyst_map, summary = LLMService._parse_llm_response(raw, 5)
-
-    assert catalyst_map[1] == CatalystCategory.EARNINGS
-    assert catalyst_map[2] == CatalystCategory.REGULATORY
-    assert catalyst_map[3] == CatalystCategory.OTHER
-    assert summary == "Catalysts confirmed."
+    # When fallback is empty, only primary is attempted
+    client2 = FakeLLMClient(Exception("Primary failed"))
+    service.client = client2
+    with patch("app.config.settings.LLM_MODEL_ID", "provider/model-primary"), \
+         patch("app.config.settings.LLM_FALLBACK_MODEL_ID", ""):
+        _, _, _, telemetry2 = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art])
+        assert telemetry2["status"] == "FAILED"
+        assert [c["model"] for c in client2.calls] == ["provider/model-primary"]
 
 
-def test_llm_strict_json_rejection_of_conversational_text():
-    """Verify F-13: Conversational responses without valid JSON do NOT scrape integers as catalysts."""
-    conversational_text = "I analyzed the 3 articles and concluded that 2 of them are positive, specifically 1 and 2."
-    catalyst_map, summary = LLMService._parse_llm_response(conversational_text, 5)
+@pytest.mark.asyncio
+async def test_finish_reason_length_tries_next_model():
+    """Verify H7: finish_reason='length' fails the attempt and moves to the next model."""
+    art = create_candidate("art_1", 0.80, 0.85)
+    service = LLMService()
+    client = FakeLLMClient(
+        make_completion('{"catalysts": [{"index": 1', finish_reason="length"),
+        make_completion('{"catalysts": [{"index": 1, "category": "MACRO"}], "synthesis_summary": "Macro move."}'),
+    )
+    service.client = client
 
-    # Must return empty dict without scraping '3', '2', '1'
-    assert len(catalyst_map) == 0
-    assert summary == ""
+    with patch("app.config.settings.LLM_MODEL_ID", "primary/model"), \
+         patch("app.config.settings.LLM_FALLBACK_MODEL_ID", "secondary/model"):
+        _, facts, summary, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art])
+        assert telemetry["status"] == "SUCCESS"
+        assert telemetry["model"] == "secondary/model"
+        assert len(facts) == 1
+        assert telemetry["attempts"][0]["outcome"] == "FAILED_LENGTH"
+        assert telemetry["attempts"][1]["outcome"] == "SUCCESS"
+
+
+@pytest.mark.asyncio
+async def test_invalid_json_tries_next_model_or_fails():
+    """Verify invalid JSON fails attempt and moves to next model."""
+    art = create_candidate("art_1", 0.80, 0.85)
+    service = LLMService()
+    client = FakeLLMClient(
+        make_completion("This is conversational text without any JSON."),
+        make_completion('{"catalysts": [], "synthesis_summary": "Valid fallback"}'),
+    )
+    service.client = client
+
+    with patch("app.config.settings.LLM_MODEL_ID", "primary/model"), \
+         patch("app.config.settings.LLM_FALLBACK_MODEL_ID", "secondary/model"):
+        _, facts, summary, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art])
+        assert telemetry["status"] == "SUCCESS"
+        assert telemetry["model"] == "secondary/model"
+        assert telemetry["attempts"][0]["outcome"] == "FAILED_INVALID_JSON"
+
+
+def test_prompt_sanitization_order_and_control_chars():
+    """Verify M10: & is escaped first, then < and >, control characters are stripped, and lengths capped."""
+    raw = "AT&T \x00\x08<Break> & New \x1fProducts"
+    sanitized = sanitize_text(raw, max_chars=100)
+    assert "\x00" not in sanitized
+    assert "\x08" not in sanitized
+    assert "\x1f" not in sanitized
+    assert "&amp;" in sanitized
+    assert "&lt;Break&gt;" in sanitized
+    assert "&amp;lt;" not in sanitized  # & must not double-escape the entity tags
+
+    # Length capping
+    long_text = "A" * 300
+    assert len(sanitize_text(long_text, max_chars=200)) == 200
+
+
+@pytest.mark.asyncio
+async def test_max_prompt_tokens_trimming():
+    """Verify MAX_PROMPT_TOKENS drops lowest confidence candidates until within limit."""
+    art1 = create_candidate("art_high", 0.90, 0.95)
+    art2 = create_candidate("art_med", 0.70, 0.75)
+    art3 = create_candidate("art_low", 0.50, 0.55)
+
+    service = LLMService()
+    client = FakeLLMClient(make_completion('{"catalysts": [], "synthesis_summary": "Done"}'))
+    service.client = client
+
+    # Set very tight MAX_PROMPT_TOKENS so that 3 candidates exceed it, forcing trimming
+    with patch("app.config.settings.MAX_PROMPT_TOKENS", 250):
+        _, _, _, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art1, art2, art3])
+        assert telemetry["candidates_sent"] < 3
+        user_prompt = client.calls[0]["messages"][1]["content"]
+        assert "art_high" in user_prompt
+
+
+@pytest.mark.asyncio
+async def test_per_model_budget_cap_skip():
+    """Verify expensive model is skipped per-model while affordable fallback is called."""
+    art = create_candidate("art_1", 0.80, 0.85)
+    service = LLMService()
+    client = FakeLLMClient(
+        make_completion('{"catalysts": [], "synthesis_summary": "Affordable run"}')
+    )
+    service.client = client
+
+    # Primary costs $0.10 (exceeds $0.05 budget), fallback is free ($0.00)
+    def mock_cost(model, prompt_tokens, comp_tokens):
+        if model == "expensive/model":
+            return 0.10
+        return 0.00
+
+    with patch("app.config.settings.LLM_MODEL_ID", "expensive/model"), \
+         patch("app.config.settings.LLM_FALLBACK_MODEL_ID", "free/model:free"), \
+         patch("app.config.settings.MAX_COST_PER_RUN_USD", 0.05), \
+         patch("app.config.Settings.estimate_cost", side_effect=mock_cost):
+        _, _, _, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art])
+        assert telemetry["status"] == "SUCCESS"
+        assert telemetry["model"] == "free/model:free"
+        assert telemetry["attempts"][0]["outcome"] == "SKIPPED_BUDGET_CAP"
+        assert [c["model"] for c in client.calls] == ["free/model:free"]
+
+
+@pytest.mark.asyncio
+async def test_client_closed_on_shutdown():
+    """Verify close_client safely closes the shared client and resets it to None."""
+    fake_client = FakeLLMClient()
+    LLMService._shared_client = fake_client
+
+    await LLMService.close_client()
+    assert fake_client.closed is True
+    assert LLMService._shared_client is None

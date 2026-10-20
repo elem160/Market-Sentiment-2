@@ -1,4 +1,6 @@
 import hashlib
+import json
+from typing import Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,6 +28,11 @@ class Settings(BaseSettings):
     LLM_MODEL_ID: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
     LLM_FALLBACK_MODEL_ID: str = ""
     ENABLE_LLM: bool = True
+    LLM_REQUEST_TIMEOUT_SECONDS: float = 25.0
+    LLM_TIMEOUT_SECONDS: float = 30.0
+    LLM_MAX_RETRIES: int = 1
+    LLM_JSON_MODE: bool = True
+    LLM_REASONING_EFFORT: str = ""
 
     # External Provider Credentials
     OPENROUTER_API_KEY: str = ""
@@ -74,19 +81,34 @@ class Settings(BaseSettings):
 
     # Model Token Pricing Table (USD per 1,000,000 tokens)
     MODEL_PRICING: dict[str, dict[str, float]] = {
-        "openai/gpt-4o-mini": {"prompt_price_per_m": 0.15, "completion_price_per_m": 0.60},
-        "deepseek/deepseek-chat": {"prompt_price_per_m": 0.14, "completion_price_per_m": 0.28},
+        "deepseek/deepseek-chat": {"prompt_price_per_m": 0.32, "completion_price_per_m": 0.89},
+        "nvidia/nemotron-3-ultra-550b-a55b": {"prompt_price_per_m": 0.60, "completion_price_per_m": 2.40},
         "nvidia/nemotron-3-ultra-550b-a55b:free": {"prompt_price_per_m": 0.0, "completion_price_per_m": 0.0},
+        "nvidia/nemotron-3-super-120b-a12b": {"prompt_price_per_m": 0.08, "completion_price_per_m": 0.45},
+        "nvidia/nemotron-3-super-120b-a12b:free": {"prompt_price_per_m": 0.0, "completion_price_per_m": 0.0},
+        "openai/gpt-4o-mini": {"prompt_price_per_m": 0.15, "completion_price_per_m": 0.60},
     }
+
+    @field_validator("MODEL_PRICING", mode="before")
+    @classmethod
+    def parse_model_pricing(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return v
+        return v
 
     def estimate_cost(self, model_id: str, prompt_tokens: int, completion_tokens: int) -> float:
         """Estimate token cost in USD based on model pricing table."""
+        if model_id.endswith(":free"):
+            return 0.0
         pricing = self.MODEL_PRICING.get(
             model_id,
             {"prompt_price_per_m": 0.20, "completion_price_per_m": 0.80}  # Conservative default
         )
-        prompt_cost = (prompt_tokens * pricing["prompt_price_per_m"]) / 1_000_000.0
-        comp_cost = (completion_tokens * pricing["completion_price_per_m"]) / 1_000_000.0
+        prompt_cost = (prompt_tokens * pricing.get("prompt_price_per_m", 0.0)) / 1_000_000.0
+        comp_cost = (completion_tokens * pricing.get("completion_price_per_m", 0.0)) / 1_000_000.0
         return round(prompt_cost + comp_cost, 6)
 
     def get_config_hash(self) -> str:
