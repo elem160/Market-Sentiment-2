@@ -19,6 +19,7 @@ from app.core.constants import DIRECTIONAL_THRESHOLD
 from app.services.ticker_service import TickerService
 from app.services.news_service import NewsService
 from app.services.deduplication_service import DeduplicationService
+from app.services.relevance import RelevanceMatcher
 from app.services.finbert_service import FinBERTService
 from app.services.llm_service import LLMService
 from app.services.aggregator_service import AggregatorService
@@ -243,8 +244,9 @@ class AnalysisOrchestrator:
             await on_progress(PipelineStage.FILTERING_DEDUPLICATING, 0.55, f"Deduplicating {len(in_window_articles)} articles and filtering relevance...")
 
         t2 = time.time()
+        relevance_matcher = RelevanceMatcher.for_asset(asset)
         retained_articles, dedup_excluded, cluster_map = DeduplicationService.process_and_deduplicate(
-            in_window_articles, asset.ticker, asset.company_name
+            in_window_articles, matcher=relevance_matcher
         )
         stage_latencies["filtering_deduplicating"] = round((time.time() - t2) * 1000, 1)
 

@@ -15,6 +15,7 @@ from app.config import settings
 from app.core.models import IngestedArticle
 from app.core.enums import ProviderType, AssetType
 from app.core.session_window import SessionWindow
+from app.core.asset_registry import build_google_query_subject
 from app.utils.logging import logger
 
 
@@ -376,11 +377,8 @@ class NewsService:
         n_hours = min(72, max(1, math.ceil(lookback_hours) + 1))
         when_tag = f"when:{n_hours}h"
 
-        # Determine base search subject: For crypto, forex, commodities use asset name
-        if asset_type in (AssetType.CRYPTO, AssetType.FOREX, AssetType.COMMODITY):
-            base_query = company_name or ticker
-        else:
-            base_query = f"{ticker} {company_name}".strip()
+        # Determine base search subject using asset registry rules (M15)
+        base_query = build_google_query_subject(ticker, company_name, asset_type)
 
         domain_map = (
             FOREX_COMMODITY_PUBLISHER_DOMAINS

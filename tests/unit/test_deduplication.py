@@ -1,7 +1,13 @@
 from datetime import datetime, timezone
 from app.services.deduplication_service import DeduplicationService
-from app.core.models import IngestedArticle
-from app.core.enums import ProviderType, ExclusionReason
+from app.core.models import IngestedArticle, Asset
+from app.core.enums import ProviderType, ExclusionReason, AssetType
+from app.services.relevance import RelevanceMatcher
+
+
+def is_relevant(art: IngestedArticle, ticker: str, company_name: str, asset_type: AssetType = AssetType.EQUITY) -> bool:
+    matcher = RelevanceMatcher.for_asset(Asset(ticker=ticker, company_name=company_name, exchange="", asset_type=asset_type))
+    return matcher.match(art.title, art.summary) is not None
 
 
 def test_canonicalize_url():
@@ -41,7 +47,7 @@ def test_entity_relevance_filter():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(rel_art, "AAPL", "Apple Inc.") is True
+    assert is_relevant(rel_art, "AAPL", "Apple Inc.") is True
 
     irrel_art = IngestedArticle(
         article_id="2",
@@ -53,7 +59,7 @@ def test_entity_relevance_filter():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(irrel_art, "AAPL", "Apple Inc.") is False
+    assert is_relevant(irrel_art, "AAPL", "Apple Inc.") is False
 
 
 def test_multi_asset_entity_relevance_filter():
@@ -68,8 +74,8 @@ def test_multi_asset_entity_relevance_filter():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(fx_art, "EUR/USD", "Euro / US Dollar") is True
-    assert DeduplicationService.is_materially_relevant(fx_art, "GC=F", "Gold Futures") is False
+    assert is_relevant(fx_art, "EUR/USD", "Euro / US Dollar", AssetType.FOREX) is True
+    assert is_relevant(fx_art, "GC=F", "Gold Futures", AssetType.COMMODITY) is False
 
     gold_art = IngestedArticle(
         article_id="gold1",
@@ -81,8 +87,8 @@ def test_multi_asset_entity_relevance_filter():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(gold_art, "GC=F", "Gold Futures") is True
-    assert DeduplicationService.is_materially_relevant(gold_art, "BTC-USD", "Bitcoin USD") is False
+    assert is_relevant(gold_art, "GC=F", "Gold Futures", AssetType.COMMODITY) is True
+    assert is_relevant(gold_art, "BTC-USD", "Bitcoin USD", AssetType.CRYPTO) is False
 
 
 
@@ -164,7 +170,7 @@ def test_entity_relevance_short_ticker_protection():
         retrieved_at_utc=now,
     )
     # Ticker 'A' without cash tag or company name MUST NOT match
-    assert DeduplicationService.is_materially_relevant(art_bare_a, "A", "Agilent Technologies Inc.") is False
+    assert is_relevant(art_bare_a, "A", "Agilent Technologies Inc.") is False
 
     # Genuine cash tag mention $A MUST match
     art_cash_a = IngestedArticle(
@@ -177,7 +183,7 @@ def test_entity_relevance_short_ticker_protection():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(art_cash_a, "A", "Agilent Technologies Inc.") is True
+    assert is_relevant(art_cash_a, "A", "Agilent Technologies Inc.") is True
 
     # Genuine company name mention (stripped of 'Inc.') MUST match
     art_comp_a = IngestedArticle(
@@ -190,7 +196,7 @@ def test_entity_relevance_short_ticker_protection():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(art_comp_a, "A", "Agilent Technologies Inc.") is True
+    assert is_relevant(art_comp_a, "A", "Agilent Technologies Inc.") is True
 
     # Substring 'ai' inside 'said' or 'daily' MUST NOT match ticker 'AI'
     art_substring_ai = IngestedArticle(
@@ -203,7 +209,7 @@ def test_entity_relevance_short_ticker_protection():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(art_substring_ai, "AI", "C3.ai, Inc.") is False
+    assert is_relevant(art_substring_ai, "AI", "C3.ai, Inc.") is False
 
 
 def test_process_and_deduplicate_sorts_newest_first_before_truncation():
@@ -288,7 +294,7 @@ def test_relevance_distinctive_tokens_and_raw_att():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(art_ge, "GM", "General Motors Company") is False
+    assert is_relevant(art_ge, "GM", "General Motors Company") is False
 
     # 2. TGT vs "target" (False)
     art_tgt = IngestedArticle(
@@ -301,7 +307,7 @@ def test_relevance_distinctive_tokens_and_raw_att():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(art_tgt, "TGT", "Target Corporation") is False
+    assert is_relevant(art_tgt, "TGT", "Target Corporation") is False
 
     # 3. AMD vs "Advanced manufacturing" (False)
     art_amd = IngestedArticle(
@@ -314,7 +320,7 @@ def test_relevance_distinctive_tokens_and_raw_att():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(art_amd, "AMD", "Advanced Micro Devices, Inc.") is False
+    assert is_relevant(art_amd, "AMD", "Advanced Micro Devices, Inc.") is False
 
     # 4. T vs "AT&T raises dividend" (True)
     art_att = IngestedArticle(
@@ -327,7 +333,7 @@ def test_relevance_distinctive_tokens_and_raw_att():
         published_at_utc=now,
         retrieved_at_utc=now,
     )
-    assert DeduplicationService.is_materially_relevant(art_att, "T", "AT&T Inc.") is True
+    assert is_relevant(art_att, "T", "AT&T Inc.") is True
 
 
 def test_env_example_matches_config_defaults():

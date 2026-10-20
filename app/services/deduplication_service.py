@@ -2,9 +2,10 @@ import re
 import urllib.parse
 from datetime import datetime, timezone
 from app.config import settings
-from app.core.models import IngestedArticle
+from app.core.models import IngestedArticle, Asset
 from app.core.enums import ExclusionReason
 from app.core.session_window import SessionWindow
+from app.services.relevance import RelevanceMatcher
 
 
 from app.core.constants import MAX_EXCLUDED_SAMPLES_PER_REASON
@@ -48,19 +49,6 @@ PUBLISHER_NORMALIZATION_MAP = {
     "ap": "Associated Press",
 }
 
-GENERIC_COMPANY_TOKENS = {
-    "inc", "incorporated", "corp", "corporation", "ltd", "limited", "company", "co",
-    "the", "group", "holdings", "holding", "plc", "llc", "class", "common", "stock",
-    "shares", "etf", "trust", "fund", "index",
-    "platforms", "technologies", "systems", "solutions",
-    "international", "general", "advanced", "bank", "america",
-    "target",
-}
-
-LEGAL_CORPORATE_SUFFIXES = {
-    "inc", "incorporated", "corp", "corporation", "ltd", "limited", "company", "co",
-    "plc", "llc", "class", "common", "shares", "stock", "etf", "trust", "fund", "index"
-}
 
 
 class DeduplicationService:
@@ -120,79 +108,6 @@ class DeduplicationService:
         union = tokens_a.union(tokens_b)
         return len(intersection) / len(union)
 
-    @classmethod
-    def is_materially_relevant(cls, article: IngestedArticle, ticker: str, company_name: str) -> bool:
-        """
-        Verify that the ticker symbol, asset aliases, or company name is materially mentioned
-        in the title or summary, avoiding listicles or generic market roundups (F-10).
-        """
-        full_text = f"{article.title} {article.summary}".lower()
-        ticker_lower = ticker.lower()
-
-        # 1. Special case: match "AT&T" on its raw form (preserves & symbol)
-        if "at&t" in company_name.lower() or ticker_lower == "t":
-            if re.search(r"\bat&t\b", full_text):
-                return True
-
-        # 2. Cash-tag mention always counts (e.g. $AAPL, $A, $NVDA, $TGT)
-        if re.search(rf"\${re.escape(ticker_lower)}\b", full_text):
-            return True
-
-        # 3. Bare ticker matching:
-        # For 1-2 char tickers (e.g., A, C, F, AI, ON, IT, GE, T), do NOT match bare word boundary
-        # to avoid matching indefinite articles ("a"), prepositions ("on", "in", "it"), etc.
-        # Require $ prefix (checked above) or company name (checked below).
-        if len(ticker_lower) >= 3:
-            clean_ticker = re.sub(r"[^a-zA-Z0-9]", "", ticker_lower)
-            if clean_ticker and len(clean_ticker) <= 5:
-                if re.search(rf"\b{re.escape(clean_ticker)}\b", full_text):
-                    return True
-
-        # 4. Forex notation variants (EUR/USD <-> EURUSD <-> EURUSD=X)
-        if "/" in ticker_lower:
-            no_slash = ticker_lower.replace("/", "")
-            if re.search(rf"\b{re.escape(no_slash)}\b", full_text):
-                return True
-        if ticker_lower.endswith("=x"):
-            raw_pair = ticker_lower[:-2]
-            if re.search(rf"\b{re.escape(raw_pair)}\b", full_text):
-                return True
-
-        # 5. Crypto / Futures variants (BTC-USD -> BTC, GC=F -> GC)
-        if "-" in ticker_lower:
-            crypto_root = ticker_lower.split("-")[0]
-            if len(crypto_root) >= 3 and re.search(rf"\b{re.escape(crypto_root)}\b", full_text):
-                return True
-
-        # 6. Company name matching:
-        # Stop matching on any single token. Require the full name, or the first distinctive token.
-        raw_name_words = [w for w in re.findall(r"[a-z0-9]+", company_name.lower()) if len(w) >= 2]
-        core_words = [w for w in raw_name_words if w not in LEGAL_CORPORATE_SUFFIXES]
-
-        # 6a. Full company name matching
-        full_core_name = " ".join(core_words).strip()
-        # If core words consist solely of a single generic token (e.g. "target"), require the full corporate name
-        if full_core_name and len(full_core_name) >= 3:
-            if not (len(core_words) == 1 and core_words[0] in GENERIC_COMPANY_TOKENS):
-                if re.search(rf"\b{re.escape(full_core_name)}\b", full_text):
-                    return True
-
-        full_raw_name = " ".join(raw_name_words).strip()
-        if full_raw_name and len(full_raw_name) >= 3 and full_raw_name != full_core_name:
-            if re.search(rf"\b{re.escape(full_raw_name)}\b", full_text):
-                return True
-
-        # 6b. First distinctive token (first token not in GENERIC_COMPANY_TOKENS)
-        distinctive_tokens = [
-            w for w in core_words
-            if w not in GENERIC_COMPANY_TOKENS and len(w) >= 3
-        ]
-        if distinctive_tokens:
-            first_distinctive = distinctive_tokens[0]
-            if re.search(rf"\b{re.escape(first_distinctive)}\b", full_text):
-                return True
-
-        return False
 
     @classmethod
     def filter_by_session_window(
@@ -248,7 +163,12 @@ class DeduplicationService:
 
     @classmethod
     def process_and_deduplicate(
-        cls, raw_articles: list[IngestedArticle], ticker: str, company_name: str, max_articles: int | None = None
+        cls,
+        raw_articles: list[IngestedArticle],
+        ticker: str = "",
+        company_name: str = "",
+        max_articles: int | None = None,
+        matcher: RelevanceMatcher | None = None,
     ) -> tuple[list[IngestedArticle], list[tuple[IngestedArticle, ExclusionReason, str]], dict[str, str]]:
         """
         Processes ingested articles:
@@ -281,13 +201,19 @@ class DeduplicationService:
         seen_clusters: list[tuple[str, str, IngestedArticle]] = []  # (cluster_id, headline, primary_article)
         non_dup_candidates: list[IngestedArticle] = []
 
+        if matcher is None:
+            matcher = RelevanceMatcher.for_asset(
+                Asset(ticker=ticker, company_name=company_name, exchange="")
+            )
+
         for article in sorted_articles:
-            # 1. Relevance check
-            if not cls.is_materially_relevant(article, ticker, company_name):
+            # 1. Relevance check via RelevanceMatcher
+            match_reason = matcher.match(article.title, article.summary)
+            if not match_reason:
                 excluded.append((
                     article,
                     ExclusionReason.INSUFFICIENT_ENTITY_RELEVANCE,
-                    f"Headline does not mention {ticker} or {company_name} materially."
+                    f"Headline does not mention {matcher.asset.ticker} or {matcher.asset.company_name} materially."
                 ))
                 continue
 

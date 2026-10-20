@@ -1,0 +1,772 @@
+[
+  {
+    "id": "forex_01_eurusd_pair_headline",
+    "ticker": "EUR/USD",
+    "company_name": "Euro / US Dollar",
+    "asset_type": "FOREX",
+    "title": "EUR/USD Sliding as French Unrest Returns",
+    "summary": "Euro faces fresh pressure against the greenback amidst political turmoil.",
+    "expected_relevant": true,
+    "expected_reason": "PAIR"
+  },
+  {
+    "id": "forex_02_eurusd_currency_names",
+    "ticker": "EUR/USD",
+    "company_name": "Euro / US Dollar",
+    "asset_type": "FOREX",
+    "title": "Dollar slips against the euro following ECB remarks",
+    "summary": "Currency traders reassess rate differentials after European central bank comments.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_03_eurusd_single_non_usd_leg",
+    "ticker": "EUR/USD",
+    "company_name": "Euro / US Dollar",
+    "asset_type": "FOREX",
+    "title": "Euro gains on economic resilience across the continent",
+    "summary": "Continental manufacturing metrics exceeded expectations in latest survey.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_04_eurusd_conflicting_eurjpy",
+    "ticker": "EUR/USD",
+    "company_name": "Euro / US Dollar",
+    "asset_type": "FOREX",
+    "title": "EUR/JPY rises on BOJ rate divergence remarks",
+    "summary": "The cross pair gained momentum during Asian trading hours.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "forex_05_eurusd_conflicting_usdjpy",
+    "ticker": "EUR/USD",
+    "company_name": "Euro / US Dollar",
+    "asset_type": "FOREX",
+    "title": "USD/JPY breaks 155 as yen weakens significantly",
+    "summary": "Japanese currency hit multi-week lows against the dollar today.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "forex_06_eurusd_conflicting_gbpusd",
+    "ticker": "EUR/USD",
+    "company_name": "Euro / US Dollar",
+    "asset_type": "FOREX",
+    "title": "GBP/USD surges past 1.30 after UK CPI beat",
+    "summary": "British sterling rallied sharply against the dollar.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "forex_07_usdjpy_pair",
+    "ticker": "USD/JPY",
+    "company_name": "US Dollar / Japanese Yen",
+    "asset_type": "FOREX",
+    "title": "USD/JPY drops as Yen surges on intervention fears",
+    "summary": "Japanese authorities warned against excessive currency volatility.",
+    "expected_relevant": true,
+    "expected_reason": "PAIR"
+  },
+  {
+    "id": "forex_08_usdjpy_non_usd_leg_yen",
+    "ticker": "USD/JPY",
+    "company_name": "US Dollar / Japanese Yen",
+    "asset_type": "FOREX",
+    "title": "Yen advances across the board on central bank shift",
+    "summary": "Bank of Japan hints at another rate hike before year end.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_09_usdjpy_dollar_alone",
+    "ticker": "USD/JPY",
+    "company_name": "US Dollar / Japanese Yen",
+    "asset_type": "FOREX",
+    "title": "Dollar falls as Treasury yields tumble on rate cut expectations",
+    "summary": "Greenback weakens across foreign exchange desks.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_10_usdjpy_australian_dollar_not_usd",
+    "ticker": "USD/JPY",
+    "company_name": "US Dollar / Japanese Yen",
+    "asset_type": "FOREX",
+    "title": "Australian dollar rallies on commodity export strength",
+    "summary": "Mining revenue boosts Canberra macroeconomic outlook.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "forex_11_usdjpy_canadian_dollar_not_usd",
+    "ticker": "USD/JPY",
+    "company_name": "US Dollar / Japanese Yen",
+    "asset_type": "FOREX",
+    "title": "Canadian dollar weakens following domestic job losses",
+    "summary": "Employment report weighed on Ottawa fiscal projections.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "forex_12_gbpusd_sterling_dollar",
+    "ticker": "GBP/USD",
+    "company_name": "British Pound / US Dollar",
+    "asset_type": "FOREX",
+    "title": "Sterling advances against the dollar following retail data",
+    "summary": "UK consumers spent more than forecast in previous quarter.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_13_gbpusd_cable",
+    "ticker": "GBP/USD",
+    "company_name": "British Pound / US Dollar",
+    "asset_type": "FOREX",
+    "title": "Cable holds steady near two-month highs",
+    "summary": "Forex analysts forecast persistent support at key levels.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_14_audusd_aussie",
+    "ticker": "AUD/USD",
+    "company_name": "Australian Dollar / US Dollar",
+    "asset_type": "FOREX",
+    "title": "Aussie dollar climbs towards 0.68 on hawkish RBA comments",
+    "summary": "Reserve Bank of Australia indicated rates may stay restrictive longer.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_15_nzdusd_kiwi",
+    "ticker": "NZD/USD",
+    "company_name": "New Zealand Dollar / US Dollar",
+    "asset_type": "FOREX",
+    "title": "Kiwi dollar slips on sluggish dairy auction results",
+    "summary": "Agricultural pricing soft in global trade session.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_16_usdcad_loonie",
+    "ticker": "USD/CAD",
+    "company_name": "US Dollar / Canadian Dollar",
+    "asset_type": "FOREX",
+    "title": "Loonie strengthens as energy commodities rebound",
+    "summary": "Canadian currency gained traction during London fix.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_17_usdchf_franc",
+    "ticker": "USD/CHF",
+    "company_name": "US Dollar / Swiss Franc",
+    "asset_type": "FOREX",
+    "title": "Swiss franc firms on safe haven flight amidst geopolitical risk",
+    "summary": "Capital flows into Swiss bank assets accelerating.",
+    "expected_relevant": true,
+    "expected_reason": "CURRENCY_NAMES"
+  },
+  {
+    "id": "forex_18_eurusd_notation_eurusd",
+    "ticker": "EUR/USD",
+    "company_name": "Euro / US Dollar",
+    "asset_type": "FOREX",
+    "title": "EURUSD technical breakout targets 1.10 resistance",
+    "summary": "Currency pair charts suggest upward trend channel.",
+    "expected_relevant": true,
+    "expected_reason": "PAIR"
+  },
+  {
+    "id": "equity_01_now_common_word_reject",
+    "ticker": "NOW",
+    "company_name": "ServiceNow, Inc.",
+    "asset_type": "EQUITY",
+    "title": "Buy NOW before it is too late for holiday savings",
+    "summary": "Discount shopping guide for budget conscious consumers.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_02_now_alias_match",
+    "ticker": "NOW",
+    "company_name": "ServiceNow, Inc.",
+    "asset_type": "EQUITY",
+    "title": "ServiceNow beats Q3 expectations on enterprise cloud expansion",
+    "summary": "CEO highlights AI enterprise workflow integration.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_03_now_cashtag_match",
+    "ticker": "NOW",
+    "company_name": "ServiceNow, Inc.",
+    "asset_type": "EQUITY",
+    "title": "Enterprise software provider $NOW expands AI workflows",
+    "summary": "Traders note strong option positioning into earnings.",
+    "expected_relevant": true,
+    "expected_reason": "CASHTAG"
+  },
+  {
+    "id": "equity_04_now_exchange_ticker_match",
+    "ticker": "NOW",
+    "company_name": "ServiceNow, Inc.",
+    "asset_type": "EQUITY",
+    "title": "NYSE: NOW surges 5% in after-hours trading session",
+    "summary": "Corporate release beats consensus estimates.",
+    "expected_relevant": true,
+    "expected_reason": "EXCHANGE_TICKER"
+  },
+  {
+    "id": "equity_05_all_common_word_reject",
+    "ticker": "ALL",
+    "company_name": "The Allstate Corporation",
+    "asset_type": "EQUITY",
+    "title": "ALL that glitters is not gold in modern finance",
+    "summary": "Philosophical reflections on investing history.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_06_all_alias_match",
+    "ticker": "ALL",
+    "company_name": "The Allstate Corporation",
+    "asset_type": "EQUITY",
+    "title": "Allstate announces quarterly dividend increase",
+    "summary": "Property and casualty insurer reports profitable underwriting quarter.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_07_all_cashtag_match",
+    "ticker": "ALL",
+    "company_name": "The Allstate Corporation",
+    "asset_type": "EQUITY",
+    "title": "Insurance giant $ALL reports catastrophe loss estimates",
+    "summary": "Weather events caused estimated claims during hurricane season.",
+    "expected_relevant": true,
+    "expected_reason": "CASHTAG"
+  },
+  {
+    "id": "equity_08_cat_common_word_reject",
+    "ticker": "CAT",
+    "company_name": "Caterpillar Inc.",
+    "asset_type": "EQUITY",
+    "title": "CAT scan equipment demand expands across regional hospitals",
+    "summary": "Healthcare providers update diagnostic imaging devices.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_09_cat_alias_match",
+    "ticker": "CAT",
+    "company_name": "Caterpillar Inc.",
+    "asset_type": "EQUITY",
+    "title": "Caterpillar reports surging heavy machinery sales overseas",
+    "summary": "Mining and construction demand drove third quarter gains.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_10_cat_cashtag_match",
+    "ticker": "CAT",
+    "company_name": "Caterpillar Inc.",
+    "asset_type": "EQUITY",
+    "title": "Machinery manufacturer $CAT raises dividend guidance",
+    "summary": "Board approves shareholder capital return plan.",
+    "expected_relevant": true,
+    "expected_reason": "CASHTAG"
+  },
+  {
+    "id": "equity_11_googl_alias_google",
+    "ticker": "GOOGL",
+    "company_name": "Alphabet Inc.",
+    "asset_type": "EQUITY",
+    "title": "Google unveils next-generation AI model Gemini 2.0",
+    "summary": "Search company demonstrates advanced multimodal capabilities.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_12_googl_alias_alphabet",
+    "ticker": "GOOGL",
+    "company_name": "Alphabet Inc.",
+    "asset_type": "EQUITY",
+    "title": "Alphabet announces Q3 cloud revenue acceleration",
+    "summary": "Cloud unit reports 35 percent annual growth rate.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_13_meta_alias_facebook",
+    "ticker": "META",
+    "company_name": "Meta Platforms, Inc.",
+    "asset_type": "EQUITY",
+    "title": "Facebook owner Meta Platforms launches smart glasses",
+    "summary": "Consumer hardware partnership expands internationally.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_14_meta_cashtag",
+    "ticker": "META",
+    "company_name": "Meta Platforms, Inc.",
+    "asset_type": "EQUITY",
+    "title": "$META rallies 4% on digital advertising resurgence",
+    "summary": "Ad pricing trends demonstrate robust advertiser demand.",
+    "expected_relevant": true,
+    "expected_reason": "CASHTAG"
+  },
+  {
+    "id": "equity_15_brkb_alias",
+    "ticker": "BRK-B",
+    "company_name": "Berkshire Hathaway Inc.",
+    "asset_type": "EQUITY",
+    "title": "Berkshire Hathaway posts record operating earnings",
+    "summary": "Omaha conglomerate cash reserves top milestone mark.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_16_brkb_alternate_dot_notation",
+    "ticker": "BRK-B",
+    "company_name": "Berkshire Hathaway Inc.",
+    "asset_type": "EQUITY",
+    "title": "Warren Buffett's firm BRK.B buys Occidental Petroleum shares",
+    "summary": "Regulatory filing reveals expanded energy equity stake.",
+    "expected_relevant": true,
+    "expected_reason": "TICKER"
+  },
+  {
+    "id": "equity_17_amd_bare_ticker",
+    "ticker": "AMD",
+    "company_name": "Advanced Micro Devices, Inc.",
+    "asset_type": "EQUITY",
+    "title": "AMD unveils new Ryzen AI processors at tech expo",
+    "summary": "Semiconductor maker challenges rival computing chips.",
+    "expected_relevant": true,
+    "expected_reason": "TICKER"
+  },
+  {
+    "id": "equity_18_amd_advanced_generic_reject",
+    "ticker": "AMD",
+    "company_name": "Advanced Micro Devices, Inc.",
+    "asset_type": "EQUITY",
+    "title": "Advanced manufacturing investments rise across US industrial corridor",
+    "summary": "Factories adopt automated assembly line robotics.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_19_amd_micro_generic_reject",
+    "ticker": "AMD",
+    "company_name": "Advanced Micro Devices, Inc.",
+    "asset_type": "EQUITY",
+    "title": "Micro-cap tech stocks rally amid speculative retail buying",
+    "summary": "Small company shares experience elevated turnover.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_20_t_att_raw_alias",
+    "ticker": "T",
+    "company_name": "AT&T Inc.",
+    "asset_type": "EQUITY",
+    "title": "AT&T raises dividend following strong fiber broadband subscribers growth",
+    "summary": "Telecommunications giant posts solid quarterly cash flow.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_21_t_cashtag",
+    "ticker": "T",
+    "company_name": "AT&T Inc.",
+    "asset_type": "EQUITY",
+    "title": "$T shares rally on telecom subscriber momentum",
+    "summary": "Analysts upgrade rating to buy following results.",
+    "expected_relevant": true,
+    "expected_reason": "CASHTAG"
+  },
+  {
+    "id": "equity_22_t_bare_char_reject",
+    "ticker": "T",
+    "company_name": "AT&T Inc.",
+    "asset_type": "EQUITY",
+    "title": "Analysts note inflation hit across broad tech sector this year",
+    "summary": "Macroeconomic review of monetary policy impact.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_23_spy_alias",
+    "ticker": "SPY",
+    "company_name": "SPDR S&P 500 ETF Trust",
+    "asset_type": "ETF",
+    "title": "S&P 500 ETF sees massive institutional cash inflows",
+    "summary": "Fund assets expand following positive economic data.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_24_spy_ticker",
+    "ticker": "SPY",
+    "company_name": "SPDR S&P 500 ETF Trust",
+    "asset_type": "ETF",
+    "title": "SPY edges higher into market close as broad indices gain",
+    "summary": "ETF tracks major benchmarks higher.",
+    "expected_relevant": true,
+    "expected_reason": "TICKER"
+  },
+  {
+    "id": "equity_25_qqq_ticker",
+    "ticker": "QQQ",
+    "company_name": "Invesco QQQ Trust",
+    "asset_type": "ETF",
+    "title": "QQQ gains 1.5% as mega-cap tech sector rebounds",
+    "summary": "Nasdaq focused fund leads today's market session.",
+    "expected_relevant": true,
+    "expected_reason": "TICKER"
+  },
+  {
+    "id": "equity_26_tgt_inflation_target_reject",
+    "ticker": "TGT",
+    "company_name": "Target Corporation",
+    "asset_type": "EQUITY",
+    "title": "Federal Reserve says inflation target remains 2 percent",
+    "summary": "Policymakers reiterated their commitment to hitting the macroeconomic target.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_27_tgt_market_context_match",
+    "ticker": "TGT",
+    "company_name": "Target Corporation",
+    "asset_type": "EQUITY",
+    "title": "Target shares fall after retailer misses quarterly revenue guidance",
+    "summary": "Retail chain store traffic slowed during autumn months.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_28_tgt_ceo_context_match",
+    "ticker": "TGT",
+    "company_name": "Target Corporation",
+    "asset_type": "EQUITY",
+    "title": "Target CEO announces early holiday discounts to boost sales",
+    "summary": "Executive outlines operational priorities.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_29_gps_gap_generic_reject",
+    "ticker": "GPS",
+    "company_name": "The Gap, Inc.",
+    "asset_type": "EQUITY",
+    "title": "There is a wide gap between economic perception and reality",
+    "summary": "Opinion column analyzing consumer sentiment surveys.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_30_gps_gap_retailer_match",
+    "ticker": "GPS",
+    "company_name": "The Gap, Inc.",
+    "asset_type": "EQUITY",
+    "title": "Gap shares soar after retailer beats quarterly profit forecast",
+    "summary": "Apparel chain experiences brand turnaround success.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_31_f_bare_letter_reject",
+    "ticker": "F",
+    "company_name": "Ford Motor Company",
+    "asset_type": "EQUITY",
+    "title": "F-150 Lightning production pauses at Michigan assembly facility",
+    "summary": "Supply chain component delays affect factory schedule.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_32_f_ford_stock_match",
+    "ticker": "F",
+    "company_name": "Ford Motor Company",
+    "asset_type": "EQUITY",
+    "title": "Ford stock rises after automaker reports robust truck earnings",
+    "summary": "Vehicle manufacturing profits expanded.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_33_shel_shell_wildlife_reject",
+    "ticker": "SHEL",
+    "company_name": "Shell plc",
+    "asset_type": "EQUITY",
+    "title": "Hermit crab shell trade regulated under regional wildlife treaty",
+    "summary": "Conservation biologists advocate coastal protection.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_34_shel_shell_energy_match",
+    "ticker": "SHEL",
+    "company_name": "Shell plc",
+    "asset_type": "EQUITY",
+    "title": "Shell reports quarterly dividend increase and energy revenue beat",
+    "summary": "Energy company cash flows supported share buyback program.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_35_v_visa_victory_reject",
+    "ticker": "V",
+    "company_name": "Visa Inc.",
+    "asset_type": "EQUITY",
+    "title": "The letter V represents historic victory in wartime archives",
+    "summary": "Museum hosts exhibition on European history.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_36_v_visa_shares_match",
+    "ticker": "V",
+    "company_name": "Visa Inc.",
+    "asset_type": "EQUITY",
+    "title": "Visa shares gain after payments network reports cross-border volume growth",
+    "summary": "Travel spending fueled higher transaction processing revenue.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_37_gm_general_electric_reject",
+    "ticker": "GM",
+    "company_name": "General Motors Company",
+    "asset_type": "EQUITY",
+    "title": "General Electric completes aerospace separation plan",
+    "summary": "GE announces industrial aviation division update.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "equity_38_gm_general_motors_name",
+    "ticker": "GM",
+    "company_name": "General Motors Company",
+    "asset_type": "EQUITY",
+    "title": "General Motors unveils commercial electric fleet vehicle",
+    "summary": "Automotive brand expands commercial vehicle portfolio.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_39_ge_general_electric_name",
+    "ticker": "GE",
+    "company_name": "General Electric Company",
+    "asset_type": "EQUITY",
+    "title": "General Electric reports aviation operating profit surge",
+    "summary": "Jet engine orders reach record backlog.",
+    "expected_relevant": true,
+    "expected_reason": "ALIAS"
+  },
+  {
+    "id": "equity_40_ge_general_motors_reject",
+    "ticker": "GE",
+    "company_name": "General Electric Company",
+    "asset_type": "EQUITY",
+    "title": "General Motors expands battery manufacturing facility in Michigan",
+    "summary": "Car factory investments support EV transition.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "commodity_01_cl_crude_oil",
+    "ticker": "CL=F",
+    "company_name": "Crude Oil Futures",
+    "asset_type": "COMMODITY",
+    "title": "Crude oil rallies as OPEC extends output cuts into next year",
+    "summary": "Petroleum cartel limits supply amidst demand uncertainty.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_02_cl_wti",
+    "ticker": "CL=F",
+    "company_name": "Crude Oil Futures",
+    "asset_type": "COMMODITY",
+    "title": "WTI tops $80 a barrel on Middle East shipping tensions",
+    "summary": "Tanker rerouting impacts energy delivery times.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_03_cl_olive_oil_reject",
+    "ticker": "CL=F",
+    "company_name": "Crude Oil Futures",
+    "asset_type": "COMMODITY",
+    "title": "10 best olive oil brands for Mediterranean kitchen cooking",
+    "summary": "Gourmet food guide rates cold pressed culinary ingredients.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "commodity_04_cl_palm_oil_reject",
+    "ticker": "CL=F",
+    "company_name": "Crude Oil Futures",
+    "asset_type": "COMMODITY",
+    "title": "Palm oil imports increase in Asian food processing industry",
+    "summary": "Agricultural commodity supply trends reviewed.",
+    "expected_relevant": false,
+    "expected_reason": null
+  },
+  {
+    "id": "commodity_05_gc_gold_record",
+    "ticker": "GC=F",
+    "company_name": "Gold Futures",
+    "asset_type": "COMMODITY",
+    "title": "Gold prices scale fresh record highs as bullion demand surges",
+    "summary": "Precious metals trade higher across international exchanges.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_06_gc_bullion",
+    "ticker": "GC=F",
+    "company_name": "Gold Futures",
+    "asset_type": "COMMODITY",
+    "title": "Central banks accumulate bullion reserves in safe haven flight",
+    "summary": "Official monetary reserves diversify foreign exchange assets.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_07_si_silver",
+    "ticker": "SI=F",
+    "company_name": "Silver Futures",
+    "asset_type": "COMMODITY",
+    "title": "Silver prices surge on industrial solar manufacturing demand",
+    "summary": "Photovoltaic panel fabrication requires elevated silver volume.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_08_es_sp500_futures",
+    "ticker": "ES=F",
+    "company_name": "E-mini S&P 500 Futures",
+    "asset_type": "FUTURES",
+    "title": "S&P 500 futures edge higher ahead of Wall Street opening bell",
+    "summary": "Pre-market index contracts point to positive opening tick.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_09_es_spx",
+    "ticker": "ES=F",
+    "company_name": "E-mini S&P 500 Futures",
+    "asset_type": "FUTURES",
+    "title": "SPX contracts consolidate above key moving average support",
+    "summary": "Derivatives positioning shows steady call buying.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_10_nq_nasdaq100_futures",
+    "ticker": "NQ=F",
+    "company_name": "Nasdaq 100 Futures",
+    "asset_type": "FUTURES",
+    "title": "Nasdaq 100 futures slide as chipmakers retreat in early trade",
+    "summary": "Tech-heavy index contracts give up previous session gains.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_11_ng_natural_gas",
+    "ticker": "NG=F",
+    "company_name": "Natural Gas Futures",
+    "asset_type": "COMMODITY",
+    "title": "Natural gas prices tumble on mild winter weather forecasts",
+    "summary": "Heating demand projected to remain subdued this week.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "commodity_12_ng_henry_hub",
+    "ticker": "NG=F",
+    "company_name": "Natural Gas Futures",
+    "asset_type": "COMMODITY",
+    "title": "Henry Hub benchmark contracts drop 4 percent today",
+    "summary": "Pipeline storage capacity fills faster than seasonal norms.",
+    "expected_relevant": true,
+    "expected_reason": "KEYWORD"
+  },
+  {
+    "id": "crypto_01_btc_name",
+    "ticker": "BTC-USD",
+    "company_name": "Bitcoin USD",
+    "asset_type": "CRYPTO",
+    "title": "Bitcoin surges past $100,000 in historic crypto milestone",
+    "summary": "Institutional inflows accelerate after spot ETF approvals.",
+    "expected_relevant": true,
+    "expected_reason": "NAME"
+  },
+  {
+    "id": "crypto_02_btc_cashtag",
+    "ticker": "BTC-USD",
+    "company_name": "Bitcoin USD",
+    "asset_type": "CRYPTO",
+    "title": "$BTC miners expand computing hash rate capacity in Texas",
+    "summary": "Blockchain infrastructure builds out renewable power.",
+    "expected_relevant": true,
+    "expected_reason": "CASHTAG"
+  },
+  {
+    "id": "crypto_03_btc_pair",
+    "ticker": "BTC-USD",
+    "company_name": "Bitcoin USD",
+    "asset_type": "CRYPTO",
+    "title": "BTC/USD consolidates near all-time highs following liquidation flush",
+    "summary": "Crypto asset spot volume remains robust.",
+    "expected_relevant": true,
+    "expected_reason": "PAIR"
+  },
+  {
+    "id": "crypto_04_btc_ticker",
+    "ticker": "BTC-USD",
+    "company_name": "Bitcoin USD",
+    "asset_type": "CRYPTO",
+    "title": "BTC exchange balances fall to multi-year lows",
+    "summary": "Investors transfer coins to cold storage custody solutions.",
+    "expected_relevant": true,
+    "expected_reason": "TICKER"
+  },
+  {
+    "id": "crypto_05_eth_name",
+    "ticker": "ETH-USD",
+    "company_name": "Ethereum USD",
+    "asset_type": "CRYPTO",
+    "title": "Ethereum network upgrade drastically reduces layer-2 transaction fees",
+    "summary": "Developers celebrate successful hard fork implementation.",
+    "expected_relevant": true,
+    "expected_reason": "NAME"
+  },
+  {
+    "id": "crypto_06_eth_ether",
+    "ticker": "ETH-USD",
+    "company_name": "Ethereum USD",
+    "asset_type": "CRYPTO",
+    "title": "Ether staking rewards reach monthly highs as validator count climbs",
+    "summary": "Proof of stake participation strengthens network security.",
+    "expected_relevant": true,
+    "expected_reason": "NAME"
+  },
+  {
+    "id": "crypto_07_sol_solana",
+    "ticker": "SOL-USD",
+    "company_name": "Solana USD",
+    "asset_type": "CRYPTO",
+    "title": "Solana decentralized exchange volume accelerates to record weekly pace",
+    "summary": "High speed blockchain network captures retail trading activity.",
+    "expected_relevant": true,
+    "expected_reason": "NAME"
+  }
+]
