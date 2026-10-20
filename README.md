@@ -92,14 +92,50 @@ Directional articles carry weight proportional to certainty: $W_i = \text{confid
 Calculated strictly across directional headlines ($|S_i| \ge 0.15$):
 $$S = \frac{\sum_{i \in \text{Directional}} W_{\text{effective}, i} \cdot S_i}{\sum_{i \in \text{Directional}} W_{\text{effective}, i}} \in [-1.0, +1.0]$$
 
-### Ratio Decision Matrix & Publisher Corroboration
+### Ratio Decision Matrix & Directional Publisher Corroboration
 $$\text{Verdict} = \begin{cases} 
-\mathbf{BUY} & \text{if } N_{\text{pos}} \ge 2 \text{ and } N_{\text{pos}} \ge 1.5 \times N_{\text{neg}} \text{ and } S \ge +0.20 \text{ and } P_{\text{distinct}} \ge 2 \\ 
-\mathbf{SELL} & \text{if } N_{\text{neg}} \ge 2 \text{ and } N_{\text{neg}} \ge 1.5 \times N_{\text{pos}} \text{ and } S \le -0.20 \text{ and } P_{\text{distinct}} \ge 2 \\ 
-\mathbf{HOLD} & \text{if } P_{\text{distinct}} < 2 \text{ (forced HOLD with INSUFFICIENT\_CORROBORATION)} \\ 
-\mathbf{HOLD} & \text{if conflicting sentiment } (N_{\text{pos}}, N_{\text{neg}} \ge 1 \text{ within } 1.5\times \text{ ratio}) \\ 
-\mathbf{HOLD} & \text{if sparse evidence } (N_{\text{pos}} + N_{\text{neg}} < 2) 
+\mathbf{BUY} & \text{if } N_{\text{pos}} \ge 2 \text{ and } N_{\text{pos}} \ge 1.5 \times N_{\text{neg}} \text{ and } S \ge +0.20 \text{ and } P_{\text{pos}} \ge 2 \\ 
+\mathbf{SELL} & \text{if } N_{\text{neg}} \ge 2 \text{ and } N_{\text{neg}} \ge 1.5 \times N_{\text{pos}} \text{ and } S \le -0.20 \text{ and } P_{\text{neg}} \ge 2 \\ 
+\mathbf{HOLD} & \text{if } P_{\text{support}} < 2 \text{ (forced HOLD with INSUFFICIENT\_CORROBORATION)} \\ 
+\mathbf{HOLD} & \text{if conflicting sentiment } (N_{\text{pos}}, N_{\text{neg}} \ge 1 \text{ within } 1.5\times \text{ ratio corridor}) \\ 
+\mathbf{HOLD} & \text{if sparse evidence } (N_{\text{pos}} + N_{\text{neg}} < 2) \\
+\mathbf{HOLD} & \text{if neutral sentiment } (-0.20 < S < +0.20)
 \end{cases}$$
+
+- **Directional Corroboration ($P_{\text{support}}$)**: BUY candidates require at least 2 distinct eligible canonical publishers supporting the positive side ($P_{\text{pos}} \ge 2$). SELL candidates require at least 2 distinct eligible canonical publishers supporting the negative side ($P_{\text{neg}} \ge 2$).
+- **Eligible Publishers**: Feed sweep entries with `publisher_inferred=True` (such as Google News fallback sweeps lacking explicit `<source>` metadata) and entries tagged as `"Unknown Aggregator"` are strictly excluded from corroboration counts.
+
+### Decision Confidence & Dynamic Ceilings (Decision D6)
+Raw decision confidence is calculated from directional sentiment certainty, consensus alignment, and evidence quality:
+$$C_{\text{raw}} = |S| \times \left(0.4 + 0.6 \times \frac{|N_{\text{pos}} - N_{\text{neg}}|}{N_{\text{pos}} + N_{\text{neg}}}\right) \times Q$$
+
+- **Evidence-Free / Sparse Evidence HOLDs**: If $N_{\text{pos}} + N_{\text{neg}} < 2$ (`SPARSE_EVIDENCE` or `NO_NEWS`), confidence is strictly **0.0** (no artificial floor applied; displayed as `n/a` in the UI).
+- **Hybrid High-Confidence Ceiling ($0.95$)**: The upper $0.95$ ceiling (with a $0.20$ floor) applies **only** when LLM catalyst synthesis succeeded and verified $\ge 1$ market-moving catalyst directly supporting the verdict's direction (positive catalyst for BUY, negative for SELL).
+- **Baseline Ceiling ($0.60$)**: Confidence is bounded to $[0.15, 0.60]$ whenever the pipeline runs in FinBERT-only mode, the LLM fails or times out, no supporting catalyst is confirmed, or the verdict is a directional HOLD.
+
+### Data Statuses & Cache Lifecycles
+
+| Data Status | Description | Action & Caching |
+|---|---|---|
+| `OK` | Normal analysis with verified in-window news. | Standard 15-minute intraday cache TTL. |
+| `NO_FRESH_NEWS` | Zero articles published inside the active session window. | HOLD with `NO_NEWS` reason; cache TTL capped at $\min(\text{bucket}, 300\text{s})$. |
+| `NO_RELEVANT_NEWS` | In-window headlines found, but zero passed multi-asset entity relevance and deduplication filters. | HOLD with `NO_NEWS` reason; FinBERT & LLM skipped; cache TTL capped at $\min(\text{bucket}, 300\text{s})$. |
+| `DEGRADED` | All external RSS news feeds failed during the ingestion sweep. | Saved to database for auditability, but `is_cacheable=False` (never returned from cache). |
+
+### HOLD Reasons
+
+- `NO_NEWS`: Zero articles found in session window or zero articles passed relevance filters. Confidence: `0.0`.
+- `SPARSE_EVIDENCE`: Directional evidence volume is insufficient ($N_{\text{pos}} + N_{\text{neg}} < 2$). Confidence: `0.0`.
+- `INSUFFICIENT_CORROBORATION`: Ratio threshold was met, but evidence originated from a single publisher or unverified syndicators ($P_{\text{support}} < 2$).
+- `CONFLICTING`: Opposing positive and negative catalysts balance within the $1.5\times$ ratio corridor.
+- `NEUTRAL`: Directional sentiment score falls within the neutral corridor ($-0.20 < S < +0.20$).
+
+### Multi-Asset Relevance Engine
+Relevance matching is deterministic, pre-compiled per run, and enforces domain-specific rules:
+1. **Equities & ETFs**: Match cashtags (`$AAPL`), exchange-prefixed tickers (`NASDAQ: AAPL`), case-sensitive bare tickers ($\ge 2$ chars, checked against common-word blacklist such as `NOW`, `ALL`, `ON`, `IT`, `CAT`, `AI`), non-ambiguous aliases (`Alphabet` for `GOOGL`), and ambiguous aliases gated by market context (`Target` + shares/earnings/CEO).
+2. **Forex**: Match pair notations (`EUR/USD`, `EURUSD`, `EUR-USD`) and currency names; excludes headlines where another explicit currency pair is named.
+3. **Commodities & Futures**: Keyword-driven matching with strict negative exclusions (e.g., `CL=F` matches crude/WTI/OPEC, but rejects palm oil and olive oil). Prefixing with `$` (e.g., `$GOLD`) bypasses commodity keywords to target equity listings.
+4. **Cryptocurrencies**: Match cashtags (`$BTC`), symbol pairs (`BTC-USD`), and canonical currency names (`Bitcoin`).
 
 ---
 

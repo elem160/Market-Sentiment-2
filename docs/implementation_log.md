@@ -22,13 +22,13 @@
 | P1.7 | Unified errors and an honest health check | M9 | done | `3eeb71f` |
 | P1.8 | Hotfixes | H10, L2 | done | `793e3ee` |
 | P1.9 | Rebuild and commit the bundle | D4 | done | (current) |
-| P2.1 | Corroboration by direction | C4, M11, M3 | todo | |
-| P2.2 | Relevance engine rebuild | C3, H4, M15 | todo | |
-| P2.3 | Ticker resolution | H3, H5, M16 | todo | |
-| P2.4 | Session window and market calendar | H14, L5, M13 | todo | |
-| P2.5 | LLM robustness | H6, H7, M10, M17 | todo | |
-| P2.6 | Data status, HOLD reasons, confidence | M12 | todo | |
-| P2.7 | Documentation for Phase 2 behaviour | M18 | todo | |
+| P2.1 | Corroboration by direction | C4, M11, M3 | done | `6126557` |
+| P2.2 | Relevance engine rebuild | C3, H4, M15 | done | `336b038` |
+| P2.3 | Ticker resolution | H3, H5, M16 | done | `5c2507e` |
+| P2.4 | Session window and market calendar | H14, L5, M13 | done | `d745273` |
+| P2.5 | LLM robustness | H6, H7, M10, M17 | done | `7b9a8e1` |
+| P2.6 | Data status, HOLD reasons, confidence | M12, D6 | done | `e933e73` |
+| P2.7 | Documentation for Phase 2 behaviour | M18 | done | (current) |
 | P3.1 | Ingestion rework | H9, M15, M10, L10 | todo | |
 | P3.2 | FinBERT throughput and dependency injection | H8, M16 | todo | |
 | P3.3 | Stop blocking the event loop | H11 | todo | |
@@ -125,6 +125,48 @@
   - Exported up-to-date OpenAPI contract via `scripts/export_openapi.py`.
   - Verified `tests/contract/test_openapi_snapshot.py` matches committed snapshot.
   - Verified acceptance: 114 tests passed, 89% coverage (well above 85% requirement), `ruff check .` clean, `alembic check` clean with zero drift.
+
+## Phase 2 — Decision integrity
+
+### Execution (2026-10-20)
+
+- **P2.1 Corroboration by direction (`6126557`):**
+  - Added migration `004_decision_integrity.py` adding `article_evidence.publisher_inferred` (BOOLEAN DEFAULT 0) and `analysis_runs.hold_reason` (VARCHAR(40) nullable).
+  - Explicitly marked feed sweep entries with `publisher_inferred=True` during Google News sweeps lacking `<source>` metadata, and kept direct publisher feeds authoritative.
+  - Enforced directional publisher sets in `AggregatorService`: BUY mandates $P_{\text{pos}} \ge 2$, SELL mandates $P_{\text{neg}} \ge 2$; single-source evidence forces HOLD with `INSUFFICIENT_CORROBORATION`.
+  - Excluded inferred publishers and "Unknown Aggregator" from corroboration counts.
+  - Added `publishers_positive`, `publishers_negative`, and `supporting_publishers` metrics for backend telemetry and UI corroboration badge.
+- **P2.2 Relevance engine rebuild (`336b038`):**
+  - Created `app/core/asset_registry.py` and `app/services/relevance.py` implementing deterministic multi-asset relevance matching with compiled regexes.
+  - Equities: cashtags, exchange-prefixed tickers, case-sensitive bare tickers ($\ge 2$ chars, checked against common-word blacklist), non-ambiguous aliases, and ambiguous aliases gated by market context.
+  - Forex: pair notation matching in all common variants and currency leg isolation with cross-pair exclusion.
+  - Commodities & Futures: keyword lists with negative exclusions (e.g. `CL=F` oil rejects olive/palm oil).
+  - Built 65 table-driven test cases in `tests/fixtures/relevance_cases.json` covering all probe cases from the review.
+- **P2.3 Ticker resolution (`5c2507e`):**
+  - Added TTL-governed resolution caching keyed by `(normalized, bypass_aliases)` with 6h TTL (`TICKER_CACHE_TTL_SECONDS`), 10-minute negative cache for unknown symbols, and 8.0s asynchronous thread timeout raising 503 `ProviderException`.
+  - Removed cross-mode cache pollution (`$GOLD` vs `GOLD`).
+  - Mapped futures tickers (`ES=F`, `NQ=F`, `YM=F`, `RTY=F`) to `AssetType.FUTURES` with `"CME"` exchange.
+  - Passed pre-resolved `Asset` from API routes into background jobs and orchestrator, preserving `$` intent and skipping redundant resolution.
+- **P2.4 Session window and market calendar (`d745273`):**
+  - Created `app/core/market_calendar.py` with explicit dated tables for 2025–2027 NYSE holidays, special closures (e.g., Jimmy Carter Day of Mourning 2025-01-09), and 13:00 ET early closes.
+  - Unified session window rule across all sessions (Decision D1): window starts at the close of the most recent active NYSE trading day strictly prior to today's date (16:00 ET, or 13:00 ET on early close days), capped at $\max(T_{\text{prior\_close}}, T_{\text{run}} - 72\text{h})$, ending at `run`.
+  - Updated cache bucket flooring to floor by minutes since midnight ET, supporting buckets > 60 minutes, with pydantic settings validation.
+- **P2.5 LLM robustness (`7b9a8e1`):**
+  - Configured shared `AsyncOpenAI` client lazily instantiated and cleanly closed at lifespan shutdown.
+  - Implemented multi-model fallback (`[LLM_MODEL_ID, LLM_FALLBACK_MODEL_ID]`) with 30s overall deadline degrading gracefully to `PipelineMode.DETERMINISTIC_FINBERT_ONLY` instead of failing the job.
+  - Enforced structured JSON output validation against `LLMCatalystResponse`, falling through on empty content, truncation, or schema mismatch.
+  - Prompt hardening: escaped `&` to `&amp;` before `<` and `>`, stripped control characters, bounded headlines/publishers, and trimmed candidates to fit `MAX_PROMPT_TOKENS`.
+  - Refreshed pricing table with env override support (`MODEL_PRICING`) and free model zero-cost handling.
+- **P2.6 Data status, HOLD reasons, confidence (`e933e73`):**
+  - Enforced `DataStatus`: `OK`, `NO_FRESH_NEWS`, `NO_RELEVANT_NEWS` (0 articles survive relevance/dedup -> FinBERT and LLM skipped, HOLD, confidence 0.0), `DEGRADED` (all RSS failed -> saved for auditability, `is_cacheable=False`).
+  - Capped cache TTL for `NO_FRESH_NEWS` and `NO_RELEVANT_NEWS` to $\min(\text{bucket}, 300\text{s})$.
+  - Stored `HoldReason` (`NO_NEWS`, `SPARSE_EVIDENCE`, `INSUFFICIENT_CORROBORATION`, `CONFLICTING`, `NEUTRAL`) in `analysis_runs.hold_reason`.
+  - Applied Decision D6 confidence ceilings: confidence is strictly 0.0 for `NO_NEWS` and `SPARSE_EVIDENCE` (displayed as `n/a` in UI); upper 0.95 hybrid ceiling applies only when LLM confirmed $\ge 1$ catalyst supporting verdict direction; otherwise capped at 0.60.
+  - Updated frontend `DecisionHero.tsx` and `HistorySidebar.tsx` with HOLD reason subtext, `n/a` confidence for evidence-free HOLDs, and banners/badges for `NO_RELEVANT_NEWS` and `DEGRADED`.
+- **P2.7 Documentation for Phase 2 behaviour:**
+  - Updated `README.md` with directional corroboration rules, confidence formulas and D6 dynamic ceilings, data statuses table, HOLD reasons reference, and multi-asset relevance engine specifications.
+  - Documented completion in `docs/implementation_log.md`.
+  - Acceptance: 220 offline tests passed, 89% coverage, `ruff check .` clean, `alembic check` clean with zero drift.
 
 ## Deviations
 
