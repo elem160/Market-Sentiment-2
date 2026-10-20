@@ -51,8 +51,12 @@ class AggregatorService:
         in_window_articles: list[ScoredArticle] = []
         for art in valid_articles:
             if art.published_at_utc is None or not session.is_timestamp_in_window(art.published_at_utc):
+                ts_str = art.published_at_utc.isoformat() if art.published_at_utc else "None"
                 raise FreshnessViolationException(
-                    f"Core Invariant Violated in Aggregator: Article '{art.article_id}' has invalid timestamp {art.published_at_utc} outside session window [{session.window_start_utc}, {session.window_end_utc}]."
+                    article_id=art.article_id,
+                    timestamp_str=ts_str,
+                    window_start=session.window_start_utc.isoformat(),
+                    window_end=session.window_end_utc.isoformat(),
                 )
             in_window_articles.append(art)
 

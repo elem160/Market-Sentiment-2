@@ -10,11 +10,17 @@ import feedparser
 import httpx
 import yfinance as yf
 
+from typing import Any
 from app.config import settings
 from app.core.models import IngestedArticle
 from app.core.enums import ProviderType, AssetType
 from app.core.session_window import SessionWindow
 from app.utils.logging import logger
+
+
+def _as_dict(value: Any) -> dict:
+    """Safely return value as a dictionary if it is one, else an empty dictionary."""
+    return value if isinstance(value, dict) else {}
 
 EQUITY_PUBLISHER_DOMAINS = {
     "Reuters": "reuters.com",
@@ -89,7 +95,7 @@ class NewsService:
             if not isinstance(item, dict):
                 continue
 
-            content = item.get("content") if isinstance(item.get("content"), dict) else {}
+            content = _as_dict(item.get("content"))
 
             # Title
             title = content.get("title") or item.get("title", "")
@@ -103,19 +109,22 @@ class NewsService:
 
             # Link
             canonical_url = (
-                content.get("canonicalUrl", {}).get("url")
-                or content.get("clickThroughUrl", {}).get("url")
-                or item.get("link", f"https://finance.yahoo.com/quote/{yf_ticker}")
+                _as_dict(content.get("canonicalUrl")).get("url")
+                or _as_dict(content.get("clickThroughUrl")).get("url")
+                or item.get("link")
+                or f"https://finance.yahoo.com/quote/{yf_ticker}"
             )
 
             # Publisher: Real provider displayName as publisher
-            provider_dict = item.get("provider") if isinstance(item.get("provider"), dict) else {}
-            content_provider = content.get("provider") if isinstance(content.get("provider"), dict) else {}
-            publisher = (
+            provider_dict = _as_dict(item.get("provider"))
+            content_provider = _as_dict(content.get("provider"))
+            raw_publisher = (
                 provider_dict.get("displayName")
                 or content_provider.get("displayName")
-                or item.get("publisher", "Yahoo Finance")
-            ).strip()
+                or item.get("publisher")
+                or "Yahoo Finance"
+            )
+            publisher = str(raw_publisher or "").strip()
 
             # Timestamp: Never default to now()
             pub_time: datetime | None = None

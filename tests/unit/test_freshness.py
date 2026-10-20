@@ -45,6 +45,41 @@ def test_parse_yfinance_current_schema():
     assert articles[2].source_name == "Yahoo - TechRadar"
 
 
+def test_parse_yfinance_null_safe_attributes():
+    """Verify null-safe access when canonicalUrl, clickThroughUrl, provider, content are None (H10)."""
+    raw_items = [
+        {
+            "id": "item-nulls-1",
+            "content": {
+                "title": "Headline With Null Fields",
+                "summary": None,
+                "description": None,
+                "pubDate": "2026-10-18T14:30:00Z",
+                "provider": None,
+                "canonicalUrl": None,
+                "clickThroughUrl": None,
+            },
+            "provider": None,
+        },
+        {
+            "id": "item-nulls-2",
+            "title": "Flat Headline With Null Content",
+            "content": None,
+            "provider": None,
+            "publisher": None,
+            "link": None,
+            "pubDate": "2026-10-18T14:30:00Z",
+        },
+    ]
+    articles = NewsService.parse_yfinance_items(raw_items, "AAPL")
+    assert len(articles) == 2
+    assert articles[0].title == "Headline With Null Fields"
+    assert articles[0].canonical_url == "https://finance.yahoo.com/quote/AAPL"
+    assert articles[0].source_name == "Yahoo - Yahoo Finance"
+    assert articles[1].title == "Flat Headline With Null Content"
+    assert articles[1].canonical_url == "https://finance.yahoo.com/quote/AAPL"
+
+
 def test_parse_yfinance_legacy_schema():
     """Verify the parser still reads legacy flat items (top-level title/publisher/link, pubDate or providerPublishTime)."""
     articles = NewsService.parse_yfinance_items(_load_yf_fixture("yf_legacy_schema.json"), "AAPL")
@@ -305,8 +340,10 @@ def test_aggregator_out_of_window_assertion_raises_exception():
         score=0.8,
     )
 
-    with pytest.raises(FreshnessViolationException):
+    with pytest.raises(FreshnessViolationException) as exc_info:
         AggregatorService.aggregate_and_decide("AAPL", "Apple Inc.", session, [art_stale], [], "")
+    assert "stale_1" in exc_info.value.message
+    assert exc_info.value.details["article_id"] == "stale_1"
 
 
 def test_aggregator_effective_weight_and_tally_consistency():
