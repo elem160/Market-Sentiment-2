@@ -123,7 +123,7 @@ class AnalysisResult(BaseModel):
     warnings: list[str] = []
     pipeline_mode: PipelineMode = PipelineMode.HYBRID_FINBERT_LLM
     cache_status: CacheStatus = CacheStatus.MISS
-    data_status: str = "OK"              # "OK" | "NO_FRESH_NEWS" | "NO_RELEVANT_NEWS" | "DEGRADED"
+    data_status: DataStatus = DataStatus.OK
     hold_reason: HoldReason | None = None
     llm_summary: str | None = None
     model_versions: dict[str, str] = {}

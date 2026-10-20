@@ -12,7 +12,7 @@ from app.core.models import (
     ScoredArticle,
     PipelineRationale,
 )
-from app.core.enums import PipelineStage, PipelineMode, CacheStatus, DecisionVerdict, ExclusionReason, HoldReason
+from app.core.enums import PipelineStage, PipelineMode, CacheStatus, DecisionVerdict, ExclusionReason, HoldReason, DataStatus
 from app.core.session_window import compute_session_window, compute_session_bucket
 from app.core.exceptions import FreshnessViolationException, NewsUnavailableException
 from app.core.constants import DIRECTIONAL_THRESHOLD
@@ -223,7 +223,7 @@ class AnalysisOrchestrator:
                 warnings=[summary] if not rss_failure_warning else [summary, rss_failure_warning],
                 pipeline_mode=PipelineMode.DETERMINISTIC_FINBERT_ONLY,
                 cache_status=CacheStatus.MISS,
-                data_status="NO_FRESH_NEWS",
+                data_status=DataStatus.DEGRADED if all_rss_failed else DataStatus.NO_FRESH_NEWS,
                 hold_reason=HoldReason.NO_NEWS,
                 llm_summary=None,
                 model_versions={"finbert": settings.FINBERT_MODEL_NAME, "llm": "NONE"},
@@ -255,6 +255,113 @@ class AnalysisOrchestrator:
         stage_latencies["filtering_deduplicating"] = round((time.time() - t2) * 1000, 1)
 
         excluded_articles = freshness_excluded + dedup_excluded
+
+        # If zero articles survive relevance and deduplication, return NO_RELEVANT_NEWS cleanly (P2.6, M12)
+        if len(retained_articles) == 0:
+            summary = (
+                f"No articles passed entity relevance criteria for {asset.ticker} "
+                f"({len(in_window_articles)} inside session window, but 0 passed relevance and deduplication)."
+            )
+            rationale = PipelineRationale(
+                summary=summary,
+                observed_facts=[],
+                inferences=[
+                    f"Session window: {session.window_start_utc.strftime('%Y-%m-%d %H:%M')} to {session.window_end_utc.strftime('%Y-%m-%d %H:%M')} UTC.",
+                    f"Ingested {len(raw_articles)} raw articles; {len(in_window_articles)} within window.",
+                    f"Excluded {len(dedup_excluded)} article(s) due to lack of entity relevance or syndication duplicates.",
+                    "Zero relevant articles passed filters: FinBERT and LLM synthesis skipped.",
+                ],
+            )
+            relevance_excluded_counts: dict[str, int] = {}
+            for _, reason, _ in excluded_articles:
+                r_val = reason.value if hasattr(reason, "value") else str(reason)
+                relevance_excluded_counts[r_val] = relevance_excluded_counts.get(r_val, 0) + 1
+
+            metrics = PipelineMetrics(
+                total_sources=len(provider_outcomes),
+                distinct_publishers=0,
+                distinct_clusters=0,
+                publishers_positive=0,
+                publishers_negative=0,
+                supporting_publishers=0,
+                articles_ingested=len(raw_articles),
+                articles_retained=0,
+                articles_deduplicated=relevance_excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
+                articles_scored_local=0,
+                articles_sent_to_llm=0,
+                articles_excluded_total=len(excluded_articles),
+                excluded_counts=relevance_excluded_counts,
+                directional_threshold=DIRECTIONAL_THRESHOLD,
+                excluded_out_of_window=excluded_out_of_window,
+                excluded_missing_timestamp=excluded_missing_ts,
+                total_latency_ms=round((time.time() - t_start) * 1000, 1),
+                stage_latencies=stage_latencies,
+            )
+
+            sample_excluded_articles: list[ScoredArticle] = []
+            for excl_art, reason, note in excluded_articles:
+                canonical_pub = DeduplicationService.normalize_publisher(excl_art.source_name)
+                lead_text = f"{excl_art.title}. {excl_art.summary}".strip()[:500]
+                sample_excluded_articles.append(
+                    ScoredArticle(
+                        article_id=excl_art.article_id,
+                        provider=excl_art.provider,
+                        source_name=excl_art.source_name,
+                        canonical_publisher=canonical_pub,
+                        canonical_url=excl_art.canonical_url,
+                        title=excl_art.title,
+                        published_at_utc=excl_art.published_at_utc,
+                        lead_text=lead_text,
+                        finbert_positive=0.0,
+                        finbert_negative=0.0,
+                        finbert_neutral=1.0,
+                        finbert_directional_score=0.0,
+                        finbert_confidence=0.0,
+                        is_llm_catalyst=False,
+                        catalyst_category=None,
+                        exclusion_reason=reason,
+                        final_weight=0.0,
+                        effective_weight=0.0,
+                        age_hours=0.0,
+                        cluster_id=cluster_map.get(excl_art.article_id, ""),
+                        publisher_inferred=bool(excl_art.raw_provider_metadata.get("publisher_inferred", False)),
+                    )
+                )
+
+            data_status = DataStatus.DEGRADED if all_rss_failed else DataStatus.NO_RELEVANT_NEWS
+            no_relevant_result = AnalysisResult(
+                run_id=str(uuid.uuid4()),
+                ticker=asset.ticker,
+                company_name=asset.company_name,
+                asset_type=asset.asset_type,
+                session=session,
+                decision=DecisionVerdict.HOLD,
+                decision_confidence=0.0,
+                sentiment_score=0.0,
+                evidence_quality=0.0,
+                disclaimer="Research & Market Sentiment Tool. Not Financial or Investment Advice.",
+                rationale=rationale,
+                metrics=metrics,
+                articles=sample_excluded_articles,
+                warnings=[summary] if not rss_failure_warning else [summary, rss_failure_warning],
+                pipeline_mode=PipelineMode.DETERMINISTIC_FINBERT_ONLY,
+                cache_status=CacheStatus.MISS,
+                data_status=data_status,
+                hold_reason=HoldReason.NO_NEWS,
+                llm_summary=None,
+                model_versions={"finbert": settings.FINBERT_MODEL_NAME, "llm": "NONE"},
+                config_version=settings.get_config_hash(),
+            )
+
+            if all_rss_failed:
+                logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to total RSS provider failure.")
+            SentimentRepository.save_analysis_run(
+                db, no_relevant_result, cache_key, provider_outcomes, is_cacheable=(not all_rss_failed)
+            )
+
+            if on_progress:
+                await on_progress(PipelineStage.DONE, 1.0, "Analysis complete (No relevant news).")
+            return no_relevant_result
 
         # ---------------------------------------------------------------------
         # Core Invariant Assertion (Immediately before FinBERT & Aggregation)
@@ -431,7 +538,7 @@ class AnalysisOrchestrator:
             warnings=warnings,
             pipeline_mode=pipeline_mode,
             cache_status=CacheStatus.MISS,
-            data_status="OK",
+            data_status=DataStatus.DEGRADED if all_rss_failed else DataStatus.OK,
             hold_reason=agg_res.hold_reason,
             llm_summary=llm_summary or None,
             model_versions=model_versions,

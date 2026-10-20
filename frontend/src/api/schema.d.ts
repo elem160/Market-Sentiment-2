@@ -145,7 +145,7 @@ export interface components {
       warnings: string[];
       pipeline_mode: components["schemas"]["PipelineMode"] | string;
       cache_status: components["schemas"]["CacheStatus"] | string;
-      data_status?: string;
+      data_status?: components["schemas"]["DataStatus"];
       hold_reason?: components["schemas"]["HoldReason"] | null;
       llm_summary?: string | null;
       model_versions: Record<string, string>;
@@ -158,6 +158,7 @@ export interface components {
     };
     AssetType: "EQUITY" | "ETF" | "FOREX" | "COMMODITY" | "FUTURES" | "CRYPTO" | "INDEX";
     CacheStatus: "HIT" | "MISS";
+    DataStatus: "OK" | "NO_FRESH_NEWS" | "NO_RELEVANT_NEWS" | "DEGRADED";
     CatalystCategory:
       | "EARNINGS"
       | "M_AND_A"
@@ -288,11 +289,12 @@ export interface components {
       ticker: string;
       company_name: string;
       asset_type?: components["schemas"]["AssetType"] | string;
-      data_status?: string;
+      data_status?: components["schemas"]["DataStatus"];
       decision: string;
       decision_confidence: number;
       sentiment_score: number;
       evidence_quality: number;
+      hold_reason?: components["schemas"]["HoldReason"] | null;
       run_timestamp_utc: string;
     };
     ScoredArticle: {

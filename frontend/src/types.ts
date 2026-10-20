@@ -7,6 +7,7 @@ export type JobStatus = components['schemas']['JobStatus'];
 export type CatalystCategory = components['schemas']['CatalystCategory'];
 export type ExclusionReason = components['schemas']['ExclusionReason'];
 export type HoldReason = components['schemas']['HoldReason'];
+export type DataStatus = components['schemas']['DataStatus'];
 export type ScoredArticle = components['schemas']['ScoredArticle'];
 export type ObservedFact = components['schemas']['ObservedFact'];
 export type PipelineRationale = components['schemas']['PipelineRationale'];

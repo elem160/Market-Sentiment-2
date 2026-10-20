@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field, field_serializer
 from app.core.enums import (
     AssetType,
     CacheStatus,
+    DataStatus,
     DecisionVerdict,
+    HoldReason,
     JobStatus,
     PipelineMode,
     PipelineStage,
@@ -74,11 +76,12 @@ class RecentRunSummary(BaseModel):
     ticker: str
     company_name: str
     asset_type: AssetType = AssetType.EQUITY
-    data_status: str = "OK"
+    data_status: DataStatus = DataStatus.OK
     decision: str
     decision_confidence: float
     sentiment_score: float
     evidence_quality: float
+    hold_reason: HoldReason | None = None
     run_timestamp_utc: datetime
 
     @field_serializer("run_timestamp_utc")

@@ -39,8 +39,32 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
     return (val > 0 ? '+' : '') + (val || 0).toFixed(3);
   };
 
+  const formatHoldReason = (reason?: string | null) => {
+    switch (reason) {
+      case 'NO_NEWS':
+        return 'No News';
+      case 'SPARSE_EVIDENCE':
+        return 'Sparse Evidence';
+      case 'INSUFFICIENT_CORROBORATION':
+        return 'Insufficient Corroboration';
+      case 'CONFLICTING':
+        return 'Conflicting Evidence';
+      case 'NEUTRAL':
+        return 'Neutral Sentiment';
+      default:
+        return reason || '';
+    }
+  };
+
   const distinctPubs = result.metrics?.distinct_publishers ?? 0;
   const isCorroborated = distinctPubs >= 2;
+  const isEvidenceFreeHold =
+    verdict === 'HOLD' &&
+    (result.hold_reason === 'NO_NEWS' ||
+      result.hold_reason === 'SPARSE_EVIDENCE' ||
+      result.data_status === 'NO_FRESH_NEWS' ||
+      result.data_status === 'NO_RELEVANT_NEWS' ||
+      (result.decision_confidence || 0) === 0);
 
   return (
     <div className={`glass-panel hero-decision-card ${verdictClass} animate-fade-in`} id="decision-hero-card">
@@ -59,6 +83,16 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
                 No Fresh News
               </span>
             )}
+            {result.data_status === 'NO_RELEVANT_NEWS' && (
+              <span className="badge badge-neutral" style={{ color: '#f59e0b', borderColor: '#f59e0b' }}>
+                No Relevant News
+              </span>
+            )}
+            {result.data_status === 'DEGRADED' && (
+              <span className="badge badge-neutral" style={{ color: '#ef4444', borderColor: '#ef4444' }}>
+                Degraded
+              </span>
+            )}
           </div>
           <div className="asset-name">{result.company_name}</div>
         </div>
@@ -68,6 +102,11 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
             {getVerdictIcon()}
             <span>{verdict}</span>
           </div>
+          {verdict === 'HOLD' && result.hold_reason && (
+            <div className="hold-reason-sub" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>
+              Reason: {formatHoldReason(result.hold_reason)}
+            </div>
+          )}
         </div>
       </div>
 
@@ -94,6 +133,52 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
         </div>
       )}
 
+      {result.data_status === 'NO_RELEVANT_NEWS' && (
+        <div
+          className="no-fresh-news-banner"
+          style={{
+            background: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            margin: '12px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            color: '#fcd34d',
+            fontSize: '0.88rem',
+          }}
+        >
+          <AlertTriangle size={18} style={{ flexShrink: 0, color: '#f59e0b' }} />
+          <span>
+            <strong>NO RELEVANT NEWS IN SESSION:</strong> Ingested articles did not pass multi-asset entity relevance filters for this symbol. The HOLD verdict is an evidence-free default.
+          </span>
+        </div>
+      )}
+
+      {result.data_status === 'DEGRADED' && (
+        <div
+          className="no-fresh-news-banner"
+          style={{
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            margin: '12px 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            color: '#fca5a5',
+            fontSize: '0.88rem',
+          }}
+        >
+          <AlertTriangle size={18} style={{ flexShrink: 0, color: '#ef4444' }} />
+          <span>
+            <strong>DEGRADED INGESTION:</strong> All external RSS news feeds failed during ingestion sweep. Analysis was completed using partial sources only and will not be cached.
+          </span>
+        </div>
+      )}
+
       <div className="metrics-strip">
         <div className="metric-item">
           <div className="metric-label">Composite Sentiment</div>
@@ -112,10 +197,12 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
         <div className="metric-item">
           <div className="metric-label">Confidence Level</div>
           <div className="metric-val" id="result-confidence-score">
-            {((result.decision_confidence || 0) * 100).toFixed(0)}%
+            {isEvidenceFreeHold ? 'n/a' : `${((result.decision_confidence || 0) * 100).toFixed(0)}%`}
           </div>
           <div className="metric-sub">
-            {result.decision_confidence >= 0.7
+            {isEvidenceFreeHold
+              ? (result.hold_reason === 'SPARSE_EVIDENCE' ? 'Sparse Evidence' : 'Evidence-Free HOLD')
+              : result.decision_confidence >= 0.7
               ? 'High Confidence'
               : result.decision_confidence >= 0.4
               ? 'Moderate Confidence'

@@ -7,7 +7,7 @@ from app.core.models import (
     DecisionVerdict,
     PipelineMode,
 )
-from app.core.enums import HoldReason
+from app.core.enums import HoldReason, DirectionalPolarity
 from app.core.session_window import SessionWindow
 from app.core.exceptions import FreshnessViolationException
 from app.core.constants import DIRECTIONAL_THRESHOLD, DEFAULT_WEIGHT_FLOOR
@@ -217,27 +217,7 @@ class AggregatorService:
             diversity_factor = 0.5 + 0.5 * min(1.0, p_support / 2.0)
         evidence_quality = round(min(1.0, max(0.1, volume_factor * diversity_factor)), 4)
 
-        # 6. Decision Confidence C in [0.0, 1.0]
-        if directional_total > 0:
-            consensus_ratio = abs(pos_count - neg_count) / directional_total
-        else:
-            consensus_ratio = 0.0
-
-        raw_confidence = abs(sentiment_score) * (0.4 + 0.6 * consensus_ratio) * evidence_quality
-        if pipeline_mode == PipelineMode.DETERMINISTIC_FINBERT_ONLY:
-            decision_confidence = round(min(0.60, max(0.15, raw_confidence)), 4)
-        else:
-            decision_confidence = round(min(0.95, max(0.20, raw_confidence)), 4)
-
-        # 7. Evaluate Ratio-Based Decision Matrix & Publisher Corroboration (F-09, C-04)
-        inferences = [
-            f"FinBERT evaluated {n_valid} total headlines: {pos_count} positive, {neg_count} negative, {neu_count} neutral.",
-            f"Calculated directional sentiment score: {sentiment_score:+.2f} (Neutral articles excluded from score dilution).",
-            f"Corroboration: {len(pos_publishers)} positive publisher(s), {len(neg_publishers)} negative publisher(s) (P_support={p_support}).",
-            f"Evidence quality: {evidence_quality:.2f} across {distinct_pub_count} distinct publisher(s) and {distinct_cluster_count} cluster(s).",
-            f"Decision confidence: {decision_confidence:.2f} (Directional consensus ratio: {consensus_ratio:.2f}).",
-        ]
-
+        # 6. Evaluate Ratio-Based Decision Matrix & Publisher Corroboration (F-09, C-04)
         hold_reason: HoldReason | None = None
 
         # Rule A: Sparse Evidence (directional_total < 2)
@@ -245,7 +225,6 @@ class AggregatorService:
             decision = DecisionVerdict.HOLD
             hold_reason = HoldReason.SPARSE_EVIDENCE
             summary = f"HOLD: Insufficient directional headline volume for {ticker} ({directional_total} directional headline(s)). Sparse evidence mandates a neutral stance."
-            inferences.append("Decision rule applied: Minimum directional evidence threshold not met (mandates HOLD).")
 
         # Rule B: Strong Positive BUY (Ratio Pos >= 1.5 * Neg and Pos >= 2)
         elif is_buy_candidate:
@@ -254,11 +233,9 @@ class AggregatorService:
                 hold_reason = HoldReason.INSUFFICIENT_CORROBORATION
                 summary = f"HOLD: Positive directional sentiment observed ({pos_count} positive) but lacks multi-publisher corroboration ({len(pos_publishers)} positive publisher(s))."
                 warnings.append("INSUFFICIENT_CORROBORATION")
-                inferences.append("Corroboration rule applied: BUY requires at least 2 distinct canonical publishers on the positive side; single-source evidence forces HOLD.")
             else:
                 decision = DecisionVerdict.BUY
                 summary = f"BUY: Positive catalyst momentum supported by {pos_count} positive headlines vs {neg_count} negative across {len(pos_publishers)} positive publishers (Pos/Neg ratio: {pos_count}/{max(1, neg_count)})."
-                inferences.append(f"Decision rule applied: Positive ratio threshold met ({pos_count} pos >= 1.5 * {neg_count} neg, S={sentiment_score:+.2f} >= +0.20, corroborated by {len(pos_publishers)} publishers).")
 
         # Rule C: Strong Negative SELL (Ratio Neg >= 1.5 * Pos and Neg >= 2)
         elif is_sell_candidate:
@@ -267,24 +244,74 @@ class AggregatorService:
                 hold_reason = HoldReason.INSUFFICIENT_CORROBORATION
                 summary = f"HOLD: Negative directional sentiment observed ({neg_count} negative) but lacks multi-publisher corroboration ({len(neg_publishers)} negative publisher(s))."
                 warnings.append("INSUFFICIENT_CORROBORATION")
-                inferences.append("Corroboration rule applied: SELL requires at least 2 distinct canonical publishers on the negative side; single-source evidence forces HOLD.")
             else:
                 decision = DecisionVerdict.SELL
                 summary = f"SELL: Negative catalyst pressure supported by {neg_count} negative headlines vs {pos_count} positive across {len(neg_publishers)} negative publishers (Neg/Pos ratio: {neg_count}/{max(1, pos_count)})."
-                inferences.append(f"Decision rule applied: Negative ratio threshold met ({neg_count} neg >= 1.5 * {pos_count} pos, S={sentiment_score:+.2f} <= -0.20, corroborated by {len(neg_publishers)} publishers).")
 
         # Rule D: Conflicting Evidence
         elif directional_total >= 2 and pos_count >= 1 and neg_count >= 1:
             decision = DecisionVerdict.HOLD
             hold_reason = HoldReason.CONFLICTING
             summary = f"HOLD: Conflicting market sentiment ({pos_count} positive vs. {neg_count} negative catalysts). Balanced opposing forces indicate neutral market context."
-            inferences.append("Decision rule applied: Positive and negative catalysts balance within 1.5x ratio corridor.")
 
         # Rule E: Default Neutral HOLD
         else:
             decision = DecisionVerdict.HOLD
             hold_reason = HoldReason.NEUTRAL
             summary = f"HOLD: Market sentiment for {ticker} is balanced or within neutral thresholds (S={sentiment_score:+.2f})."
+
+        # 7. Decision Confidence C in [0.0, 1.0] per D6
+        if directional_total > 0:
+            consensus_ratio = abs(pos_count - neg_count) / directional_total
+        else:
+            consensus_ratio = 0.0
+
+        if hold_reason in (HoldReason.NO_NEWS, HoldReason.SPARSE_EVIDENCE):
+            # Evidence-free or sparse directional evidence mandates 0.0 confidence (no floor)
+            decision_confidence = 0.0
+            confidence_note = "0.00 (Sparse evidence / no news)"
+        else:
+            raw_confidence = abs(sentiment_score) * (0.4 + 0.6 * consensus_ratio) * evidence_quality
+            has_supporting_catalyst = False
+            if pipeline_mode == PipelineMode.HYBRID_FINBERT_LLM:
+                if decision == DecisionVerdict.BUY:
+                    has_supporting_catalyst = any(
+                        f.impact == DirectionalPolarity.POSITIVE for f in observed_facts
+                    )
+                elif decision == DecisionVerdict.SELL:
+                    has_supporting_catalyst = any(
+                        f.impact == DirectionalPolarity.NEGATIVE for f in observed_facts
+                    )
+
+            if has_supporting_catalyst:
+                ceiling = 0.95
+                floor = 0.20
+            else:
+                ceiling = 0.60
+                floor = 0.15
+
+            decision_confidence = round(min(ceiling, max(floor, raw_confidence)), 4)
+            confidence_note = f"{decision_confidence:.2f} (ceiling {ceiling:.2f})"
+
+        inferences = [
+            f"FinBERT evaluated {n_valid} total headlines: {pos_count} positive, {neg_count} negative, {neu_count} neutral.",
+            f"Calculated directional sentiment score: {sentiment_score:+.2f} (Neutral articles excluded from score dilution).",
+            f"Corroboration: {len(pos_publishers)} positive publisher(s), {len(neg_publishers)} negative publisher(s) (P_support={p_support}).",
+            f"Evidence quality: {evidence_quality:.2f} across {distinct_pub_count} distinct publisher(s) and {distinct_cluster_count} cluster(s).",
+            f"Decision confidence: {confidence_note} (Directional consensus ratio: {consensus_ratio:.2f}).",
+        ]
+
+        if hold_reason == HoldReason.SPARSE_EVIDENCE:
+            inferences.append("Decision rule applied: Minimum directional evidence threshold not met (mandates HOLD).")
+        elif hold_reason == HoldReason.INSUFFICIENT_CORROBORATION:
+            inferences.append("Corroboration rule applied: BUY/SELL requires at least 2 distinct canonical publishers on the supporting side; single-source evidence forces HOLD.")
+        elif decision == DecisionVerdict.BUY:
+            inferences.append(f"Decision rule applied: Positive ratio threshold met ({pos_count} pos >= 1.5 * {neg_count} neg, S={sentiment_score:+.2f} >= +0.20, corroborated by {len(pos_publishers)} publishers).")
+        elif decision == DecisionVerdict.SELL:
+            inferences.append(f"Decision rule applied: Negative ratio threshold met ({neg_count} neg >= 1.5 * {pos_count} pos, S={sentiment_score:+.2f} <= -0.20, corroborated by {len(neg_publishers)} publishers).")
+        elif hold_reason == HoldReason.CONFLICTING:
+            inferences.append("Decision rule applied: Positive and negative catalysts balance within 1.5x ratio corridor.")
+        else:
             inferences.append(f"Decision rule applied: Sentiment within neutral corridor (S={sentiment_score:+.2f}).")
 
         rationale = PipelineRationale(

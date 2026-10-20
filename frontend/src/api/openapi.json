@@ -27,9 +27,8 @@
             "type": "string"
           },
           "data_status": {
-            "default": "OK",
-            "title": "Data Status",
-            "type": "string"
+            "$ref": "#/components/schemas/DataStatus",
+            "default": "OK"
           },
           "decision": {
             "$ref": "#/components/schemas/DecisionVerdict"
@@ -186,6 +185,16 @@
           "OTHER"
         ],
         "title": "CatalystCategory",
+        "type": "string"
+      },
+      "DataStatus": {
+        "enum": [
+          "OK",
+          "NO_FRESH_NEWS",
+          "NO_RELEVANT_NEWS",
+          "DEGRADED"
+        ],
+        "title": "DataStatus",
         "type": "string"
       },
       "DecisionVerdict": {
@@ -730,9 +739,8 @@
             "type": "string"
           },
           "data_status": {
-            "default": "OK",
-            "title": "Data Status",
-            "type": "string"
+            "$ref": "#/components/schemas/DataStatus",
+            "default": "OK"
           },
           "decision": {
             "title": "Decision",
@@ -745,6 +753,16 @@
           "evidence_quality": {
             "title": "Evidence Quality",
             "type": "number"
+          },
+          "hold_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HoldReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "run_id": {
             "title": "Run Id",

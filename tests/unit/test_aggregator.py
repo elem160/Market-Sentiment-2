@@ -56,6 +56,7 @@ def test_sparse_evidence_mandates_hold(frozen_now):
     )
 
     assert decision == DecisionVerdict.HOLD
+    assert confidence == 0.0
     assert "Sparse evidence" in rationale.summary or "Insufficient" in rationale.summary
 
 
@@ -228,3 +229,78 @@ def test_aggregator_publishers_ignored_in_corroboration(frozen_now):
     assert res.hold_reason == HoldReason.INSUFFICIENT_CORROBORATION
     assert res.publishers_positive == 1
     assert res.supporting_publishers == 0
+
+
+def test_hybrid_confidence_ceiling_with_supporting_catalyst(frozen_now):
+    """When LLM confirms supporting catalyst in verdict direction, ceiling reaches up to 0.95 (D6)."""
+    session = compute_session_window(frozen_now)
+    # High sentiment and high confidence from 2 distinct publishers
+    art1 = create_mock_scored_article("1", "Reuters", 0.95, 0.95, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "CNBC", 0.95, 0.95, frozen_now, cluster_id="c2")
+    fact_pos = ObservedFact(
+        statement="Record revenue growth",
+        cited_article_id="1",
+        catalyst_category=CatalystCategory.EARNINGS,
+        impact=DirectionalPolarity.POSITIVE,
+    )
+
+    res = AggregatorService.aggregate_and_decide(
+        "AAPL", "Apple Inc.", session, [art1, art2], [fact_pos], "Strong catalysts",
+        pipeline_mode=PipelineMode.HYBRID_FINBERT_LLM
+    )
+
+    assert res.decision == DecisionVerdict.BUY
+    # With supporting positive catalyst confirmed by LLM, confidence can exceed 0.60 (up to 0.95)
+    assert res.decision_confidence > 0.60
+    assert res.decision_confidence <= 0.95
+
+
+def test_hybrid_confidence_ceiling_without_supporting_catalyst(frozen_now):
+    """When LLM does not confirm any supporting catalyst in verdict direction, ceiling is 0.60 (D6)."""
+    session = compute_session_window(frozen_now)
+    art1 = create_mock_scored_article("1", "Reuters", 0.95, 0.95, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "CNBC", 0.95, 0.95, frozen_now, cluster_id="c2")
+
+    # In HYBRID mode but with NO observed facts confirmed
+    res = AggregatorService.aggregate_and_decide(
+        "AAPL", "Apple Inc.", session, [art1, art2], [], "",
+        pipeline_mode=PipelineMode.HYBRID_FINBERT_LLM
+    )
+
+    assert res.decision == DecisionVerdict.BUY
+    # Without supporting catalyst, ceiling is 0.60 even in HYBRID mode
+    assert res.decision_confidence <= 0.60
+
+
+def test_hold_verdict_confidence_capped_at_060(frozen_now):
+    """HOLD verdict has no directional supporting catalyst, so confidence is capped at 0.60 (D6)."""
+    session = compute_session_window(frozen_now)
+    # 2 pos, 2 neg -> conflicting
+    art1 = create_mock_scored_article("1", "Reuters", 0.90, 0.95, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "CNBC", 0.90, 0.95, frozen_now, cluster_id="c2")
+    art3 = create_mock_scored_article("3", "Bloomberg", -0.90, 0.95, frozen_now, cluster_id="c3")
+    art4 = create_mock_scored_article("4", "WSJ", -0.90, 0.95, frozen_now, cluster_id="c4")
+
+    res = AggregatorService.aggregate_and_decide(
+        "AAPL", "Apple Inc.", session, [art1, art2, art3, art4], [], "",
+        pipeline_mode=PipelineMode.HYBRID_FINBERT_LLM
+    )
+
+    assert res.decision == DecisionVerdict.HOLD
+    assert res.hold_reason == HoldReason.CONFLICTING
+    assert res.decision_confidence <= 0.60
+
+
+def test_neutral_sentiment_hold_reason(frozen_now):
+    """Balanced sentiment within neutral corridor yields NEUTRAL hold reason."""
+    session = compute_session_window(frozen_now)
+    # 2 weakly positive articles above DIRECTIONAL_THRESHOLD (0.15) but below buy threshold (0.20)
+    art1 = create_mock_scored_article("1", "Reuters", 0.16, 0.50, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "CNBC", 0.17, 0.50, frozen_now, cluster_id="c2")
+
+    res = AggregatorService.aggregate_and_decide(
+        "AAPL", "Apple Inc.", session, [art1, art2], [], ""
+    )
+
+    assert res.decision == DecisionVerdict.HOLD
+    assert res.hold_reason == HoldReason.NEUTRAL

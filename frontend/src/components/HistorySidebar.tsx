@@ -98,6 +98,16 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
                     No News
                   </span>
                 )}
+                {item.data_status === 'NO_RELEVANT_NEWS' && (
+                  <span className="badge badge-hold font-mono" style={{ fontSize: '0.68rem' }}>
+                    No Relevant
+                  </span>
+                )}
+                {item.data_status === 'DEGRADED' && (
+                  <span className="badge badge-hold font-mono" style={{ fontSize: '0.68rem', borderColor: 'var(--sell-rose)', color: 'var(--sell-rose)' }}>
+                    Degraded
+                  </span>
+                )}
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>

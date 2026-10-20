@@ -22,6 +22,7 @@ from app.core.enums import (
     JobStatus,
     PipelineStage,
     HoldReason,
+    DataStatus,
 )
 from app.core.session_window import compute_session_window
 
@@ -115,9 +116,13 @@ class SentimentRepository:
         if max_age_seconds is not None:
             now = datetime.now(timezone.utc)
             created = run_record.created_at
-            # F-04: If NO_FRESH_NEWS, cap TTL to min(max_age_seconds, 300)
+            # Cap TTL for NO_FRESH_NEWS and NO_RELEVANT_NEWS: min(max_age_seconds, 300)
             data_status = getattr(run_record, "data_status", "OK")
-            effective_ttl = min(max_age_seconds, 300) if data_status == "NO_FRESH_NEWS" else max_age_seconds
+            effective_ttl = (
+                min(max_age_seconds, 300)
+                if data_status in ("NO_FRESH_NEWS", "NO_RELEVANT_NEWS")
+                else max_age_seconds
+            )
             if (now - created).total_seconds() > effective_ttl:
                 return None
 
@@ -154,7 +159,7 @@ class SentimentRepository:
             cache_status=result.cache_status.value,
             metrics_json=json.dumps(result.metrics.model_dump()),
             warnings_json=json.dumps(result.warnings),
-            data_status=result.data_status,
+            data_status=result.data_status.value if hasattr(result.data_status, "value") else str(result.data_status),
             hold_reason=result.hold_reason.value if result.hold_reason else None,
             llm_summary=result.llm_summary,
             is_cacheable=is_cacheable,
@@ -311,7 +316,11 @@ class SentimentRepository:
             warnings=warnings,
             pipeline_mode=PipelineMode(record.pipeline_mode),
             cache_status=cache_status,
-            data_status=getattr(record, "data_status", "OK") or "OK",
+            data_status=(
+                DataStatus(record.data_status)
+                if record.data_status in [ds.value for ds in DataStatus]
+                else DataStatus.OK
+            ),
             hold_reason=HoldReason(record.hold_reason) if getattr(record, "hold_reason", None) else None,
             llm_summary=getattr(record, "llm_summary", None),
             model_versions=model_versions,
