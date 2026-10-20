@@ -69,28 +69,32 @@ export const App: React.FC = () => {
         const currentJobId = response.jobId;
         activeJobRef.current = currentJobId;
 
+        const deadlineMs = (response.maxWaitSeconds ?? 150) * 1000;
         // Asynchronous SSE stream
         unsubscribeRef.current = subscribeToJob(
           currentJobId,
-          (event: JobProgressEvent) => {
-            if (activeJobRef.current !== currentJobId) return;
-            setCurrentStage(event.stage);
-            setProgressPct(event.progress_pct);
-            setProgressMsg(event.message);
+          {
+            onProgress: (event: JobProgressEvent) => {
+              if (activeJobRef.current !== currentJobId) return;
+              setCurrentStage(event.stage);
+              setProgressPct(event.progress_pct);
+              setProgressMsg(event.message);
+            },
+            onComplete: (result: AnalysisResult) => {
+              if (activeJobRef.current !== currentJobId) return;
+              setProgressPct(1.0);
+              setProgressMsg('Analysis complete.');
+              setAnalysisResult(result);
+              setIsLoading(false);
+              setHistoryTrigger((prev) => prev + 1);
+            },
+            onError: (err: string) => {
+              if (activeJobRef.current !== currentJobId) return;
+              setErrorMessage(err);
+              setIsLoading(false);
+            },
           },
-          (result: AnalysisResult) => {
-            if (activeJobRef.current !== currentJobId) return;
-            setProgressPct(1.0);
-            setProgressMsg('Analysis complete.');
-            setAnalysisResult(result);
-            setIsLoading(false);
-            setHistoryTrigger((prev) => prev + 1);
-          },
-          (err: string) => {
-            if (activeJobRef.current !== currentJobId) return;
-            setErrorMessage(err);
-            setIsLoading(false);
-          }
+          { deadlineMs }
         );
       }
     } catch (err: any) {
