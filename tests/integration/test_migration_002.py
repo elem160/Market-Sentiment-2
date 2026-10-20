@@ -38,8 +38,8 @@ def test_upgrade_from_001_to_002_schema():
             assert "effective_weight" not in ev_cols_001
             assert "age_hours" not in ev_cols_001
 
-            # 2. Upgrade to head (002_freshness_reliability)
-            command.upgrade(alembic_cfg, "head")
+            # 2. Upgrade to 002_freshness_reliability
+            command.upgrade(alembic_cfg, "002_freshness_reliability")
 
             # 3. Verify upgraded schema state
             inspector = inspect(engine)

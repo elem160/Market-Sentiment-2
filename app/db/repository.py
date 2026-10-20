@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from app.db.models import AnalysisJobDB, AnalysisRunDB, ArticleEvidenceDB, ObservedFactDB
@@ -103,7 +104,7 @@ class SentimentRepository:
     def get_cached_run(db: Session, cache_key: str, max_age_seconds: int | None = None) -> AnalysisResult | None:
         run_record = (
             db.query(AnalysisRunDB)
-            .filter(AnalysisRunDB.cache_key == cache_key)
+            .filter(AnalysisRunDB.cache_key == cache_key, AnalysisRunDB.is_cacheable.is_(True))
             .order_by(AnalysisRunDB.created_at.desc())
             .first()
         )
@@ -125,7 +126,11 @@ class SentimentRepository:
 
     @staticmethod
     def save_analysis_run(
-        db: Session, result: AnalysisResult, cache_key: str, provider_outcomes: dict
+        db: Session,
+        result: AnalysisResult,
+        cache_key: str,
+        provider_outcomes: dict,
+        is_cacheable: bool = True,
     ) -> AnalysisRunDB:
         run_record = AnalysisRunDB(
             id=result.run_id,
@@ -152,6 +157,7 @@ class SentimentRepository:
             warnings_json=json.dumps(result.warnings),
             data_status=result.data_status,
             llm_summary=result.llm_summary,
+            is_cacheable=is_cacheable,
             created_at=datetime.now(timezone.utc),
         )
         db.add(run_record)
@@ -159,6 +165,7 @@ class SentimentRepository:
         for art in result.articles:
             art_record = ArticleEvidenceDB(
                 id=f"{result.run_id}_{art.article_id}",
+                article_id=art.article_id,
                 run_id=result.run_id,
                 provider=art.provider.value,
                 source_name=art.source_name,
@@ -185,7 +192,7 @@ class SentimentRepository:
 
         for fact in result.rationale.observed_facts:
             fact_record = ObservedFactDB(
-                id=f"{result.run_id}_{fact.cited_article_id[:8]}",
+                id=str(uuid.uuid4()),
                 run_id=result.run_id,
                 statement=fact.statement,
                 cited_article_id=fact.cited_article_id,
@@ -203,7 +210,12 @@ class SentimentRepository:
         run_record = db.query(AnalysisRunDB).filter(AnalysisRunDB.id == run_id).first()
         if not run_record:
             return None
-        return SentimentRepository._to_analysis_result(run_record, cache_status=CacheStatus.HIT)
+        stored_status = (
+            CacheStatus(run_record.cache_status)
+            if run_record.cache_status in [cs.value for cs in CacheStatus]
+            else CacheStatus.MISS
+        )
+        return SentimentRepository._to_analysis_result(run_record, cache_status=stored_status)
 
     @staticmethod
     def get_recent_runs(db: Session, limit: int = 10) -> list[dict]:
@@ -233,7 +245,7 @@ class SentimentRepository:
 
         articles = [
             ScoredArticle(
-                article_id=a.id,
+                article_id=getattr(a, "article_id", None) or a.id,
                 provider=ProviderType(a.provider),
                 source_name=a.source_name,
                 canonical_publisher=a.canonical_publisher,

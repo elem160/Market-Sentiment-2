@@ -215,11 +215,12 @@ class AnalysisOrchestrator:
                 config_version=settings.get_config_hash(),
             )
 
-            # Cache NO_FRESH_NEWS result for min(bucket length, 5 minutes) unless all RSS providers failed
-            if not all_rss_failed:
-                SentimentRepository.save_analysis_run(db, no_news_result, cache_key, provider_outcomes)
-            else:
-                logger.warning(f"Skipping analysis run cache for {asset.ticker} due to total RSS provider failure.")
+            # Always persist run; if all RSS providers failed, mark is_cacheable=False
+            if all_rss_failed:
+                logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to total RSS provider failure.")
+            SentimentRepository.save_analysis_run(
+                db, no_news_result, cache_key, provider_outcomes, is_cacheable=(not all_rss_failed)
+            )
 
             if on_progress:
                 await on_progress(PipelineStage.DONE, 1.0, "Analysis complete (No fresh news).")
@@ -403,11 +404,12 @@ class AnalysisOrchestrator:
             config_version=settings.get_config_hash(),
         )
 
-        # Persist run and evidence in database unless all RSS providers failed
-        if not all_rss_failed:
-            SentimentRepository.save_analysis_run(db, result, cache_key, provider_outcomes)
-        else:
-            logger.warning(f"Skipping analysis run cache for {asset.ticker} due to total RSS provider failure.")
+        # Persist run and evidence in database; if all RSS providers failed, mark is_cacheable=False
+        if all_rss_failed:
+            logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to total RSS provider failure.")
+        SentimentRepository.save_analysis_run(
+            db, result, cache_key, provider_outcomes, is_cacheable=(not all_rss_failed)
+        )
 
         if on_progress:
             await on_progress(PipelineStage.DONE, 1.0, "Analysis complete.")

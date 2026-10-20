@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Float, Boolean, Text, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
@@ -9,7 +10,7 @@ class AnalysisJobDB(Base):
     __tablename__ = "analysis_jobs"
 
     id = Column(String(36), primary_key=True)  # UUIDv4
-    ticker = Column(String(10), index=True, nullable=False)
+    ticker = Column(String(32), index=True, nullable=False)
     status = Column(String(20), nullable=False, default="QUEUED")  # QUEUED, PROCESSING, COMPLETED, FAILED
     stage = Column(String(30), nullable=False, default="RESOLVING_TICKER")
     progress_pct = Column(Float, default=0.0)
@@ -25,7 +26,7 @@ class AnalysisRunDB(Base):
     __tablename__ = "analysis_runs"
 
     id = Column(String(36), primary_key=True)  # UUIDv4
-    ticker = Column(String(10), index=True, nullable=False)
+    ticker = Column(String(32), index=True, nullable=False)
     company_name = Column(String(255), nullable=False)
     asset_type = Column(String(20), nullable=False, default="EQUITY")
     session_type = Column(String(30), nullable=False)
@@ -53,6 +54,7 @@ class AnalysisRunDB(Base):
     warnings_json = Column(Text, nullable=False, default="[]")
     data_status = Column(String(30), nullable=False, default="OK")
     llm_summary = Column(Text, nullable=True)
+    is_cacheable = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
@@ -68,6 +70,7 @@ class ArticleEvidenceDB(Base):
     __tablename__ = "article_evidence"
 
     id = Column(String(64), primary_key=True)  # Deterministic hash
+    article_id = Column(String(64), nullable=False)
     run_id = Column(String(36), ForeignKey("analysis_runs.id", ondelete="CASCADE"), index=True, nullable=False)
     provider = Column(String(30), nullable=False)
     source_name = Column(String(100), nullable=False)
@@ -94,12 +97,15 @@ class ArticleEvidenceDB(Base):
 
     run = relationship("AnalysisRunDB", back_populates="articles")
 
+    __table_args__ = (
+        Index("uq_article_evidence_run_article", "run_id", "article_id", unique=True),
+    )
 
 
 class ObservedFactDB(Base):
     __tablename__ = "observed_facts"
 
-    id = Column(String(36), primary_key=True)  # UUIDv4
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     run_id = Column(String(36), ForeignKey("analysis_runs.id", ondelete="CASCADE"), index=True, nullable=False)
     statement = Column(Text, nullable=False)
     cited_article_id = Column(String(64), nullable=False)
@@ -107,3 +113,4 @@ class ObservedFactDB(Base):
     impact = Column(String(20), nullable=False)
 
     run = relationship("AnalysisRunDB", back_populates="facts")
+

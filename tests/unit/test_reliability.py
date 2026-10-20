@@ -4,6 +4,7 @@ import pytest
 from app.services.finbert_service import FinBERTService
 from app.api.routes import _background_tasks, run_background_job
 from app.config import settings
+from app.core.enums import CacheStatus
 
 
 def test_finbert_service_thread_safety_lock():
@@ -135,9 +136,16 @@ async def test_all_rss_providers_fail_adds_warning_and_skips_caching(db_session)
 
         assert any("All RSS news providers failed" in w for w in result.warnings)
 
-        # Verify not cached
+        # Verify not returned from cache
         session = compute_session_window()
         session_bucket, _ = compute_session_bucket(session)
         cache_key = AnalysisOrchestrator.compute_cache_key("AAPL", session_bucket, "yfinance_rss", False)
         cached = SentimentRepository.get_cached_run(db_session, cache_key)
         assert cached is None
+
+        # Verify run IS persisted in database and retrievable by ID with MISS status (C2, P1.3)
+        persisted = SentimentRepository.get_analysis_run(db_session, result.run_id)
+        assert persisted is not None
+        assert persisted.run_id == result.run_id
+        assert persisted.cache_status == CacheStatus.MISS
+
