@@ -9,10 +9,10 @@
 
 | Task | Title | Findings | Status | Commit |
 |---|---|---|---|---|
-| P0.1 | Isolated, deterministic, offline test suite | H1, H17 | in progress | |
-| P0.2 | Clean the polluted local database (not committed) | H1 (D7) | todo | — |
-| P0.3 | Keep application logs alive after migrations | H2 | todo | |
-| P0.4 | Dependencies, tooling and CI | M17, L7, L9 | todo | |
+| P0.1 | Isolated, deterministic, offline test suite | H1, H17 | done | `d061051` |
+| P0.2 | Clean the polluted local database (not committed) | H1 (D7) | done | — |
+| P0.3 | Keep application logs alive after migrations | H2 | done | `4221c23` |
+| P0.4 | Dependencies, tooling and CI | M17, L7, L9 | done | `400fccd` |
 | P1.1 | One backend↔frontend contract | C1 | todo | |
 | P1.2 | Robust frontend job client | C1, M6 | todo | |
 | P1.3 | Always persist results; caching becomes a flag | C2 | todo | |
@@ -56,10 +56,39 @@
   - 10 fixture-based runs (all `EUR/USD`, 3 evidence rows each from `example.com`/`aapl_art_*`); no jobs point at them.
 - Installed the plan's dev tools: `time-machine==3.5.1`, `ruff==0.17.1`. Checked that time-machine freezes `datetime.now`/`time.time` but not `time.monotonic`, so asyncio timers keep working under a frozen clock.
 
+### Execution (2026-10-20)
+
+- **P0.1 Isolated, deterministic, offline test suite (`d061051`):**
+  - Throwaway SQLite DB initialized in `tests/conftest.py` with `run_migrations()` and automatic per-test table wiping.
+  - Network guard monkeypatching `socket` and stubbing `yfinance.Ticker` to prevent unmocked external requests.
+  - Clock freezing with `time-machine` via `frozen_now` fixture and deterministic fakes (`KeywordScorer`, `FakeLLMClient` in `tests/fakes.py`).
+  - Strict pydantic validation (`extra="forbid"`) on `IngestedArticle` and `ScoredArticle`.
+  - Fixed test suites: parameterised pipeline time-independence tests, live provider tests, and isolation assertion guards (`test_suite_isolation.py`).
+  - Acceptance: 93/93 offline tests passed in ~2.8s; `pytest -m slow` passed; `pytest -m live` passed online; `data/sentiment.db` untouched.
+- **P0.2 Clean the polluted local database:**
+  - WAL checkpointed and `data/sentiment.db` backed up to `data/sentiment.db.bak-20261019`.
+  - Executed cascade deletion with `PRAGMA foreign_keys=ON` for 10 fixture-based runs and their evidence rows; executed `VACUUM`.
+  - Re-inspection confirmed: 0 fixture runs remain. Final row counts: runs=19, jobs=21, evidence=4187, facts=37.
+- **P0.3 Keep application logs alive after migrations (`4221c23`):**
+  - Updated `alembic/env.py` to only configure file logging when `configure_logger` attribute is True and set `disable_existing_loggers=False`.
+  - Updated `run_migrations()` in `app/main.py` to set `alembic_cfg.attributes["configure_logger"] = False`.
+  - Added `LOG_LEVEL` config setting to `Settings` and `.env.example`, and applied it to `setup_logger`.
+  - Enhanced error handling in `run_background_job` to use `logger.exception`.
+  - Added regression test `test_run_migrations_preserves_application_loggers` in `tests/unit/test_reliability.py`.
+- **P0.4 Dependencies, tooling and CI (`400fccd`):**
+  - Pinned runtime dependencies in `requirements.txt` with verified environment versions and CPU-only torch documentation.
+  - Created `requirements-dev.txt` with test and lint tooling.
+  - Created `pyproject.toml` with Ruff configuration (select `["E", "F", "I", "B", "UP", "ASYNC"]`, line length 120, legacy rules ignored until P4.2).
+  - Added `path_separator = os` to `alembic.ini` (eliminating Alembic deprecation warnings).
+  - Added `"typecheck": "tsc --noEmit"` to `frontend/package.json`.
+  - Added `.github/workflows/ci.yml` defining full backend and frontend CI pipeline.
+  - Aligned `AnalysisRunDB.data_status` column length to `String(30)` in `app/db/models.py`, satisfying `alembic check`.
+  - Acceptance: `pytest --cov=app --cov-fail-under=85` passed at 86.11% (94 passed, 0 warnings); `ruff check .` passed; `alembic check` passed with zero schema drift.
+
 ## Deviations
 
-_None yet._
+_None._
 
 ## Follow-ups
 
-_None yet._
+_None._
