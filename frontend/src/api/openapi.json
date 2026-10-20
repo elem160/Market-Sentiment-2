@@ -668,8 +668,17 @@
       },
       "RecentRunSummary": {
         "properties": {
+          "asset_type": {
+            "$ref": "#/components/schemas/AssetType",
+            "default": "EQUITY"
+          },
           "company_name": {
             "title": "Company Name",
+            "type": "string"
+          },
+          "data_status": {
+            "default": "OK",
+            "title": "Data Status",
             "type": "string"
           },
           "decision": {

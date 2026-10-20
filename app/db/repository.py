@@ -114,8 +114,6 @@ class SentimentRepository:
         if max_age_seconds is not None:
             now = datetime.now(timezone.utc)
             created = run_record.created_at
-            if created.tzinfo is None:
-                created = created.replace(tzinfo=timezone.utc)
             # F-04: If NO_FRESH_NEWS, cap TTL to min(max_age_seconds, 300)
             data_status = getattr(run_record, "data_status", "OK")
             effective_ttl = min(max_age_seconds, 300) if data_status == "NO_FRESH_NEWS" else max_age_seconds
@@ -230,11 +228,13 @@ class SentimentRepository:
                 "run_id": r.id,
                 "ticker": r.ticker,
                 "company_name": r.company_name,
+                "asset_type": AssetType(r.asset_type) if hasattr(r, "asset_type") and r.asset_type else AssetType.EQUITY,
+                "data_status": getattr(r, "data_status", "OK") or "OK",
                 "decision": r.decision,
                 "decision_confidence": r.decision_confidence,
                 "sentiment_score": r.sentiment_score,
                 "evidence_quality": r.evidence_quality,
-                "run_timestamp_utc": r.run_timestamp_utc.isoformat(),
+                "run_timestamp_utc": r.run_timestamp_utc,
             }
             for r in runs
         ]
@@ -251,11 +251,7 @@ class SentimentRepository:
                 canonical_publisher=a.canonical_publisher,
                 canonical_url=a.canonical_url,
                 title=a.title,
-                published_at_utc=(
-                    a.published_at_utc.replace(tzinfo=timezone.utc)
-                    if a.published_at_utc and a.published_at_utc.tzinfo is None
-                    else a.published_at_utc
-                ),
+                published_at_utc=a.published_at_utc,
                 lead_text=a.lead_text,
                 finbert_positive=a.finbert_positive,
                 finbert_negative=a.finbert_negative,

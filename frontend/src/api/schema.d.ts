@@ -274,6 +274,8 @@ export interface components {
       run_id: string;
       ticker: string;
       company_name: string;
+      asset_type?: components["schemas"]["AssetType"] | string;
+      data_status?: string;
       decision: string;
       decision_confidence: number;
       sentiment_score: number;

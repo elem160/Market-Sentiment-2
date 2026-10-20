@@ -1,9 +1,10 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, Boolean, Text, DateTime, ForeignKey, Index
+from sqlalchemy import Column, String, Float, Boolean, Text, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from app.db.database import Base
+from app.db.types import UTCDateTime
 
 
 class AnalysisJobDB(Base):
@@ -17,9 +18,9 @@ class AnalysisJobDB(Base):
     message = Column(Text, default="")
     run_id = Column(String(36), nullable=True)
     error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(UTCDateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(UTCDateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    expires_at = Column(UTCDateTime, nullable=False)
 
 
 class AnalysisRunDB(Base):
@@ -32,9 +33,9 @@ class AnalysisRunDB(Base):
     session_type = Column(String(30), nullable=False)
     cache_key = Column(String(64), index=True, nullable=False)
 
-    window_start_utc = Column(DateTime, nullable=False)
-    window_end_utc = Column(DateTime, nullable=False)
-    run_timestamp_utc = Column(DateTime, nullable=False)
+    window_start_utc = Column(UTCDateTime, nullable=False)
+    window_end_utc = Column(UTCDateTime, nullable=False)
+    run_timestamp_utc = Column(UTCDateTime, nullable=False)
 
     decision = Column(String(10), nullable=False)  # BUY, HOLD, SELL
     sentiment_score = Column(Float, nullable=False)
@@ -55,7 +56,7 @@ class AnalysisRunDB(Base):
     data_status = Column(String(30), nullable=False, default="OK")
     llm_summary = Column(Text, nullable=True)
     is_cacheable = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(UTCDateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     articles = relationship("ArticleEvidenceDB", back_populates="run", cascade="all, delete-orphan")
@@ -77,8 +78,8 @@ class ArticleEvidenceDB(Base):
     canonical_publisher = Column(String(100), nullable=False)
     canonical_url = Column(Text, nullable=False)
     title = Column(Text, nullable=False)
-    published_at_utc = Column(DateTime, nullable=True)
-    retrieved_at_utc = Column(DateTime, nullable=False)
+    published_at_utc = Column(UTCDateTime, nullable=True)
+    retrieved_at_utc = Column(UTCDateTime, nullable=False)
     lead_text = Column(Text, nullable=False)
 
     finbert_positive = Column(Float, nullable=False)

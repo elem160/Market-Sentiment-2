@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from app.core.enums import (
     AssetType,
     CacheStatus,
@@ -73,11 +73,19 @@ class RecentRunSummary(BaseModel):
     run_id: str
     ticker: str
     company_name: str
+    asset_type: AssetType = AssetType.EQUITY
+    data_status: str = "OK"
     decision: str
     decision_confidence: float
     sentiment_score: float
     evidence_quality: float
-    run_timestamp_utc: str
+    run_timestamp_utc: datetime
+
+    @field_serializer("run_timestamp_utc")
+    def serialize_run_timestamp(self, dt: datetime, _info) -> str:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class HealthResponse(BaseModel):
