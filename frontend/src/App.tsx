@@ -15,7 +15,7 @@ import { AlertCircle, BarChart3 } from 'lucide-react';
 export const App: React.FC = () => {
   const [activeTicker, setActiveTicker] = useState<string>('NVDA');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentStage, setCurrentStage] = useState<PipelineStage | string>('VALIDATING_TICKER');
+  const [currentStage, setCurrentStage] = useState<PipelineStage>('RESOLVING_TICKER');
   const [progressPct, setProgressPct] = useState<number>(0);
   const [progressMsg, setProgressMsg] = useState<string>('');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -23,6 +23,7 @@ export const App: React.FC = () => {
   const [historyTrigger, setHistoryTrigger] = useState<number>(0);
 
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const activeJobRef = useRef<string | null>(null);
 
   // Clean up any SSE subscription on unmount
   useEffect(() => {
@@ -42,12 +43,13 @@ export const App: React.FC = () => {
       unsubscribeRef.current();
       unsubscribeRef.current = null;
     }
+    activeJobRef.current = null;
 
     setActiveTicker(ticker);
     setIsLoading(true);
     setErrorMessage(null);
-    setCurrentStage('VALIDATING_TICKER');
-    setProgressPct(5);
+    setCurrentStage('RESOLVING_TICKER');
+    setProgressPct(0.05);
     setProgressMsg(`Validating ticker symbol ${ticker}...`);
 
     try {
@@ -55,7 +57,7 @@ export const App: React.FC = () => {
 
       if (response.isCached && response.result) {
         // Cache Hit: Immediate Return
-        setProgressPct(100);
+        setProgressPct(1.0);
         setProgressMsg('Retrieved from 15-minute persistent cache.');
         setAnalysisResult(response.result);
         setIsLoading(false);
@@ -64,22 +66,28 @@ export const App: React.FC = () => {
       }
 
       if (response.jobId) {
+        const currentJobId = response.jobId;
+        activeJobRef.current = currentJobId;
+
         // Asynchronous SSE stream
         unsubscribeRef.current = subscribeToJob(
-          response.jobId,
+          currentJobId,
           (event: JobProgressEvent) => {
+            if (activeJobRef.current !== currentJobId) return;
             setCurrentStage(event.stage);
             setProgressPct(event.progress_pct);
             setProgressMsg(event.message);
           },
           (result: AnalysisResult) => {
-            setProgressPct(100);
+            if (activeJobRef.current !== currentJobId) return;
+            setProgressPct(1.0);
             setProgressMsg('Analysis complete.');
             setAnalysisResult(result);
             setIsLoading(false);
             setHistoryTrigger((prev) => prev + 1);
           },
           (err: string) => {
+            if (activeJobRef.current !== currentJobId) return;
             setErrorMessage(err);
             setIsLoading(false);
           }
@@ -92,6 +100,12 @@ export const App: React.FC = () => {
   };
 
   const handleSelectHistoricalRun = async (runId: string) => {
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+    activeJobRef.current = null;
+
     try {
       setIsLoading(true);
       setErrorMessage(null);

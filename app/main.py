@@ -12,6 +12,8 @@ from app.api.routes import router as api_router
 from app.utils.logging import logger
 from alembic.config import Config
 from alembic import command
+from fastapi.openapi.utils import get_openapi
+from app.api.schemas import JobCompletedEvent, JobFailedEvent, JobProgressEvent
 
 
 def run_migrations():
@@ -60,6 +62,26 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    components = openapi_schema.setdefault("components", {})
+    schemas = components.setdefault("schemas", {})
+    for model in (JobProgressEvent, JobCompletedEvent, JobFailedEvent):
+        schemas[model.__name__] = model.model_json_schema()
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # CORS configuration
 app.add_middleware(

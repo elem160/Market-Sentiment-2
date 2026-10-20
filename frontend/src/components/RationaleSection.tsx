@@ -43,15 +43,19 @@ export const RationaleSection: React.FC<RationaleSectionProps> = ({ rationale })
         ) : (
           <ul className="facts-list">
             {facts.map((fact, idx) => (
-              <li key={fact.fact_id || idx} className="fact-item">
+              <li key={fact.cited_article_id || idx} className="fact-item">
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                   <CheckCircle size={15} style={{ color: 'var(--accent-cyan)', marginTop: '3px', flexShrink: 0 }} />
                   <span>{fact.statement}</span>
                 </div>
                 <div className="fact-meta">
-                  <span className="fact-publisher">[{fact.source_publisher || 'Verified Source'}]</span>
-                  <span>•</span>
-                  <span>Published {formatTime(fact.published_at_utc)}</span>
+                  <span className="fact-publisher">[{fact.catalyst_category || 'Catalyst'}]</span>
+                  {fact.impact && (
+                    <>
+                      <span>•</span>
+                      <span>Impact: {fact.impact}</span>
+                    </>
+                  )}
                 </div>
               </li>
             ))}

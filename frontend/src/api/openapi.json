@@ -1,0 +1,1201 @@
+{
+  "components": {
+    "schemas": {
+      "AnalysisResult": {
+        "properties": {
+          "articles": {
+            "items": {
+              "$ref": "#/components/schemas/ScoredArticle"
+            },
+            "title": "Articles",
+            "type": "array"
+          },
+          "asset_type": {
+            "$ref": "#/components/schemas/AssetType"
+          },
+          "cache_status": {
+            "$ref": "#/components/schemas/CacheStatus",
+            "default": "MISS"
+          },
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "config_version": {
+            "default": "",
+            "title": "Config Version",
+            "type": "string"
+          },
+          "data_status": {
+            "default": "OK",
+            "title": "Data Status",
+            "type": "string"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/DecisionVerdict"
+          },
+          "decision_confidence": {
+            "title": "Decision Confidence",
+            "type": "number"
+          },
+          "disclaimer": {
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "evidence_quality": {
+            "title": "Evidence Quality",
+            "type": "number"
+          },
+          "llm_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Summary"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/PipelineMetrics"
+          },
+          "model_versions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {},
+            "title": "Model Versions",
+            "type": "object"
+          },
+          "pipeline_mode": {
+            "$ref": "#/components/schemas/PipelineMode",
+            "default": "HYBRID_FINBERT_LLM"
+          },
+          "rationale": {
+            "$ref": "#/components/schemas/PipelineRationale"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "sentiment_score": {
+            "title": "Sentiment Score",
+            "type": "number"
+          },
+          "session": {
+            "$ref": "#/components/schemas/SessionWindow"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "warnings": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "run_id",
+          "ticker",
+          "company_name",
+          "asset_type",
+          "session",
+          "decision",
+          "decision_confidence",
+          "sentiment_score",
+          "evidence_quality",
+          "disclaimer",
+          "rationale",
+          "metrics",
+          "articles"
+        ],
+        "title": "AnalysisResult",
+        "type": "object"
+      },
+      "AnalyzeRequest": {
+        "properties": {
+          "enable_llm": {
+            "default": true,
+            "description": "Enable LLM catalyst verification and synthesis",
+            "title": "Enable Llm",
+            "type": "boolean"
+          },
+          "force_refresh": {
+            "default": false,
+            "description": "Bypass local 15-minute intraday cache if True",
+            "title": "Force Refresh",
+            "type": "boolean"
+          },
+          "ticker": {
+            "description": "US-listed equity or ETF ticker symbol (e.g. AAPL, NVDA, SPY)",
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticker"
+        ],
+        "title": "AnalyzeRequest",
+        "type": "object"
+      },
+      "AssetType": {
+        "enum": [
+          "EQUITY",
+          "ETF",
+          "FOREX",
+          "COMMODITY",
+          "FUTURES",
+          "CRYPTO",
+          "INDEX"
+        ],
+        "title": "AssetType",
+        "type": "string"
+      },
+      "CacheStatus": {
+        "enum": [
+          "HIT",
+          "MISS"
+        ],
+        "title": "CacheStatus",
+        "type": "string"
+      },
+      "CatalystCategory": {
+        "enum": [
+          "EARNINGS",
+          "M_AND_A",
+          "REGULATORY",
+          "PRODUCT_EXECUTION",
+          "MACRO",
+          "ANALYST_ACTION",
+          "LITIGATION",
+          "OTHER"
+        ],
+        "title": "CatalystCategory",
+        "type": "string"
+      },
+      "DecisionVerdict": {
+        "enum": [
+          "BUY",
+          "HOLD",
+          "SELL"
+        ],
+        "title": "DecisionVerdict",
+        "type": "string"
+      },
+      "DirectionalPolarity": {
+        "enum": [
+          "POSITIVE",
+          "NEGATIVE",
+          "NEUTRAL"
+        ],
+        "title": "DirectionalPolarity",
+        "type": "string"
+      },
+      "ExclusionReason": {
+        "enum": [
+          "MISSING_OR_UNTRUSTED_TIMESTAMP",
+          "TIMESTAMP_OUT_OF_WINDOW",
+          "DUPLICATE_SYNDICATION",
+          "INSUFFICIENT_ENTITY_RELEVANCE",
+          "CATALYST_REJECTED_AS_NOISE",
+          "CAPACITY_LIMIT"
+        ],
+        "title": "ExclusionReason",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "app_env": {
+            "title": "App Env",
+            "type": "string"
+          },
+          "database_status": {
+            "title": "Database Status",
+            "type": "string"
+          },
+          "finbert_status": {
+            "title": "Finbert Status",
+            "type": "string"
+          },
+          "llm_configured": {
+            "title": "Llm Configured",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "database_status",
+          "finbert_status",
+          "llm_configured",
+          "app_env"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "JobCompletedEvent": {
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "COMPLETED",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "run_id",
+          "message"
+        ],
+        "title": "JobCompletedEvent",
+        "type": "object"
+      },
+      "JobCreatedResponse": {
+        "properties": {
+          "events_url": {
+            "title": "Events Url",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "max_wait_seconds": {
+            "default": 150,
+            "title": "Max Wait Seconds",
+            "type": "integer"
+          },
+          "poll_url": {
+            "title": "Poll Url",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "ticker",
+          "status",
+          "poll_url",
+          "events_url"
+        ],
+        "title": "JobCreatedResponse",
+        "type": "object"
+      },
+      "JobFailedEvent": {
+        "properties": {
+          "error_code": {
+            "title": "Error Code",
+            "type": "string"
+          },
+          "error_message": {
+            "title": "Error Message",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "FAILED",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "status",
+          "error_code",
+          "error_message"
+        ],
+        "title": "JobFailedEvent",
+        "type": "object"
+      },
+      "JobProgressEvent": {
+        "$defs": {
+          "JobStatus": {
+            "enum": [
+              "QUEUED",
+              "PROCESSING",
+              "COMPLETED",
+              "FAILED",
+              "CANCELLED"
+            ],
+            "title": "JobStatus",
+            "type": "string"
+          },
+          "PipelineStage": {
+            "enum": [
+              "RESOLVING_TICKER",
+              "INGESTING_NEWS",
+              "FILTERING_DEDUPLICATING",
+              "FINBERT_SCORING",
+              "CATALYST_SYNTHESIS",
+              "AGGREGATING_DECISION",
+              "DONE"
+            ],
+            "title": "PipelineStage",
+            "type": "string"
+          }
+        },
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "progress_pct": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Progress Pct",
+            "type": "number"
+          },
+          "stage": {
+            "$ref": "#/$defs/PipelineStage"
+          },
+          "status": {
+            "$ref": "#/$defs/JobStatus"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "ticker",
+          "status",
+          "stage",
+          "progress_pct",
+          "message"
+        ],
+        "title": "JobProgressEvent",
+        "type": "object"
+      },
+      "JobStatus": {
+        "enum": [
+          "QUEUED",
+          "PROCESSING",
+          "COMPLETED",
+          "FAILED",
+          "CANCELLED"
+        ],
+        "title": "JobStatus",
+        "type": "string"
+      },
+      "JobStatusResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "progress_pct": {
+            "title": "Progress Pct",
+            "type": "number"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/PipelineStage"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "ticker",
+          "status",
+          "stage",
+          "progress_pct",
+          "message",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobStatusResponse",
+        "type": "object"
+      },
+      "ObservedFact": {
+        "properties": {
+          "catalyst_category": {
+            "$ref": "#/components/schemas/CatalystCategory"
+          },
+          "cited_article_id": {
+            "title": "Cited Article Id",
+            "type": "string"
+          },
+          "impact": {
+            "$ref": "#/components/schemas/DirectionalPolarity"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement",
+          "cited_article_id",
+          "catalyst_category",
+          "impact"
+        ],
+        "title": "ObservedFact",
+        "type": "object"
+      },
+      "PipelineMetrics": {
+        "properties": {
+          "articles_deduplicated": {
+            "default": 0,
+            "title": "Articles Deduplicated",
+            "type": "integer"
+          },
+          "articles_ingested": {
+            "default": 0,
+            "title": "Articles Ingested",
+            "type": "integer"
+          },
+          "articles_retained": {
+            "default": 0,
+            "title": "Articles Retained",
+            "type": "integer"
+          },
+          "articles_scored_local": {
+            "default": 0,
+            "title": "Articles Scored Local",
+            "type": "integer"
+          },
+          "articles_sent_to_llm": {
+            "default": 0,
+            "title": "Articles Sent To Llm",
+            "type": "integer"
+          },
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "distinct_clusters": {
+            "default": 0,
+            "title": "Distinct Clusters",
+            "type": "integer"
+          },
+          "distinct_publishers": {
+            "default": 0,
+            "title": "Distinct Publishers",
+            "type": "integer"
+          },
+          "estimated_cost_usd": {
+            "default": 0.0,
+            "title": "Estimated Cost Usd",
+            "type": "number"
+          },
+          "excluded_missing_timestamp": {
+            "default": 0,
+            "title": "Excluded Missing Timestamp",
+            "type": "integer"
+          },
+          "excluded_out_of_window": {
+            "default": 0,
+            "title": "Excluded Out Of Window",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "stage_latencies": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "default": {},
+            "title": "Stage Latencies",
+            "type": "object"
+          },
+          "total_latency_ms": {
+            "default": 0.0,
+            "title": "Total Latency Ms",
+            "type": "number"
+          },
+          "total_sources": {
+            "default": 0,
+            "title": "Total Sources",
+            "type": "integer"
+          }
+        },
+        "title": "PipelineMetrics",
+        "type": "object"
+      },
+      "PipelineMode": {
+        "enum": [
+          "HYBRID_FINBERT_LLM",
+          "DETERMINISTIC_FINBERT_ONLY"
+        ],
+        "title": "PipelineMode",
+        "type": "string"
+      },
+      "PipelineRationale": {
+        "properties": {
+          "inferences": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Inferences",
+            "type": "array"
+          },
+          "observed_facts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ObservedFact"
+            },
+            "title": "Observed Facts",
+            "type": "array"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary"
+        ],
+        "title": "PipelineRationale",
+        "type": "object"
+      },
+      "PipelineStage": {
+        "enum": [
+          "RESOLVING_TICKER",
+          "INGESTING_NEWS",
+          "FILTERING_DEDUPLICATING",
+          "FINBERT_SCORING",
+          "CATALYST_SYNTHESIS",
+          "AGGREGATING_DECISION",
+          "DONE"
+        ],
+        "title": "PipelineStage",
+        "type": "string"
+      },
+      "ProviderType": {
+        "enum": [
+          "YFINANCE",
+          "FINNHUB",
+          "GOOGLE_RSS_AGGREGATOR",
+          "INVESTING_FOREX_RSS",
+          "FXSTREET_RSS",
+          "FIXTURE"
+        ],
+        "title": "ProviderType",
+        "type": "string"
+      },
+      "RecentRunSummary": {
+        "properties": {
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "decision_confidence": {
+            "title": "Decision Confidence",
+            "type": "number"
+          },
+          "evidence_quality": {
+            "title": "Evidence Quality",
+            "type": "number"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "run_timestamp_utc": {
+            "title": "Run Timestamp Utc",
+            "type": "string"
+          },
+          "sentiment_score": {
+            "title": "Sentiment Score",
+            "type": "number"
+          },
+          "ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "ticker",
+          "company_name",
+          "decision",
+          "decision_confidence",
+          "sentiment_score",
+          "evidence_quality",
+          "run_timestamp_utc"
+        ],
+        "title": "RecentRunSummary",
+        "type": "object"
+      },
+      "ScoredArticle": {
+        "additionalProperties": false,
+        "properties": {
+          "age_hours": {
+            "default": 0.0,
+            "title": "Age Hours",
+            "type": "number"
+          },
+          "article_id": {
+            "title": "Article Id",
+            "type": "string"
+          },
+          "canonical_publisher": {
+            "title": "Canonical Publisher",
+            "type": "string"
+          },
+          "canonical_url": {
+            "title": "Canonical Url",
+            "type": "string"
+          },
+          "catalyst_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CatalystCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cluster_id": {
+            "default": "",
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "effective_weight": {
+            "default": 0.0,
+            "title": "Effective Weight",
+            "type": "number"
+          },
+          "exclusion_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExclusionReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "final_weight": {
+            "default": 0.0,
+            "title": "Final Weight",
+            "type": "number"
+          },
+          "finbert_confidence": {
+            "title": "Finbert Confidence",
+            "type": "number"
+          },
+          "finbert_directional_score": {
+            "title": "Finbert Directional Score",
+            "type": "number"
+          },
+          "finbert_negative": {
+            "title": "Finbert Negative",
+            "type": "number"
+          },
+          "finbert_neutral": {
+            "title": "Finbert Neutral",
+            "type": "number"
+          },
+          "finbert_positive": {
+            "title": "Finbert Positive",
+            "type": "number"
+          },
+          "is_llm_catalyst": {
+            "default": false,
+            "title": "Is Llm Catalyst",
+            "type": "boolean"
+          },
+          "lead_text": {
+            "title": "Lead Text",
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderType"
+          },
+          "published_at_utc": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At Utc"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "article_id",
+          "provider",
+          "source_name",
+          "canonical_publisher",
+          "canonical_url",
+          "title",
+          "lead_text",
+          "finbert_positive",
+          "finbert_negative",
+          "finbert_neutral",
+          "finbert_directional_score",
+          "finbert_confidence"
+        ],
+        "title": "ScoredArticle",
+        "type": "object"
+      },
+      "SessionType": {
+        "enum": [
+          "PRE_MARKET",
+          "REGULAR_HOURS",
+          "POST_MARKET",
+          "OVERNIGHT_PRE_OPEN",
+          "WEEKEND_SESSION",
+          "HOLIDAY_OFF_MARKET"
+        ],
+        "title": "SessionType",
+        "type": "string"
+      },
+      "SessionWindow": {
+        "properties": {
+          "is_market_open": {
+            "title": "Is Market Open",
+            "type": "boolean"
+          },
+          "market_timezone": {
+            "title": "Market Timezone",
+            "type": "string"
+          },
+          "run_timestamp_et": {
+            "format": "date-time",
+            "title": "Run Timestamp Et",
+            "type": "string"
+          },
+          "run_timestamp_utc": {
+            "format": "date-time",
+            "title": "Run Timestamp Utc",
+            "type": "string"
+          },
+          "session_type": {
+            "$ref": "#/components/schemas/SessionType"
+          },
+          "window_duration_hours": {
+            "title": "Window Duration Hours",
+            "type": "number"
+          },
+          "window_end_et": {
+            "format": "date-time",
+            "title": "Window End Et",
+            "type": "string"
+          },
+          "window_end_utc": {
+            "format": "date-time",
+            "title": "Window End Utc",
+            "type": "string"
+          },
+          "window_start_et": {
+            "format": "date-time",
+            "title": "Window Start Et",
+            "type": "string"
+          },
+          "window_start_utc": {
+            "format": "date-time",
+            "title": "Window Start Utc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "market_timezone",
+          "session_type",
+          "is_market_open",
+          "window_start_utc",
+          "window_start_et",
+          "window_end_utc",
+          "window_end_et",
+          "window_duration_hours",
+          "run_timestamp_utc",
+          "run_timestamp_et"
+        ],
+        "title": "SessionWindow",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Empirical research and directional market-sentiment classification for US Equities, ETFs, Forex pairs, Cryptocurrencies, and Commodities.",
+    "title": "Market Sentiment Analysis API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/analysis/{run_id}": {
+      "get": {
+        "description": "Fetch complete persisted diagnostic analysis and evidence chain for a specific run.",
+        "operationId": "get_analysis_result_api_v1_analysis__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Analysis Result"
+      }
+    },
+    "/api/v1/analyze": {
+      "post": {
+        "description": "Analyzes current-day market sentiment for a US-listed equity or ETF.\n- If cached within the session bucket: returns 200 OK with full result instantly.\n- If uncached: creates an async job and returns 202 Accepted with SSE event stream URL.",
+        "operationId": "analyze_ticker_api_v1_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AnalysisResult"
+                    },
+                    {
+                      "$ref": "#/components/schemas/JobCreatedResponse"
+                    }
+                  ],
+                  "title": "Response Analyze Ticker Api V1 Analyze Post"
+                }
+              }
+            },
+            "description": "Instant cache hit with full AnalysisResult"
+          },
+          "202": {
+            "description": "Job created, processing in background"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analyze Ticker"
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "description": "Health check endpoint validating SQLite, FinBERT initialization, and OpenRouter config.",
+        "operationId": "get_health_status_api_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Health Status"
+      }
+    },
+    "/api/v1/history": {
+      "get": {
+        "description": "Retrieve recent searches and historical sentiment verdicts.",
+        "operationId": "get_search_history_api_v1_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecentRunSummary"
+                  },
+                  "title": "Response Get Search History Api V1 History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Search History"
+      }
+    },
+    "/api/v1/jobs/{job_id}": {
+      "get": {
+        "description": "Polling fallback for background job progression.",
+        "operationId": "get_job_status_api_v1_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Job Status"
+      }
+    },
+    "/api/v1/jobs/{job_id}/events": {
+      "get": {
+        "description": "Server-Sent Events (SSE) stream for real-time live pipeline progress.\nEmits progress, completed, and failed events.",
+        "operationId": "stream_job_events_api_v1_jobs__job_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Job Events"
+      }
+    }
+  }
+}

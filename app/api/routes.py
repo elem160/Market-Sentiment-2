@@ -19,10 +19,16 @@ from app.core.enums import PipelineStage, JobStatus
 from app.core.models import AnalysisResult
 from app.api.schemas import (
     AnalyzeRequest,
+    HealthResponse,
+    JobCompletedEvent,
     JobCreatedResponse,
+    JobFailedEvent,
+    JobProgressEvent,
     JobStatusResponse,
     RecentRunSummary,
-    HealthResponse,
+    SSE_EVENT_COMPLETED,
+    SSE_EVENT_FAILED,
+    SSE_EVENT_PROGRESS,
 )
 from app.api.dependencies import get_client_ip
 from app.db.database import get_db, SessionLocal
@@ -148,9 +154,10 @@ async def analyze_ticker(
     return JobCreatedResponse(
         job_id=job_id,
         ticker=normalized_ticker,
-        status=JobStatus.QUEUED.value,
+        status=JobStatus.QUEUED,
         poll_url=f"/api/v1/jobs/{job_id}",
         events_url=f"/api/v1/jobs/{job_id}/events",
+        max_wait_seconds=settings.PIPELINE_TIMEOUT_SECONDS + 60,
     )
 
 
@@ -172,8 +179,8 @@ async def get_job_status(
     return JobStatusResponse(
         job_id=job.id,
         ticker=job.ticker,
-        status=job.status,
-        stage=job.stage,
+        status=JobStatus(job.status),
+        stage=PipelineStage(job.stage),
         progress_pct=job.progress_pct,
         message=job.message,
         run_id=job.run_id,
@@ -190,69 +197,87 @@ async def stream_job_events(
 ):
     """
     Server-Sent Events (SSE) stream for real-time live pipeline progress.
-    Emits stage updates, completed (with run_id), and failed events.
+    Emits progress, completed, and failed events.
     """
     try:
         rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
     except SentimentAppException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+
+    def _fetch_job():
+        db: Session = SessionLocal()
+        try:
+            return SentimentRepository.get_job(db, job_id)
+        finally:
+            db.close()
+
+    # Unknown job on /jobs/{id}/events -> 404 before streaming
+    initial_job = await asyncio.to_thread(_fetch_job)
+    if not initial_job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job '{job_id}' not found.")
+
     async def event_generator():
         last_stage = None
         last_pct = -1.0
         event_id = 1
-        max_wait_seconds = 120
+        max_wait_seconds = settings.PIPELINE_TIMEOUT_SECONDS + 60
         start_time = asyncio.get_event_loop().time()
 
         while True:
-            def _fetch_job():
-                db: Session = SessionLocal()
-                try:
-                    return SentimentRepository.get_job(db, job_id)
-                finally:
-                    db.close()
-
             job = await asyncio.to_thread(_fetch_job)
-
             if not job:
-                yield f"id: {event_id}\nevent: failed\ndata: {json.dumps({'error': 'Job not found'})}\n\n"
+                failed_evt = JobFailedEvent(
+                    job_id=job_id,
+                    status="FAILED",
+                    error_code="JOB_NOT_FOUND",
+                    error_message=f"Job '{job_id}' not found.",
+                )
+                yield f"id: {event_id}\nevent: {SSE_EVENT_FAILED}\ndata: {failed_evt.model_dump_json()}\n\n"
                 break
 
-            # Emit stage update if changed
-            if job.stage != last_stage or abs(job.progress_pct - last_pct) > 0.04:
-                last_stage = job.stage
-                last_pct = job.progress_pct
-                payload = {
-                    "job_id": job.id,
-                    "ticker": job.ticker,
-                    "stage": job.stage,
-                    "progress_pct": job.progress_pct,
-                    "message": job.message,
-                }
-                yield f"id: {event_id}\nevent: stage_update\ndata: {json.dumps(payload)}\n\n"
-                event_id += 1
-
             if job.status == JobStatus.COMPLETED.value:
-                payload = {
-                    "job_id": job.id,
-                    "status": "COMPLETED",
-                    "progress_pct": 1.0,
-                    "run_id": job.run_id,
-                    "message": "Analysis complete.",
-                }
-                yield f"id: {event_id}\nevent: completed\ndata: {json.dumps(payload)}\n\n"
+                completed_evt = JobCompletedEvent(
+                    job_id=job.id,
+                    status="COMPLETED",
+                    run_id=job.run_id or "",
+                    message=job.message or "Analysis complete.",
+                )
+                yield f"id: {event_id}\nevent: {SSE_EVENT_COMPLETED}\ndata: {completed_evt.model_dump_json()}\n\n"
                 break
 
             if job.status == JobStatus.FAILED.value:
-                payload = {
-                    "job_id": job.id,
-                    "status": "FAILED",
-                    "error": job.error_message or "Unknown failure",
-                }
-                yield f"id: {event_id}\nevent: failed\ndata: {json.dumps(payload)}\n\n"
+                failed_evt = JobFailedEvent(
+                    job_id=job.id,
+                    status="FAILED",
+                    error_code="JOB_FAILED",
+                    error_message=job.error_message or "Unknown failure",
+                )
+                yield f"id: {event_id}\nevent: {SSE_EVENT_FAILED}\ndata: {failed_evt.model_dump_json()}\n\n"
                 break
 
+            # Emit progress update if changed
+            if job.stage != last_stage or abs(job.progress_pct - last_pct) > 0.04:
+                last_stage = job.stage
+                last_pct = job.progress_pct
+                progress_evt = JobProgressEvent(
+                    job_id=job.id,
+                    ticker=job.ticker,
+                    status=JobStatus(job.status),
+                    stage=PipelineStage(job.stage),
+                    progress_pct=job.progress_pct,
+                    message=job.message,
+                )
+                yield f"id: {event_id}\nevent: {SSE_EVENT_PROGRESS}\ndata: {progress_evt.model_dump_json()}\n\n"
+                event_id += 1
+
             if asyncio.get_event_loop().time() - start_time > max_wait_seconds:
-                yield f"id: {event_id}\nevent: failed\ndata: {json.dumps({'error': 'SSE stream timeout'})}\n\n"
+                timeout_evt = JobFailedEvent(
+                    job_id=job.id,
+                    status="FAILED",
+                    error_code="STREAM_TIMEOUT",
+                    error_message="SSE stream timeout",
+                )
+                yield f"id: {event_id}\nevent: {SSE_EVENT_FAILED}\ndata: {timeout_evt.model_dump_json()}\n\n"
                 break
 
             await asyncio.sleep(0.5)

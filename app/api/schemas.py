@@ -1,7 +1,44 @@
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, Field
-from app.core.enums import DecisionVerdict, AssetType, SessionType, PipelineMode, CacheStatus
-from app.core.models import PipelineRationale, PipelineMetrics, ScoredArticle
+from app.core.enums import (
+    AssetType,
+    CacheStatus,
+    DecisionVerdict,
+    JobStatus,
+    PipelineMode,
+    PipelineStage,
+    SessionType,
+)
+from app.core.models import PipelineMetrics, PipelineRationale, ScoredArticle
+
+# SSE Event Names
+SSE_EVENT_PROGRESS = "progress"
+SSE_EVENT_COMPLETED = "completed"
+SSE_EVENT_FAILED = "failed"
+
+
+class JobProgressEvent(BaseModel):
+    job_id: str
+    ticker: str
+    status: JobStatus
+    stage: PipelineStage
+    progress_pct: float = Field(ge=0.0, le=1.0)
+    message: str
+
+
+class JobCompletedEvent(BaseModel):
+    job_id: str
+    status: Literal["COMPLETED"]
+    run_id: str
+    message: str
+
+
+class JobFailedEvent(BaseModel):
+    job_id: str
+    status: Literal["FAILED"]
+    error_code: str
+    error_message: str
 
 
 class AnalyzeRequest(BaseModel):
@@ -13,16 +50,17 @@ class AnalyzeRequest(BaseModel):
 class JobCreatedResponse(BaseModel):
     job_id: str
     ticker: str
-    status: str
+    status: JobStatus
     poll_url: str
     events_url: str
+    max_wait_seconds: int = 150
 
 
 class JobStatusResponse(BaseModel):
     job_id: str
     ticker: str
-    status: str
-    stage: str
+    status: JobStatus
+    stage: PipelineStage
     progress_pct: float
     message: str
     run_id: str | None = None

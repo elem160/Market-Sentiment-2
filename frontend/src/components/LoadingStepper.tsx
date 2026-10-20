@@ -16,11 +16,11 @@ interface StageConfig {
 }
 
 const STAGES: StageConfig[] = [
-  { key: 'VALIDATING_TICKER', label: '1. Resolve Ticker', icon: <Search size={14} /> },
-  { key: 'FETCHING_NEWS', label: '2. Ingest Feeds', icon: <Database size={14} /> },
-  { key: 'DEDUPLICATING', label: '3. Cluster & Dedup', icon: <Layers size={14} /> },
-  { key: 'SCORING_FINBERT', label: '4. FinBERT Inference', icon: <Cpu size={14} /> },
-  { key: 'EXTRACTING_CATALYSTS', label: '5. Catalyst Audit', icon: <Sparkles size={14} /> },
+  { key: 'RESOLVING_TICKER', label: '1. Resolve Ticker', icon: <Search size={14} /> },
+  { key: 'INGESTING_NEWS', label: '2. Ingest Feeds', icon: <Database size={14} /> },
+  { key: 'FILTERING_DEDUPLICATING', label: '3. Cluster & Dedup', icon: <Layers size={14} /> },
+  { key: 'FINBERT_SCORING', label: '4. FinBERT Inference', icon: <Cpu size={14} /> },
+  { key: 'CATALYST_SYNTHESIS', label: '5. Catalyst Audit', icon: <Sparkles size={14} /> },
   { key: 'AGGREGATING_DECISION', label: '6. Heuristic Verdict', icon: <Scale size={14} /> },
 ];
 
@@ -31,7 +31,9 @@ export const LoadingStepper: React.FC<LoadingStepperProps> = ({
   ticker,
 }) => {
   const stageKeys = STAGES.map((s) => s.key);
-  const currentIdx = stageKeys.indexOf(stage as PipelineStage);
+  const isDone = stage === 'DONE';
+  const currentIdx = isDone ? STAGES.length : stageKeys.indexOf(stage as PipelineStage);
+  const displayPct = Math.min(100, Math.round(progressPct <= 1.0 ? progressPct * 100 : progressPct));
 
   return (
     <div className="glass-panel stepper-card animate-fade-in" id="analysis-stepper">
@@ -41,14 +43,14 @@ export const LoadingStepper: React.FC<LoadingStepperProps> = ({
           <span>RUNNING PIPELINE FOR ${ticker}</span>
         </div>
         <span className="font-mono" style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>
-          {progressPct}%
+          {displayPct}%
         </span>
       </div>
 
       <div className="progress-track">
         <div
           className="progress-bar-fill"
-          style={{ width: `${Math.max(5, progressPct)}%` }}
+          style={{ width: `${Math.max(5, displayPct)}%` }}
         />
       </div>
 
