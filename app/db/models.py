@@ -51,7 +51,7 @@ class AnalysisRunDB(Base):
 
     metrics_json = Column(Text, nullable=False, default="{}")
     warnings_json = Column(Text, nullable=False, default="[]")
-    data_status = Column(String(20), nullable=False, default="OK")
+    data_status = Column(String(30), nullable=False, default="OK")
     llm_summary = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
