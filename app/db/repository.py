@@ -21,6 +21,7 @@ from app.core.enums import (
     ExclusionReason,
     JobStatus,
     PipelineStage,
+    HoldReason,
 )
 from app.core.session_window import compute_session_window
 
@@ -154,6 +155,7 @@ class SentimentRepository:
             metrics_json=json.dumps(result.metrics.model_dump()),
             warnings_json=json.dumps(result.warnings),
             data_status=result.data_status,
+            hold_reason=result.hold_reason.value if result.hold_reason else None,
             llm_summary=result.llm_summary,
             is_cacheable=is_cacheable,
             created_at=datetime.now(timezone.utc),
@@ -185,6 +187,7 @@ class SentimentRepository:
                 effective_weight=art.effective_weight,
                 age_hours=art.age_hours,
                 cluster_id=art.cluster_id,
+                publisher_inferred=art.publisher_inferred,
             )
             db.add(art_record)
 
@@ -234,6 +237,7 @@ class SentimentRepository:
                 "decision_confidence": r.decision_confidence,
                 "sentiment_score": r.sentiment_score,
                 "evidence_quality": r.evidence_quality,
+                "hold_reason": getattr(r, "hold_reason", None),
                 "run_timestamp_utc": r.run_timestamp_utc,
             }
             for r in runs
@@ -265,6 +269,7 @@ class SentimentRepository:
                 effective_weight=getattr(a, "effective_weight", 0.0) or 0.0,
                 age_hours=getattr(a, "age_hours", 0.0) or 0.0,
                 cluster_id=a.cluster_id,
+                publisher_inferred=bool(getattr(a, "publisher_inferred", False)),
             )
             for a in record.articles
         ]
@@ -307,6 +312,7 @@ class SentimentRepository:
             pipeline_mode=PipelineMode(record.pipeline_mode),
             cache_status=cache_status,
             data_status=getattr(record, "data_status", "OK") or "OK",
+            hold_reason=HoldReason(record.hold_reason) if getattr(record, "hold_reason", None) else None,
             llm_summary=getattr(record, "llm_summary", None),
             model_versions=model_versions,
             config_version=record.config_version,

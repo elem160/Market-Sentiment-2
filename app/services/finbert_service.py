@@ -152,6 +152,7 @@ class FinBERTService:
 
             canonical_pub = DeduplicationService.normalize_publisher(art.source_name)
             cluster_id = cluster_map.get(art.article_id, f"clust_{art.article_id[:8]}")
+            inferred = bool(art.raw_provider_metadata.get("publisher_inferred", False))
 
             scored_list.append(
                 ScoredArticle(
@@ -159,6 +160,7 @@ class FinBERTService:
                     provider=art.provider,
                     source_name=art.source_name,
                     canonical_publisher=canonical_pub,
+                    publisher_inferred=inferred,
                     canonical_url=art.canonical_url,
                     title=art.title,
                     published_at_utc=art.published_at_utc,

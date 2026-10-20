@@ -146,6 +146,7 @@ export interface components {
       pipeline_mode: components["schemas"]["PipelineMode"] | string;
       cache_status: components["schemas"]["CacheStatus"] | string;
       data_status?: string;
+      hold_reason?: components["schemas"]["HoldReason"] | null;
       llm_summary?: string | null;
       model_versions: Record<string, string>;
       config_version: string;
@@ -199,6 +200,12 @@ export interface components {
       events_url: string;
       max_wait_seconds?: number;
     };
+    HoldReason:
+      | "NO_NEWS"
+      | "SPARSE_EVIDENCE"
+      | "INSUFFICIENT_CORROBORATION"
+      | "CONFLICTING"
+      | "NEUTRAL";
     JobFailedEvent: {
       job_id: string;
       status: "FAILED";
@@ -236,6 +243,9 @@ export interface components {
       total_sources: number;
       distinct_publishers: number;
       distinct_clusters: number;
+      publishers_positive?: number;
+      publishers_negative?: number;
+      supporting_publishers?: number;
       articles_ingested: number;
       articles_retained: number;
       articles_deduplicated: number;
@@ -290,6 +300,7 @@ export interface components {
       provider: components["schemas"]["ProviderType"] | string;
       source_name: string;
       canonical_publisher: string;
+      publisher_inferred?: boolean;
       canonical_url: string;
       title: string;
       published_at_utc?: string | null;

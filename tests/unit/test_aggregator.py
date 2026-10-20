@@ -7,6 +7,7 @@ from app.core.enums import (
     CatalystCategory,
     DirectionalPolarity,
     PipelineMode,
+    HoldReason,
 )
 from app.core.session_window import compute_session_window
 
@@ -19,6 +20,7 @@ def create_mock_scored_article(
     now: datetime,
     hours_ago: float = 2.0,
     cluster_id: str | None = None,
+    publisher_inferred: bool = False,
 ) -> ScoredArticle:
     pub_dt = now - timedelta(hours=hours_ago)
     return ScoredArticle(
@@ -26,6 +28,7 @@ def create_mock_scored_article(
         provider=ProviderType.YFINANCE,
         source_name=publisher,
         canonical_publisher=publisher,
+        publisher_inferred=publisher_inferred,
         canonical_url=f"https://{publisher.lower().replace(' ', '')}.com/{art_id}",
         title=f"Sample headline {art_id} from {publisher}",
         published_at_utc=pub_dt,
@@ -155,3 +158,73 @@ def test_deterministic_finbert_only_confidence_ceiling(frozen_now):
 
     assert confidence <= 0.60
     assert any("LLM synthesis unavailable" in w for w in warnings)
+
+
+def test_two_positive_single_publisher_vs_one_negative_forces_hold(frozen_now):
+    session = compute_session_window(frozen_now)
+    # 2 positive articles from Reuters, 1 negative article from CNBC
+    # Ratio = 2 / 1 = 2.0 >= 1.5, score >= 0.20, but pos_publishers has only Reuters (len=1 < 2)
+    pos1 = create_mock_scored_article("p1", "Reuters", 0.80, 0.90, frozen_now, cluster_id="c1")
+    pos2 = create_mock_scored_article("p2", "Reuters", 0.75, 0.85, frozen_now, cluster_id="c1")
+    neg1 = create_mock_scored_article("n1", "CNBC", -0.70, 0.85, frozen_now, cluster_id="c2")
+
+    res = AggregatorService.aggregate_and_decide(
+        "AAPL", "Apple Inc.", session, [pos1, pos2, neg1], [], ""
+    )
+
+    assert res.decision == DecisionVerdict.HOLD
+    assert res.hold_reason == HoldReason.INSUFFICIENT_CORROBORATION
+    assert res.publishers_positive == 1
+    assert res.publishers_negative == 1
+    assert res.supporting_publishers == 0
+    assert any("INSUFFICIENT_CORROBORATION" in w for w in res.warnings)
+
+
+def test_two_positive_distinct_publishers_vs_one_negative_triggers_buy(frozen_now):
+    session = compute_session_window(frozen_now)
+    # 1 pos Reuters + 1 pos CNBC + 1 neg WSJ -> BUY (2 pos publishers corroborate)
+    pos1 = create_mock_scored_article("p1", "Reuters", 0.85, 0.90, frozen_now, cluster_id="c1")
+    pos2 = create_mock_scored_article("p2", "CNBC", 0.80, 0.85, frozen_now, cluster_id="c2")
+    neg1 = create_mock_scored_article("n1", "Wall Street Journal", -0.70, 0.85, frozen_now, cluster_id="c3")
+
+    res = AggregatorService.aggregate_and_decide(
+        "AAPL", "Apple Inc.", session, [pos1, pos2, neg1], [], ""
+    )
+
+    assert res.decision == DecisionVerdict.BUY
+    assert res.hold_reason is None
+    assert res.publishers_positive == 2
+    assert res.publishers_negative == 1
+    assert res.supporting_publishers == 2
+
+
+def test_only_inferred_publishers_forces_hold(frozen_now):
+    session = compute_session_window(frozen_now)
+    # 2 positive articles from Reuters and CNBC, but publisher_inferred=True
+    pos1 = create_mock_scored_article("p1", "Reuters", 0.85, 0.90, frozen_now, cluster_id="c1", publisher_inferred=True)
+    pos2 = create_mock_scored_article("p2", "CNBC", 0.80, 0.85, frozen_now, cluster_id="c2", publisher_inferred=True)
+
+    res = AggregatorService.aggregate_and_decide(
+        "AAPL", "Apple Inc.", session, [pos1, pos2], [], ""
+    )
+
+    assert res.decision == DecisionVerdict.HOLD
+    assert res.hold_reason == HoldReason.INSUFFICIENT_CORROBORATION
+    assert res.publishers_positive == 0
+    assert res.supporting_publishers == 0
+
+
+def test_aggregator_publishers_ignored_in_corroboration(frozen_now):
+    session = compute_session_window(frozen_now)
+    # 1 positive from Reuters, 1 positive from Unknown Aggregator
+    pos1 = create_mock_scored_article("p1", "Reuters", 0.85, 0.90, frozen_now, cluster_id="c1")
+    pos2 = create_mock_scored_article("p2", "Unknown Aggregator", 0.80, 0.85, frozen_now, cluster_id="c2")
+
+    res = AggregatorService.aggregate_and_decide(
+        "AAPL", "Apple Inc.", session, [pos1, pos2], [], ""
+    )
+
+    assert res.decision == DecisionVerdict.HOLD
+    assert res.hold_reason == HoldReason.INSUFFICIENT_CORROBORATION
+    assert res.publishers_positive == 1
+    assert res.supporting_publishers == 0

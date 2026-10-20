@@ -12,7 +12,7 @@ from app.core.models import (
     ScoredArticle,
     PipelineRationale,
 )
-from app.core.enums import PipelineStage, PipelineMode, CacheStatus, DecisionVerdict, ExclusionReason
+from app.core.enums import PipelineStage, PipelineMode, CacheStatus, DecisionVerdict, ExclusionReason, HoldReason
 from app.core.session_window import compute_session_window, compute_session_bucket
 from app.core.exceptions import FreshnessViolationException, NewsUnavailableException
 from app.core.constants import DIRECTIONAL_THRESHOLD
@@ -197,6 +197,7 @@ class AnalysisOrchestrator:
                         effective_weight=0.0,
                         age_hours=0.0,
                         cluster_id="",
+                        publisher_inferred=bool(excl_art.raw_provider_metadata.get("publisher_inferred", False)),
                     )
                 )
 
@@ -218,6 +219,7 @@ class AnalysisOrchestrator:
                 pipeline_mode=PipelineMode.DETERMINISTIC_FINBERT_ONLY,
                 cache_status=CacheStatus.MISS,
                 data_status="NO_FRESH_NEWS",
+                hold_reason=HoldReason.NO_NEWS,
                 llm_summary=None,
                 model_versions={"finbert": settings.FINBERT_MODEL_NAME, "llm": "NONE"},
                 config_version=settings.get_config_hash(),
@@ -305,6 +307,7 @@ class AnalysisOrchestrator:
                     effective_weight=0.0,
                     age_hours=0.0,
                     cluster_id=cluster_map.get(excl_art.article_id, ""),
+                    publisher_inferred=bool(excl_art.raw_provider_metadata.get("publisher_inferred", False)),
                 )
             )
 
@@ -339,7 +342,7 @@ class AnalysisOrchestrator:
             await on_progress(PipelineStage.AGGREGATING_DECISION, 0.95, "Synthesizing sentiment score and corroboration rules...")
 
         t5 = time.time()
-        decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
+        agg_res = AggregatorService.aggregate_and_decide(
             asset.ticker,
             asset.company_name,
             session,
@@ -348,6 +351,7 @@ class AnalysisOrchestrator:
             llm_summary=llm_summary,
             pipeline_mode=pipeline_mode,
         )
+        decision, confidence, score, quality, rationale, warnings = agg_res
         stage_latencies["aggregating_decision"] = round((time.time() - t5) * 1000, 1)
 
         # Compute summary metrics
@@ -371,6 +375,9 @@ class AnalysisOrchestrator:
             total_sources=len(provider_outcomes),
             distinct_publishers=distinct_publishers,
             distinct_clusters=distinct_clusters,
+            publishers_positive=agg_res.publishers_positive,
+            publishers_negative=agg_res.publishers_negative,
+            supporting_publishers=agg_res.supporting_publishers,
             articles_ingested=len(raw_articles),
             articles_retained=len(scored_retained),
             articles_deduplicated=excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
@@ -416,6 +423,7 @@ class AnalysisOrchestrator:
             pipeline_mode=pipeline_mode,
             cache_status=CacheStatus.MISS,
             data_status="OK",
+            hold_reason=agg_res.hold_reason,
             llm_summary=llm_summary or None,
             model_versions=model_versions,
             config_version=settings.get_config_hash(),

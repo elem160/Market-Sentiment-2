@@ -46,6 +46,16 @@
             "title": "Evidence Quality",
             "type": "number"
           },
+          "hold_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HoldReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "llm_summary": {
             "anyOf": [
               {
@@ -253,6 +263,17 @@
         ],
         "title": "HealthResponse",
         "type": "object"
+      },
+      "HoldReason": {
+        "enum": [
+          "NO_NEWS",
+          "SPARSE_EVIDENCE",
+          "INSUFFICIENT_CORROBORATION",
+          "CONFLICTING",
+          "NEUTRAL"
+        ],
+        "title": "HoldReason",
+        "type": "string"
       },
       "JobCompletedEvent": {
         "properties": {
@@ -599,6 +620,16 @@
             "title": "Prompt Tokens",
             "type": "integer"
           },
+          "publishers_negative": {
+            "default": 0,
+            "title": "Publishers Negative",
+            "type": "integer"
+          },
+          "publishers_positive": {
+            "default": 0,
+            "title": "Publishers Positive",
+            "type": "integer"
+          },
           "stage_latencies": {
             "additionalProperties": {
               "type": "number"
@@ -606,6 +637,11 @@
             "default": {},
             "title": "Stage Latencies",
             "type": "object"
+          },
+          "supporting_publishers": {
+            "default": 0,
+            "title": "Supporting Publishers",
+            "type": "integer"
           },
           "total_latency_ms": {
             "default": 0.0,
@@ -838,6 +874,11 @@
               }
             ],
             "title": "Published At Utc"
+          },
+          "publisher_inferred": {
+            "default": false,
+            "title": "Publisher Inferred",
+            "type": "boolean"
           },
           "source_name": {
             "title": "Source Name",

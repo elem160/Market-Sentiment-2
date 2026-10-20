@@ -10,6 +10,8 @@ from app.core.enums import (
     PipelineMode,
     CacheStatus,
     ExclusionReason,
+    HoldReason,
+    DataStatus,
 )
 from app.core.session_window import SessionWindow
 from app.core.constants import DIRECTIONAL_THRESHOLD
@@ -47,6 +49,7 @@ class ScoredArticle(BaseModel):
     provider: ProviderType
     source_name: str
     canonical_publisher: str             # Normalized publisher root entity
+    publisher_inferred: bool = False     # True if inferred from default feed name rather than explicit source tag
     canonical_url: str
     title: str
     published_at_utc: datetime | None = None # Timezone-aware UTC timestamp or None if undated
@@ -81,6 +84,9 @@ class PipelineMetrics(BaseModel):
     total_sources: int = 0
     distinct_publishers: int = 0
     distinct_clusters: int = 0
+    publishers_positive: int = 0
+    publishers_negative: int = 0
+    supporting_publishers: int = 0
     articles_ingested: int = 0
     articles_retained: int = 0
     articles_deduplicated: int = 0
@@ -115,7 +121,8 @@ class AnalysisResult(BaseModel):
     warnings: list[str] = []
     pipeline_mode: PipelineMode = PipelineMode.HYBRID_FINBERT_LLM
     cache_status: CacheStatus = CacheStatus.MISS
-    data_status: str = "OK"              # "OK" | "NO_FRESH_NEWS"
+    data_status: str = "OK"              # "OK" | "NO_FRESH_NEWS" | "NO_RELEVANT_NEWS" | "DEGRADED"
+    hold_reason: HoldReason | None = None
     llm_summary: str | None = None
     model_versions: dict[str, str] = {}
     config_version: str = ""

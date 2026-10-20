@@ -6,6 +6,7 @@ export type PipelineStage = components['schemas']['PipelineStage'];
 export type JobStatus = components['schemas']['JobStatus'];
 export type CatalystCategory = components['schemas']['CatalystCategory'];
 export type ExclusionReason = components['schemas']['ExclusionReason'];
+export type HoldReason = components['schemas']['HoldReason'];
 export type ScoredArticle = components['schemas']['ScoredArticle'];
 export type ObservedFact = components['schemas']['ObservedFact'];
 export type PipelineRationale = components['schemas']['PipelineRationale'];

@@ -168,12 +168,15 @@ class NewsService:
         feed_content: str | bytes,
         default_source_name: str,
         provider: ProviderType,
+        publisher_is_authoritative: bool = False,
     ) -> list[IngestedArticle]:
         """
         Parses an RSS feed from a string/bytes payload.
         Published time comes from published_parsed, otherwise None.
-        Extracts source from entry.source.title; if absent, falls back to default_source_name
-        and sets raw_provider_metadata['publisher_inferred'] = True.
+        Extracts source from entry.source.title; if absent:
+        - if publisher_is_authoritative is True (direct feeds like FXStreet, Investing.com),
+          falls back to default_source_name with publisher_inferred = False.
+        - otherwise (e.g. Google News aggregators), sets publisher_inferred = True.
         """
         feed = feedparser.parse(feed_content)
         articles: list[IngestedArticle] = []
@@ -196,7 +199,8 @@ class NewsService:
 
             if not publisher:
                 publisher = default_source_name
-                inferred = True
+                if not publisher_is_authoritative:
+                    inferred = True
 
             title = cls._clean_entry_title(raw_title, publisher)
             if not title:
@@ -212,9 +216,11 @@ class NewsService:
                 except Exception:
                     pub_time = None
 
-            raw_meta: dict = {"rss_source": default_source_name, "publisher": publisher}
-            if inferred:
-                raw_meta["publisher_inferred"] = True
+            raw_meta: dict = {
+                "rss_source": default_source_name,
+                "publisher": publisher,
+                "publisher_inferred": inferred,
+            }
 
             art_id = cls._create_article_id(link, title)
             articles.append(
@@ -244,7 +250,11 @@ class NewsService:
 
     @classmethod
     def _fetch_feed_httpx_sync(
-        cls, url: str, default_source_name: str, provider: ProviderType
+        cls,
+        url: str,
+        default_source_name: str,
+        provider: ProviderType,
+        publisher_is_authoritative: bool = False,
     ) -> list[IngestedArticle]:
         """
         Fetches an RSS feed via httpx with per-provider timeouts (connect 4.0s, read/total 8.0s),
@@ -256,7 +266,12 @@ class NewsService:
             resp = client.get(url)
             resp.raise_for_status()
             content = resp.content
-            return cls.parse_rss_feed_content(content, default_source_name, provider)
+            return cls.parse_rss_feed_content(
+                content,
+                default_source_name,
+                provider,
+                publisher_is_authoritative=publisher_is_authoritative,
+            )
 
     @classmethod
     async def fetch_news_for_session(
@@ -318,23 +333,28 @@ class NewsService:
                     "Investing.com Forex",
                     "https://www.investing.com/rss/news_1.rss",
                     ProviderType.INVESTING_FOREX_RSS,
+                    True,
                 ),
                 (
                     "FXStreet",
                     "https://www.fxstreet.com/rss/news",
                     ProviderType.FXSTREET_RSS,
+                    True,
                 ),
                 (
                     "Yahoo Finance Forex RSS",
                     f"https://finance.yahoo.com/rss/headline?s={yf_ticker}",
                     ProviderType.YFINANCE,
+                    False,
                 ),
             ]
-            for feed_name, feed_url, prov_type in fx_feed_configs:
+            for feed_name, feed_url, prov_type, is_auth in fx_feed_configs:
                 key = f"forex_{feed_name.lower().replace(' ', '_').replace('.', '_')}"
                 t_f = time.time()
                 try:
-                    items = await asyncio.to_thread(cls._fetch_feed_httpx_sync, feed_url, feed_name, prov_type)
+                    items = await asyncio.to_thread(
+                        cls._fetch_feed_httpx_sync, feed_url, feed_name, prov_type, is_auth
+                    )
                     for item in items:
                         add_article(item)
                     provider_outcomes[key] = {
