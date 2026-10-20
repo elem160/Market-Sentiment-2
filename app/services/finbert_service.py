@@ -17,6 +17,7 @@ class FinBERTService:
     _tokenizer = None
     _is_mock: bool = False
     _mock_fn: Callable[[str], dict[str, float]] | None = None
+    _status: str = "NOT_LOADED"
 
     @classmethod
     def get_instance(cls) -> "FinBERTService":
@@ -27,22 +28,37 @@ class FinBERTService:
         return cls._instance
 
     @classmethod
+    def get_status(cls) -> str:
+        """Return truthful initialization status of the FinBERT model."""
+        if cls._is_mock:
+            return "LOADED"
+        if cls._instance is not None:
+            if cls._instance._pipeline is not None:
+                return "LOADED"
+            return cls._instance._status
+        return cls._status
+
+    @classmethod
     def set_mock_mode(cls, mock_fn: Callable[[str], dict[str, float]] | None = None):
         """Enable deterministic mock mode for testing without GPU/model download."""
         cls._is_mock = True
+        cls._status = "LOADED"
         cls._mock_fn = staticmethod(mock_fn) if mock_fn else None
 
     @classmethod
     def reset_mock_mode(cls):
         cls._is_mock = False
+        cls._status = "NOT_LOADED"
         cls._mock_fn = None
 
     def _ensure_model_loaded(self):
         if self._is_mock:
+            self._status = "LOADED"
             return
         if self._pipeline is None:
             with self._lock:
                 if self._pipeline is None:
+                    self._status = "LOADING"
                     logger.info(f"Loading local FinBERT model ({settings.FINBERT_MODEL_NAME})...")
                     try:
                         self._tokenizer = AutoTokenizer.from_pretrained(settings.FINBERT_MODEL_NAME)
@@ -55,8 +71,10 @@ class FinBERTService:
                             top_k=None,
                             device=-1  # CPU inference
                         )
+                        self._status = "LOADED"
                         logger.info("FinBERT model successfully loaded into memory.")
                     except Exception as e:
+                        self._status = "FAILED"
                         logger.error(f"Failed to load FinBERT model: {e}")
                         raise
 

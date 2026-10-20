@@ -1,11 +1,14 @@
 import os
+import uuid
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import settings
-from app.core.exceptions import SentimentAppException
+from app.core.exceptions import SentimentAppException, RateLimitExceededException
 from app.db.database import SessionLocal
 from app.db.repository import SentimentRepository
 from app.api.routes import router as api_router
@@ -92,15 +95,59 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global custom domain exception handler
+# Unified API exception handlers returning {error, message, details}
 @app.exception_handler(SentimentAppException)
 async def domain_exception_handler(request: Request, exc: SentimentAppException):
+    headers = {}
+    if isinstance(exc, RateLimitExceededException) or "retry_after_seconds" in exc.details:
+        retry_after = exc.details.get("retry_after_seconds", getattr(exc, "retry_after_seconds", 60))
+        headers["Retry-After"] = str(retry_after)
     return JSONResponse(
         status_code=exc.status_code,
+        headers=headers if headers else None,
         content={
             "error": exc.__class__.__name__,
             "message": exc.message,
             "details": exc.details,
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "RequestValidationError",
+            "message": "Validation error in request parameters or body.",
+            "details": {"errors": exc.errors()},
+        },
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        headers=getattr(exc, "headers", None) or None,
+        content={
+            "error": "HTTPException",
+            "message": str(exc.detail),
+            "details": {},
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    error_id = str(uuid.uuid4())
+    logger.exception(f"Unhandled server error [error_id={error_id}]: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "InternalServerError",
+            "message": "An internal server error occurred.",
+            "details": {"error_id": error_id},
         },
     )
 

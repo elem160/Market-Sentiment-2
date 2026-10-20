@@ -39,7 +39,8 @@ async def test_sse_unknown_job_returns_404(async_client):
     response = await async_client.get("/api/v1/jobs/nonexistent-job-uuid/events")
     assert response.status_code == 404
     data = response.json()
-    assert "not found" in data["detail"].lower()
+    msg = data.get("message") or data.get("detail", "")
+    assert "not found" in msg.lower()
 
 
 @pytest.mark.asyncio

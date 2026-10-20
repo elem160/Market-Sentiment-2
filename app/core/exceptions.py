@@ -67,6 +67,7 @@ class BudgetExceededException(SentimentAppException):
 class RateLimitExceededException(SentimentAppException):
     """Raised when an IP rate limit is exceeded."""
     def __init__(self, retry_after_seconds: int = 60):
+        self.retry_after_seconds = retry_after_seconds
         super().__init__(
             message="Rate limit exceeded. Please wait before submitting another request.",
             status_code=429,

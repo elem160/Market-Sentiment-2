@@ -2,7 +2,7 @@ import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -83,8 +83,9 @@ async def run_background_job(job_id: str, ticker: str, force_refresh: bool, enab
             logger.warning(f"Job {job_id} for {ticker} failed with domain error: {e.message}")
             SentimentRepository.fail_job(db, job_id, e.message)
         except Exception as e:
-            logger.exception(f"Job {job_id} for {ticker} encountered unexpected error: {e}")
-            SentimentRepository.fail_job(db, job_id, f"Internal error during analysis: {str(e)}")
+            error_id = str(uuid.uuid4())
+            logger.exception(f"Job {job_id} for {ticker} encountered unexpected error [error_id={error_id}]: {e}")
+            SentimentRepository.fail_job(db, job_id, f"Internal error (ref {error_id})")
         finally:
             db.close()
 
@@ -109,17 +110,11 @@ async def analyze_ticker(
     - If uncached: creates an async job and returns 202 Accepted with SSE event stream URL.
     """
     # 1. IP Rate Limiting
-    try:
-        rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_ANALYSIS_PER_MINUTE)
-    except SentimentAppException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
+    rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_ANALYSIS_PER_MINUTE)
 
     # 2. Early ticker normalization & validation (run in thread pool to prevent event loop blocking)
-    try:
-        asset = await asyncio.to_thread(TickerService.validate_and_resolve, req.ticker)
-        normalized_ticker = asset.ticker
-    except SentimentAppException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
+    asset = await asyncio.to_thread(TickerService.validate_and_resolve, req.ticker)
+    normalized_ticker = asset.ticker
 
     # 3. Quick Cache Check
     if not req.force_refresh:
@@ -168,14 +163,11 @@ async def get_job_status(
     client_ip: str = Depends(get_client_ip),
 ):
     """Polling fallback for background job progression."""
-    try:
-        rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
-    except SentimentAppException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
+    rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
 
     job = SentimentRepository.get_job(db, job_id)
     if not job:
-        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
+        raise JobNotFoundException(job_id)
     return JobStatusResponse(
         job_id=job.id,
         ticker=job.ticker,
@@ -199,10 +191,7 @@ async def stream_job_events(
     Server-Sent Events (SSE) stream for real-time live pipeline progress.
     Emits progress, completed, and failed events.
     """
-    try:
-        rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
-    except SentimentAppException as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message)
+    rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
 
     def _fetch_job():
         db: Session = SessionLocal()
@@ -214,7 +203,7 @@ async def stream_job_events(
     # Unknown job on /jobs/{id}/events -> 404 before streaming
     initial_job = await asyncio.to_thread(_fetch_job)
     if not initial_job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job '{job_id}' not found.")
+        raise JobNotFoundException(job_id)
 
     async def event_generator():
         last_stage = None
@@ -298,7 +287,7 @@ async def get_analysis_result(run_id: str, db: Session = Depends(get_db)):
     """Fetch complete persisted diagnostic analysis and evidence chain for a specific run."""
     result = SentimentRepository.get_analysis_run(db, run_id)
     if not result:
-        raise HTTPException(status_code=404, detail=f"Analysis run '{run_id}' not found.")
+        raise AnalysisRunNotFoundException(run_id)
     return result
 
 
@@ -313,20 +302,31 @@ async def get_search_history(
 
 
 @router.get("/health", response_model=HealthResponse)
-async def get_health_status(db: Session = Depends(get_db)):
+async def get_health_status(response: Response, db: Session = Depends(get_db)):
     """Health check endpoint validating SQLite, FinBERT initialization, and OpenRouter config."""
-    db_status = "HEALTHY"
+    db_ok = True
     try:
         db.execute(text("SELECT 1"))
         SentimentRepository.get_recent_runs(db, limit=1)
+        db_status = "HEALTHY"
     except Exception as e:
-        db_status = f"UNHEALTHY: {e}"
+        logger.error(f"Health check database failure: {e}")
+        db_ok = False
+        db_status = "UNHEALTHY"
 
-    finbert_status = "LOADED" if FinBERTService._pipeline is not None or FinBERTService._is_mock else "READY_ON_DEMAND"
+    finbert_status = FinBERTService.get_status()
     llm_configured = bool(settings.OPENROUTER_API_KEY)
 
+    if not db_ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        overall_status = "DEGRADED"
+    elif finbert_status == "FAILED":
+        overall_status = "DEGRADED"
+    else:
+        overall_status = "UP"
+
     return HealthResponse(
-        status="UP",
+        status=overall_status,
         database_status=db_status,
         finbert_status=finbert_status,
         llm_configured=llm_configured,
