@@ -1,0 +1,22 @@
+[
+  {
+    "uuid": "yf-leg-001",
+    "title": "Apple Services division posts record quarterly profits",
+    "publisher": "CNBC",
+    "link": "https://finance.yahoo.com/news/apple-services-record-quarterly-profits-112233.html",
+    "providerPublishTime": 1792418400
+  },
+  {
+    "id": "yf-leg-002",
+    "title": "Apple supplier ramps up camera module production",
+    "publisher": "Bloomberg",
+    "link": "https://finance.yahoo.com/news/apple-supplier-camera-modules-445566.html",
+    "pubDate": "2026-10-10T09:00:00Z"
+  },
+  {
+    "id": "yf-leg-003",
+    "title": "Analysts debate Apple's next product cycle",
+    "publisher": "TechRadar",
+    "link": "https://finance.yahoo.com/news/apple-next-product-cycle-778899.html"
+  }
+]

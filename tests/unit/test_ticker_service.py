@@ -1,4 +1,5 @@
 import pytest
+from types import SimpleNamespace
 from unittest.mock import patch, MagicMock, PropertyMock
 from app.services.ticker_service import TickerService
 from app.core.exceptions import (
@@ -27,7 +28,18 @@ def test_invalid_syntax_rejection():
         TickerService.validate_and_resolve("NV_DA")
 
 
-def test_multi_asset_resolution():
+@pytest.fixture
+def yahoo_without_profile_data():
+    """Yahoo stub that answers but exposes no profile fields (no hidden network calls)."""
+    with patch("yfinance.Ticker") as mock_yf:
+        mock_yf.return_value = MagicMock(
+            fast_info=SimpleNamespace(quote_type=None, exchange=None, long_name=None, short_name=None),
+            info={},
+        )
+        yield mock_yf
+
+
+def test_multi_asset_resolution(yahoo_without_profile_data):
     # Forex
     fx1 = TickerService.validate_and_resolve("EUR/USD")
     assert fx1.ticker == "EUR/USD"
@@ -57,6 +69,11 @@ def test_multi_asset_resolution():
     eth = TickerService.validate_and_resolve("ETH-USD")
     assert eth.ticker == "ETH-USD"
     assert eth.asset_type == AssetType.CRYPTO
+
+    # Every resolution went through the explicit Yahoo stub
+    assert {c.args[0] for c in yahoo_without_profile_data.call_args_list} == {
+        "EURUSD=X", "USDJPY=X", "GC=F", "CL=F", "BTC-USD", "ETH-USD"
+    }
 
 
 @pytest.fixture(autouse=True)

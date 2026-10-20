@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from app.core.session_window import compute_session_window, is_nyse_holiday
 from app.core.enums import SessionType
@@ -54,12 +54,19 @@ def test_weekend_session_anchors_to_friday_close():
     assert window.window_duration_hours == 20.0  # From Friday 16:00 to Saturday 12:00 = 20 hours
 
 
-def test_72_hour_lookback_cap():
-    """A long holiday or Monday pre-dawn run must not exceed 72 hours max lookback."""
-    # Monday at 20:00 ET after a 3-day weekend
-    ref_dt = datetime(2026, 10, 19, 20, 0, 0, tzinfo=EASTERN_TZ)
+def test_72_hour_lookback_cap_after_monday_holiday():
+    """Tuesday 00:30 UTC after Memorial Day is Monday 20:30 ET, still the holiday: the anchor
+    (Friday 16:00 ET) lies 76.5 h back, so the window is capped at exactly 72 h."""
+    ref_dt = datetime(2026, 5, 26, 0, 30, 0, tzinfo=timezone.utc)
     window = compute_session_window(ref_dt)
-    assert window.window_duration_hours <= 72.0
+
+    assert window.session_type == SessionType.HOLIDAY_OFF_MARKET
+    assert window.run_timestamp_et == datetime(2026, 5, 25, 20, 30, 0, tzinfo=EASTERN_TZ)
+    uncapped_start = datetime(2026, 5, 22, 16, 0, 0, tzinfo=EASTERN_TZ)
+    assert (window.window_end_utc - uncapped_start) == timedelta(hours=76, minutes=30)
+    assert window.window_duration_hours == 72.0
+    assert window.window_start_et == datetime(2026, 5, 22, 20, 30, 0, tzinfo=EASTERN_TZ)
+    assert window.window_start_utc == ref_dt - timedelta(hours=72)
 
 
 def test_is_timestamp_in_window():

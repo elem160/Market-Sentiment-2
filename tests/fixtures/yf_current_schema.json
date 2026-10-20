@@ -1,29 +1,116 @@
 [
   {
-    "id": "yf-curr-001",
-    "title": "Apple expands AI cloud server deployment with custom silicon",
-    "publisher": "Reuters",
-    "link": "https://finance.yahoo.com/news/apple-expands-ai-cloud-server-deployment-123456.html",
-    "pubDate": "2026-10-18T14:30:00Z"
+    "id": "6f1c2d4e-0b1a-4d2e-9c3f-1a2b3c4d5e01",
+    "content": {
+      "id": "6f1c2d4e-0b1a-4d2e-9c3f-1a2b3c4d5e01",
+      "contentType": "STORY",
+      "title": "Apple expands AI cloud server deployment with custom silicon",
+      "description": "",
+      "summary": "Apple is rolling out in-house server chips across its data centers to power new AI features.",
+      "pubDate": "2026-10-18T14:30:00Z",
+      "displayTime": "2026-10-18T14:30:00Z",
+      "isHosted": true,
+      "bypassModal": false,
+      "previewUrl": null,
+      "thumbnail": null,
+      "provider": {
+        "displayName": "Reuters",
+        "url": "http://www.reuters.com/"
+      },
+      "canonicalUrl": {
+        "url": "https://finance.yahoo.com/news/apple-expands-ai-cloud-server-deployment-123456.html",
+        "site": "finance",
+        "region": "US",
+        "lang": "en-US"
+      },
+      "clickThroughUrl": null,
+      "metadata": {
+        "editorsPick": false
+      },
+      "finance": {
+        "premiumFinance": {
+          "isPremiumNews": false,
+          "isPremiumFreeNews": false
+        }
+      },
+      "storyline": null
+    }
   },
   {
-    "id": "yf-curr-002",
-    "title": "Apple supply chain reports increased OLED orders for next year",
-    "publisher": "Bloomberg",
-    "link": "https://finance.yahoo.com/news/apple-supply-chain-oled-789012.html",
-    "pubDate": "2026-10-10T09:00:00Z"
+    "id": "6f1c2d4e-0b1a-4d2e-9c3f-1a2b3c4d5e02",
+    "content": {
+      "id": "6f1c2d4e-0b1a-4d2e-9c3f-1a2b3c4d5e02",
+      "contentType": "STORY",
+      "title": "Apple supply chain reports increased OLED orders for next year",
+      "description": "<p>Supplier checks point to <b>higher</b> OLED panel orders.</p>",
+      "summary": "",
+      "pubDate": "2026-10-10T09:00:00Z",
+      "displayTime": "2026-10-10T09:00:00Z",
+      "isHosted": false,
+      "bypassModal": false,
+      "previewUrl": null,
+      "thumbnail": null,
+      "provider": {
+        "displayName": "Bloomberg",
+        "url": "https://www.bloomberg.com/"
+      },
+      "canonicalUrl": {
+        "url": "https://www.bloomberg.com/news/articles/2026-10-10/apple-supply-chain-oled-789012",
+        "site": "finance",
+        "region": "US",
+        "lang": "en-US"
+      },
+      "clickThroughUrl": {
+        "url": "https://finance.yahoo.com/m/apple-supply-chain-oled-789012.html",
+        "site": "finance",
+        "region": "US",
+        "lang": "en-US"
+      },
+      "metadata": {
+        "editorsPick": false
+      },
+      "finance": {
+        "premiumFinance": {
+          "isPremiumNews": false,
+          "isPremiumFreeNews": false
+        }
+      },
+      "storyline": null
+    }
   },
   {
-    "id": "yf-curr-003",
-    "title": "Rumors swirl regarding Apple future product pipeline",
-    "publisher": "TechRadar",
-    "link": "https://finance.yahoo.com/news/apple-rumors-product-pipeline-345678.html"
-  },
-  {
-    "uuid": "yf-leg-004",
-    "title": "Apple Services division posts record quarterly profits",
-    "publisher": "CNBC",
-    "link": "https://finance.yahoo.com/news/apple-services-record-quarterly-profits-112233.html",
-    "providerPublishTime": 1792418400
+    "id": "6f1c2d4e-0b1a-4d2e-9c3f-1a2b3c4d5e03",
+    "content": {
+      "id": "6f1c2d4e-0b1a-4d2e-9c3f-1a2b3c4d5e03",
+      "contentType": "STORY",
+      "title": "Rumors swirl regarding Apple future product pipeline",
+      "description": "",
+      "summary": "Speculation about next year's hardware line-up without a publication time.",
+      "isHosted": true,
+      "bypassModal": false,
+      "previewUrl": null,
+      "thumbnail": null,
+      "provider": {
+        "displayName": "TechRadar",
+        "url": "https://www.techradar.com/"
+      },
+      "canonicalUrl": {
+        "url": "https://finance.yahoo.com/news/apple-rumors-product-pipeline-345678.html",
+        "site": "finance",
+        "region": "US",
+        "lang": "en-US"
+      },
+      "clickThroughUrl": null,
+      "metadata": {
+        "editorsPick": false
+      },
+      "finance": {
+        "premiumFinance": {
+          "isPremiumNews": false,
+          "isPremiumFreeNews": false
+        }
+      },
+      "storyline": null
+    }
   }
 ]

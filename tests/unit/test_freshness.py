@@ -2,6 +2,7 @@ import os
 import json
 import pytest
 from datetime import datetime, timezone, timedelta
+from pydantic import ValidationError
 
 from app.core.models import IngestedArticle, ScoredArticle, SessionWindow
 from app.core.enums import ProviderType, SessionType, DecisionVerdict
@@ -12,32 +13,55 @@ from app.services.deduplication_service import DeduplicationService
 from app.services.aggregator_service import AggregatorService
 
 
-def test_parse_yfinance_current_and_legacy_schema():
-    """Verify yfinance parser handles current pubDate ISO strings, legacy providerPublishTime, and undated items (F-06)."""
-    fixture_path = os.path.join(os.path.dirname(__file__), "..", "fixtures", "yf_current_schema.json")
+def _load_yf_fixture(filename: str) -> list[dict]:
+    fixture_path = os.path.join(os.path.dirname(__file__), "..", "fixtures", filename)
     with open(fixture_path, "r", encoding="utf-8") as f:
-        items = json.load(f)
+        return json.load(f)
 
-    articles = NewsService.parse_yfinance_items(items, "AAPL")
-    assert len(articles) == 4
 
-    # Item 1: current schema pubDate ISO-8601
-    assert "apple-expands-ai-cloud" in articles[0].canonical_url
+def test_parse_yfinance_current_schema():
+    """Verify the parser reads Yahoo's nested `content` format (title, pubDate, provider, canonicalUrl) (F-06)."""
+    articles = NewsService.parse_yfinance_items(_load_yf_fixture("yf_current_schema.json"), "AAPL")
+    assert len(articles) == 3
+
+    # Item 1: content.canonicalUrl wins; clickThroughUrl is null
+    assert articles[0].canonical_url == (
+        "https://finance.yahoo.com/news/apple-expands-ai-cloud-server-deployment-123456.html"
+    )
+    assert articles[0].title == "Apple expands AI cloud server deployment with custom silicon"
     assert articles[0].published_at_utc == datetime(2026, 10, 18, 14, 30, tzinfo=timezone.utc)
     assert articles[0].source_name == "Yahoo - Reuters"
+    assert articles[0].summary.startswith("Apple is rolling out in-house server chips")
 
-    # Item 2: older item with pubDate
+    # Item 2: older pubDate; empty summary falls back to the HTML-cleaned description
     assert "apple-supply-chain-oled" in articles[1].canonical_url
     assert articles[1].published_at_utc == datetime(2026, 10, 10, 9, 0, tzinfo=timezone.utc)
+    assert articles[1].source_name == "Yahoo - Bloomberg"
+    assert articles[1].summary == "Supplier checks point to higher OLED panel orders."
 
     # Item 3: missing timestamp MUST be None and never default to now()
     assert "apple-rumors-product-pipeline" in articles[2].canonical_url
     assert articles[2].published_at_utc is None
+    assert articles[2].source_name == "Yahoo - TechRadar"
 
-    # Item 4: legacy providerPublishTime
-    assert "apple-services-record-quarterly" in articles[3].canonical_url
-    assert articles[3].published_at_utc is not None
-    assert articles[3].source_name == "Yahoo - CNBC"
+
+def test_parse_yfinance_legacy_schema():
+    """Verify the parser still reads legacy flat items (top-level title/publisher/link, pubDate or providerPublishTime)."""
+    articles = NewsService.parse_yfinance_items(_load_yf_fixture("yf_legacy_schema.json"), "AAPL")
+    assert len(articles) == 3
+
+    # Item 1: legacy providerPublishTime (epoch seconds)
+    assert "apple-services-record-quarterly" in articles[0].canonical_url
+    assert articles[0].published_at_utc == datetime(2026, 10, 19, 14, 0, tzinfo=timezone.utc)
+    assert articles[0].source_name == "Yahoo - CNBC"
+
+    # Item 2: top-level ISO pubDate
+    assert "apple-supplier-camera-modules" in articles[1].canonical_url
+    assert articles[1].published_at_utc == datetime(2026, 10, 10, 9, 0, tzinfo=timezone.utc)
+    assert articles[1].source_name == "Yahoo - Bloomberg"
+
+    # Item 3: no timestamp at all -> None
+    assert articles[2].published_at_utc is None
 
 
 def test_parse_google_rss_xml_with_source_tag():
@@ -206,7 +230,7 @@ def create_test_scored_article(
     score: float = 0.8,
     confidence: float = 0.9,
     weight: float = 0.9,
-    is_catalyst: bool = False,
+    is_llm_catalyst: bool = False,
 ) -> ScoredArticle:
     return ScoredArticle(
         article_id=art_id,
@@ -215,22 +239,47 @@ def create_test_scored_article(
         canonical_publisher=publisher,
         canonical_url=f"https://example.com/{art_id}",
         title=f"Title {art_id}",
-        summary=f"Summary {art_id}",
         published_at_utc=pub_dt,
-        retrieved_at_utc=datetime.now(timezone.utc),
         cluster_id=f"c_{art_id}",
-        is_cluster_rep=True,
-        sentiment_score=score,
         finbert_positive=score if score > 0 else 0.05,
         finbert_negative=abs(score) if score < 0 else 0.05,
         finbert_neutral=0.1,
         finbert_directional_score=score,
         finbert_confidence=confidence,
-        finbert_logits={},
         final_weight=weight,
-        is_catalyst=is_catalyst,
+        is_llm_catalyst=is_llm_catalyst,
         lead_text=f"Lead text for {art_id}",
     )
+
+
+def test_scored_article_rejects_unknown_fields():
+    """Invalid keyword arguments must fail loudly instead of being silently dropped."""
+    with pytest.raises(ValidationError):
+        ScoredArticle(
+            article_id="a1",
+            provider=ProviderType.YFINANCE,
+            source_name="Reuters",
+            canonical_publisher="Reuters",
+            canonical_url="https://example.com/a1",
+            title="Title",
+            lead_text="Lead",
+            finbert_positive=0.8,
+            finbert_negative=0.1,
+            finbert_neutral=0.1,
+            finbert_directional_score=0.7,
+            finbert_confidence=0.8,
+            is_catalyst=True,
+        )
+    with pytest.raises(ValidationError):
+        IngestedArticle(
+            article_id="a1",
+            provider=ProviderType.YFINANCE,
+            source_name="Reuters",
+            canonical_url="https://example.com/a1",
+            title="Title",
+            retrieved_at_utc=datetime(2026, 10, 14, 15, 0, tzinfo=timezone.utc),
+            is_cluster_rep=True,
+        )
 
 
 def test_aggregator_out_of_window_assertion_raises_exception():
@@ -283,7 +332,7 @@ def test_aggregator_effective_weight_and_tally_consistency():
         score=0.80,
         confidence=0.90,
         weight=0.90,
-        is_catalyst=True,
+        is_llm_catalyst=True,
     )
     art2 = create_test_scored_article(
         art_id="a2",
@@ -292,7 +341,7 @@ def test_aggregator_effective_weight_and_tally_consistency():
         score=0.70,
         confidence=0.80,
         weight=0.80,
-        is_catalyst=False,
+        is_llm_catalyst=False,
     )
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(

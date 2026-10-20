@@ -24,7 +24,7 @@ async def test_analyze_invalid_ticker(async_client):
 
 
 @pytest.mark.asyncio
-async def test_analyze_supported_forex(async_client, sample_aapl_articles):
+async def test_analyze_supported_forex(async_client, sample_aapl_articles, wait_for_jobs):
     mock_asset = Asset(
         ticker="EUR/USD",
         company_name="Euro / US Dollar",
@@ -37,12 +37,16 @@ async def test_analyze_supported_forex(async_client, sample_aapl_articles):
     with patch("app.services.ticker_service.TickerService.validate_and_resolve", return_value=mock_asset), \
          patch("app.services.news_service.NewsService.fetch_news_for_session", return_value=(sample_aapl_articles, {"forex_direct_feeds": {"status": "SUCCESS"}})):
         response = await async_client.post("/api/v1/analyze", json={"ticker": "EUR/USD", "force_refresh": True})
-        assert response.status_code in [200, 202]
+        assert response.status_code == 202
+        await wait_for_jobs()
 
+    job = (await async_client.get(f"/api/v1/jobs/{response.json()['job_id']}")).json()
+    assert job["status"] == "COMPLETED"
+    assert job["ticker"] == "EUR/USD"
 
 
 @pytest.mark.asyncio
-async def test_analyze_creates_job_and_polls(async_client, sample_aapl_articles):
+async def test_analyze_creates_job_and_polls(async_client, sample_aapl_articles, wait_for_jobs):
     mock_asset = Asset(
         ticker="AAPL",
         company_name="Apple Inc.",
@@ -71,6 +75,11 @@ async def test_analyze_creates_job_and_polls(async_client, sample_aapl_articles)
             poll_data = poll_resp.json()
             assert poll_data["job_id"] == job_id
             assert poll_data["ticker"] == "AAPL"
+
+            await wait_for_jobs()
+            final = (await async_client.get(f"/api/v1/jobs/{job_id}")).json()
+            assert final["status"] == "COMPLETED"
+            assert final["run_id"]
 
 
 @pytest.mark.asyncio

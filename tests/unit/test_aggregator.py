@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
 from app.services.aggregator_service import AggregatorService
 from app.core.models import ScoredArticle, ObservedFact
 from app.core.enums import (
@@ -16,10 +16,11 @@ def create_mock_scored_article(
     publisher: str,
     score: float,
     confidence: float,
+    now: datetime,
     hours_ago: float = 2.0,
     cluster_id: str | None = None,
 ) -> ScoredArticle:
-    pub_dt = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    pub_dt = now - timedelta(hours=hours_ago)
     return ScoredArticle(
         article_id=art_id,
         provider=ProviderType.YFINANCE,
@@ -42,10 +43,10 @@ def create_mock_scored_article(
     )
 
 
-def test_sparse_evidence_mandates_hold():
-    session = compute_session_window()
+def test_sparse_evidence_mandates_hold(frozen_now):
+    session = compute_session_window(frozen_now)
     # Single article only
-    art = create_mock_scored_article("1", "Reuters", 0.85, 0.90)
+    art = create_mock_scored_article("1", "Reuters", 0.85, 0.90, frozen_now)
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
         "AAPL", "Apple Inc.", session, [art], [], ""
@@ -55,11 +56,11 @@ def test_sparse_evidence_mandates_hold():
     assert "Sparse evidence" in rationale.summary or "Insufficient" in rationale.summary
 
 
-def test_single_publisher_forces_hold_with_insufficient_corroboration():
-    session = compute_session_window()
+def test_single_publisher_forces_hold_with_insufficient_corroboration(frozen_now):
+    session = compute_session_window(frozen_now)
     # Two articles, both from the same publisher (Reuters)
-    art1 = create_mock_scored_article("1", "Reuters", 0.80, 0.88, cluster_id="c1")
-    art2 = create_mock_scored_article("2", "Reuters", 0.75, 0.85, cluster_id="c1")
+    art1 = create_mock_scored_article("1", "Reuters", 0.80, 0.88, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "Reuters", 0.75, 0.85, frozen_now, cluster_id="c1")
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
         "AAPL", "Apple Inc.", session, [art1, art2], [], ""
@@ -70,12 +71,15 @@ def test_single_publisher_forces_hold_with_insufficient_corroboration():
     assert any("corroboration" in w.lower() for w in warnings)
 
 
-def test_neutral_articles_do_not_dilute_positive_buy():
-    session = compute_session_window()
+def test_neutral_articles_do_not_dilute_positive_buy(frozen_now):
+    session = compute_session_window(frozen_now)
     # Two positive articles and ten neutral articles
-    pos1 = create_mock_scored_article("p1", "Reuters", 0.80, 0.90, cluster_id="c1")
-    pos2 = create_mock_scored_article("p2", "CNBC", 0.75, 0.85, cluster_id="c2")
-    neutrals = [create_mock_scored_article(f"n{i}", "Yahoo Finance", 0.0, 0.10, cluster_id=f"cn{i}") for i in range(10)]
+    pos1 = create_mock_scored_article("p1", "Reuters", 0.80, 0.90, frozen_now, cluster_id="c1")
+    pos2 = create_mock_scored_article("p2", "CNBC", 0.75, 0.85, frozen_now, cluster_id="c2")
+    neutrals = [
+        create_mock_scored_article(f"n{i}", "Yahoo Finance", 0.0, 0.10, frozen_now, cluster_id=f"cn{i}")
+        for i in range(10)
+    ]
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
         "NVDA", "Nvidia Corp.", session, [pos1, pos2] + neutrals, [], ""
@@ -86,12 +90,11 @@ def test_neutral_articles_do_not_dilute_positive_buy():
     assert score >= 0.70
 
 
-
-def test_multi_publisher_positive_triggers_buy():
-    session = compute_session_window()
+def test_multi_publisher_positive_triggers_buy(frozen_now):
+    session = compute_session_window(frozen_now)
     # Two articles from TWO distinct publishers (Reuters and CNBC) with distinct clusters
-    art1 = create_mock_scored_article("1", "Reuters", 0.80, 0.90, cluster_id="c1")
-    art2 = create_mock_scored_article("2", "CNBC", 0.75, 0.85, cluster_id="c2")
+    art1 = create_mock_scored_article("1", "Reuters", 0.80, 0.90, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "CNBC", 0.75, 0.85, frozen_now, cluster_id="c2")
 
     fact1 = ObservedFact(
         statement="Revenue surged 15% exceeding consensus.",
@@ -110,11 +113,11 @@ def test_multi_publisher_positive_triggers_buy():
     assert len(rationale.observed_facts) == 1
 
 
-def test_multi_publisher_negative_triggers_sell():
-    session = compute_session_window()
+def test_multi_publisher_negative_triggers_sell(frozen_now):
+    session = compute_session_window(frozen_now)
     # Two negative articles from Bloomberg and Wall Street Journal
-    art1 = create_mock_scored_article("1", "Bloomberg", -0.75, 0.85, cluster_id="c1")
-    art2 = create_mock_scored_article("2", "Wall Street Journal", -0.80, 0.90, cluster_id="c2")
+    art1 = create_mock_scored_article("1", "Bloomberg", -0.75, 0.85, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "Wall Street Journal", -0.80, 0.90, frozen_now, cluster_id="c2")
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
         "NVDA", "Nvidia Corp.", session, [art1, art2], [], ""
@@ -125,12 +128,12 @@ def test_multi_publisher_negative_triggers_sell():
     assert confidence >= 0.40
 
 
-def test_conflicting_evidence_forces_hold():
-    session = compute_session_window()
+def test_conflicting_evidence_forces_hold(frozen_now):
+    session = compute_session_window(frozen_now)
     # One strong positive from Reuters, one strong negative from Bloomberg
-    art1 = create_mock_scored_article("1", "Reuters", 0.85, 0.90, cluster_id="c1")
-    art2 = create_mock_scored_article("2", "Bloomberg", -0.85, 0.90, cluster_id="c2")
-    art3 = create_mock_scored_article("3", "CNBC", 0.10, 0.50, cluster_id="c3")
+    art1 = create_mock_scored_article("1", "Reuters", 0.85, 0.90, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "Bloomberg", -0.85, 0.90, frozen_now, cluster_id="c2")
+    art3 = create_mock_scored_article("3", "CNBC", 0.10, 0.50, frozen_now, cluster_id="c3")
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
         "TSLA", "Tesla Inc.", session, [art1, art2, art3], [], ""
@@ -140,10 +143,10 @@ def test_conflicting_evidence_forces_hold():
     assert "Conflicting" in rationale.summary
 
 
-def test_deterministic_finbert_only_confidence_ceiling():
-    session = compute_session_window()
-    art1 = create_mock_scored_article("1", "Reuters", 0.95, 0.95, cluster_id="c1")
-    art2 = create_mock_scored_article("2", "CNBC", 0.95, 0.95, cluster_id="c2")
+def test_deterministic_finbert_only_confidence_ceiling(frozen_now):
+    session = compute_session_window(frozen_now)
+    art1 = create_mock_scored_article("1", "Reuters", 0.95, 0.95, frozen_now, cluster_id="c1")
+    art2 = create_mock_scored_article("2", "CNBC", 0.95, 0.95, frozen_now, cluster_id="c2")
 
     # In classifier-only mode, confidence must be capped at 0.60
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(

@@ -83,11 +83,19 @@ async def test_all_rss_providers_fail_adds_warning_and_skips_caching(db_session)
     from datetime import datetime, timezone
     from app.services.orchestrator import AnalysisOrchestrator
     from app.db.repository import SentimentRepository
-    from app.core.models import IngestedArticle
-    from app.core.enums import ProviderType
+    from app.core.models import Asset, IngestedArticle
+    from app.core.enums import AssetType, ProviderType
     from app.core.session_window import compute_session_window, compute_session_bucket
 
     now = datetime.now(timezone.utc)
+    mock_asset = Asset(
+        ticker="AAPL",
+        company_name="Apple Inc.",
+        exchange="NASDAQ",
+        sector="Technology",
+        asset_type=AssetType.EQUITY,
+        is_active=True,
+    )
     art_yf = IngestedArticle(
         article_id="yf_1",
         provider=ProviderType.YFINANCE,
@@ -105,7 +113,8 @@ async def test_all_rss_providers_fail_adds_warning_and_skips_caching(db_session)
         "google_news_rss_total": {"status": "FAILED", "count": 0},
     }
 
-    with patch("app.services.news_service.NewsService.fetch_news_for_session", new=AsyncMock(return_value=([art_yf], mock_outcomes))):
+    with patch("app.services.ticker_service.TickerService.validate_and_resolve", return_value=mock_asset), \
+         patch("app.services.news_service.NewsService.fetch_news_for_session", new=AsyncMock(return_value=([art_yf], mock_outcomes))):
         result = await AnalysisOrchestrator.run_pipeline("AAPL", db_session, enable_llm=False, force_refresh=True)
 
         assert any("All RSS news providers failed" in w for w in result.warnings)

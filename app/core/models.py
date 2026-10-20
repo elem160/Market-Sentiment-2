@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, ConfigDict, HttpUrl, Field
 from app.core.enums import (
     AssetType,
     DecisionVerdict,
@@ -26,6 +26,8 @@ class Asset:
 
 
 class IngestedArticle(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     article_id: str                      # Deterministic hash of canonical_url + title
     provider: ProviderType               # YFINANCE | FINNHUB | GOOGLE_RSS_AGGREGATOR | FIXTURE
     source_name: str                     # e.g., "Reuters", "CNBC", "PR Newswire"
@@ -38,6 +40,8 @@ class IngestedArticle(BaseModel):
 
 
 class ScoredArticle(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     article_id: str
     provider: ProviderType
     source_name: str

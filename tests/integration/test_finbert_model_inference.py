@@ -33,7 +33,7 @@ async def test_real_finbert_model_inference():
     )
 
     service = FinBERTService.get_instance()
-    scored = await service.score_articles_async([art_pos, art_neg])
+    scored = await service.score_articles_async([art_pos, art_neg], {})
 
     assert len(scored) == 2
     # art_pos should be clearly positive
