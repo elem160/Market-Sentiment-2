@@ -12,6 +12,7 @@ from app.core.enums import (
     ExclusionReason,
 )
 from app.core.session_window import SessionWindow
+from app.core.constants import DIRECTIONAL_THRESHOLD
 
 
 @dataclass
@@ -76,7 +77,6 @@ class PipelineRationale(BaseModel):
     observed_facts: list[ObservedFact] = []
     inferences: list[str] = []
 
-
 class PipelineMetrics(BaseModel):
     total_sources: int = 0
     distinct_publishers: int = 0
@@ -86,6 +86,9 @@ class PipelineMetrics(BaseModel):
     articles_deduplicated: int = 0
     articles_scored_local: int = 0
     articles_sent_to_llm: int = 0
+    articles_excluded_total: int = 0
+    excluded_counts: dict[str, int] = Field(default_factory=dict)
+    directional_threshold: float = DIRECTIONAL_THRESHOLD
     excluded_out_of_window: int = 0
     excluded_missing_timestamp: int = 0
     prompt_tokens: int = 0

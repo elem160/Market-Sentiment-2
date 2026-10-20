@@ -12,7 +12,7 @@ from app.core.models import (
     ScoredArticle,
     PipelineRationale,
 )
-from app.core.enums import PipelineStage, PipelineMode, CacheStatus, DecisionVerdict
+from app.core.enums import PipelineStage, PipelineMode, CacheStatus, DecisionVerdict, ExclusionReason
 from app.core.session_window import compute_session_window, compute_session_bucket
 from app.core.exceptions import FreshnessViolationException, NewsUnavailableException
 from app.core.constants import DIRECTIONAL_THRESHOLD
@@ -148,15 +148,23 @@ class AnalysisOrchestrator:
                     f"Excluded {excluded_missing_ts} article(s) with missing or untrusted timestamps.",
                 ],
             )
+            freshness_excluded_counts: dict[str, int] = {}
+            for _, reason, _ in freshness_excluded:
+                r_val = reason.value if hasattr(reason, "value") else str(reason)
+                freshness_excluded_counts[r_val] = freshness_excluded_counts.get(r_val, 0) + 1
+
             metrics = PipelineMetrics(
                 total_sources=len(provider_outcomes),
                 distinct_publishers=0,
                 distinct_clusters=0,
                 articles_ingested=len(raw_articles),
                 articles_retained=0,
-                articles_deduplicated=len(freshness_excluded),
+                articles_deduplicated=freshness_excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
                 articles_scored_local=0,
                 articles_sent_to_llm=0,
+                articles_excluded_total=len(freshness_excluded),
+                excluded_counts=freshness_excluded_counts,
+                directional_threshold=DIRECTIONAL_THRESHOLD,
                 excluded_out_of_window=excluded_out_of_window,
                 excluded_missing_timestamp=excluded_missing_ts,
                 total_latency_ms=round((time.time() - t_start) * 1000, 1),
@@ -353,15 +361,24 @@ class AnalysisOrchestrator:
             if a.cluster_id and a.exclusion_reason is None
         })
 
+        total_excluded = freshness_excluded + excluded_articles
+        excluded_counts: dict[str, int] = {}
+        for _, reason, _ in total_excluded:
+            r_val = reason.value if hasattr(reason, "value") else str(reason)
+            excluded_counts[r_val] = excluded_counts.get(r_val, 0) + 1
+
         metrics = PipelineMetrics(
             total_sources=len(provider_outcomes),
             distinct_publishers=distinct_publishers,
             distinct_clusters=distinct_clusters,
             articles_ingested=len(raw_articles),
             articles_retained=len(scored_retained),
-            articles_deduplicated=len(excluded_articles),
+            articles_deduplicated=excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
             articles_scored_local=len(scored_retained),
             articles_sent_to_llm=min(settings.MAX_LLM_CANDIDATES, len([a for a in scored_retained if abs(a.finbert_directional_score) >= DIRECTIONAL_THRESHOLD and a.exclusion_reason is None])),
+            articles_excluded_total=len(total_excluded),
+            excluded_counts=excluded_counts,
+            directional_threshold=DIRECTIONAL_THRESHOLD,
             excluded_out_of_window=excluded_out_of_window,
             excluded_missing_timestamp=excluded_missing_ts,
             prompt_tokens=llm_telemetry.get("prompt_tokens", 0),

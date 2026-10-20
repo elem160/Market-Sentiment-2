@@ -30,10 +30,10 @@ export const TelemetryDrawer: React.FC<TelemetryDrawerProps> = ({ result }) => {
 
       <div className="telemetry-cell">
         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Cpu size={12} /> Ingestion & Dedup
+          <Cpu size={12} /> Ingestion & Filtering
         </span>
         <span>
-          {metrics.articles_ingested ?? 0} Ingested &rarr; {metrics.articles_retained ?? 0} Retained ({metrics.articles_deduplicated ?? 0} Dups)
+          {metrics.articles_ingested ?? 0} Ingested &rarr; {metrics.articles_retained ?? 0} Retained ({metrics.articles_excluded_total ?? Math.max(0, (metrics.articles_ingested ?? 0) - (metrics.articles_retained ?? 0))} Excluded)
         </span>
       </div>
 

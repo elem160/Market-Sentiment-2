@@ -51,7 +51,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
             <span className="asset-exchange">{result.asset_type || 'US Equity'}</span>
             {result.cache_status === 'HIT' && (
               <span className="badge badge-neutral" style={{ color: 'var(--accent-cyan)' }}>
-                15m Cache Hit
+                Cached Result
               </span>
             )}
             {result.data_status === 'NO_FRESH_NEWS' && (
@@ -115,10 +115,10 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
             {((result.decision_confidence || 0) * 100).toFixed(0)}%
           </div>
           <div className="metric-sub">
-            {result.decision_confidence >= 0.6
-              ? 'Multi-Source Corroborated'
-              : result.decision_confidence >= 0.3
-              ? 'Moderate Evidence'
+            {result.decision_confidence >= 0.7
+              ? 'High Confidence'
+              : result.decision_confidence >= 0.4
+              ? 'Moderate Confidence'
               : 'Low / Capped'}
           </div>
         </div>
@@ -129,7 +129,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
             {((result.evidence_quality || 0) * 100).toFixed(0)}%
           </div>
           <div className="metric-sub">
-            {result.articles?.length || 0} Retained Articles
+            {result.metrics?.articles_retained ?? (result.articles?.filter(a => !a.exclusion_reason).length || 0)} Retained Articles
           </div>
         </div>
 

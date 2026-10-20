@@ -166,16 +166,22 @@ export const App: React.FC = () => {
         {analysisResult && (
           <>
             <SessionWindowBanner
-              window={analysisResult.session}
+              session={analysisResult.session}
             />
 
             <DecisionHero result={analysisResult} />
 
             <RationaleSection
               rationale={analysisResult.rationale}
+              articles={analysisResult.articles}
+              llmSummary={analysisResult.llm_summary}
+              modelVersions={analysisResult.model_versions}
             />
 
-            <EvidenceExplorer articles={analysisResult.articles} />
+            <EvidenceExplorer
+              articles={analysisResult.articles}
+              metrics={analysisResult.metrics}
+            />
 
             <TelemetryDrawer result={analysisResult} />
           </>
@@ -190,10 +196,10 @@ export const App: React.FC = () => {
           <div className="glass-panel empty-state animate-fade-in">
             <BarChart3 className="empty-state-icon" />
             <h3 className="font-display" style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-              Ready for Live Market Sentiment Intelligence
+              Live Market Sentiment & Catalyst Intelligence
             </h3>
-            <p style={{ maxWidth: '580px', lineHeight: 1.6 }}>
-              Enter any US-listed equity or ETF ticker above to execute the 6-stage news ingestion, Jaccard deduplication, FinBERT neural scoring, and corroboration pipeline.
+            <p style={{ maxWidth: '620px', lineHeight: 1.6 }}>
+              Enter any US equity, ETF, forex pair (e.g. EUR/USD), commodity future (e.g. GC=F), or crypto asset to execute session-anchored news ingestion, FinBERT neural scoring, and corroboration synthesis.
             </p>
           </div>
         )}

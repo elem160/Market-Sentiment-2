@@ -16,7 +16,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
     getHistory(15).then(setHistory).catch(() => {});
   }, [refreshTrigger]);
 
-  const getVerdictBadge = (v: DecisionVerdict) => {
+  const getVerdictBadge = (v: DecisionVerdict | string) => {
     switch (v) {
       case 'BUY':
         return <span className="badge badge-buy font-mono">BUY</span>;
@@ -28,12 +28,19 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
     }
   };
 
-  const formatTime = (iso?: string | null) => {
+  const formatTimeWithTz = (iso?: string | null) => {
     if (!iso) return '';
     try {
       const d = new Date(iso);
       if (isNaN(d.getTime())) return '';
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'UTC',
+      }).format(d)} UTC`;
     } catch {
       return '';
     }
@@ -65,7 +72,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: '10px',
             marginTop: '14px',
           }}
@@ -76,16 +83,26 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
               className="history-item-row"
               onClick={() => onSelectRun(item.run_id)}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="font-display" style={{ fontWeight: 800, fontSize: '1rem' }}>
                   ${item.ticker}
                 </span>
                 {getVerdictBadge(item.decision)}
+                {item.asset_type && item.asset_type !== 'EQUITY' && (
+                  <span className="badge badge-neutral font-mono" style={{ fontSize: '0.68rem' }}>
+                    {item.asset_type}
+                  </span>
+                )}
+                {item.data_status === 'NO_FRESH_NEWS' && (
+                  <span className="badge badge-hold font-mono" style={{ fontSize: '0.68rem' }}>
+                    No News
+                  </span>
+                )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 <Clock size={11} />
-                <span>{formatTime(item.run_timestamp_utc)}</span>
+                <span>{formatTimeWithTz(item.run_timestamp_utc)}</span>
                 <ArrowRight size={13} style={{ color: 'var(--accent-cyan)' }} />
               </div>
             </div>

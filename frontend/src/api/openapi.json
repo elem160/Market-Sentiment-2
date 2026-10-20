@@ -527,6 +527,11 @@
             "title": "Articles Deduplicated",
             "type": "integer"
           },
+          "articles_excluded_total": {
+            "default": 0,
+            "title": "Articles Excluded Total",
+            "type": "integer"
+          },
           "articles_ingested": {
             "default": 0,
             "title": "Articles Ingested",
@@ -552,6 +557,11 @@
             "title": "Completion Tokens",
             "type": "integer"
           },
+          "directional_threshold": {
+            "default": 0.15,
+            "title": "Directional Threshold",
+            "type": "number"
+          },
           "distinct_clusters": {
             "default": 0,
             "title": "Distinct Clusters",
@@ -566,6 +576,13 @@
             "default": 0.0,
             "title": "Estimated Cost Usd",
             "type": "number"
+          },
+          "excluded_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Excluded Counts",
+            "type": "object"
           },
           "excluded_missing_timestamp": {
             "default": 0,

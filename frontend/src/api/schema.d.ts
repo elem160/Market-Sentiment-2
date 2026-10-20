@@ -241,6 +241,9 @@ export interface components {
       articles_deduplicated: number;
       articles_scored_local: number;
       articles_sent_to_llm: number;
+      articles_excluded_total?: number;
+      excluded_counts?: Record<string, number>;
+      directional_threshold?: number;
       excluded_out_of_window?: number;
       excluded_missing_timestamp?: number;
       prompt_tokens: number;

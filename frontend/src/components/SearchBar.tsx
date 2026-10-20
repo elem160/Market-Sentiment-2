@@ -91,7 +91,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, activ
         </div>
 
         <div className="toggles-group">
-          <label className="custom-checkbox" title="Bypasses the 15-minute SQLite cache to query live feeds immediately">
+          <label className="custom-checkbox" title="Bypasses the session cache to query live feeds immediately">
             <input
               id="force-refresh-checkbox"
               type="checkbox"
