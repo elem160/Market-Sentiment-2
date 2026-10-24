@@ -20,7 +20,7 @@ class AnalysisJobDB(Base):
     error_message = Column(Text, nullable=True)
     created_at = Column(UTCDateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(UTCDateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    expires_at = Column(UTCDateTime, nullable=False)
+    expires_at = Column(UTCDateTime, nullable=False, index=True)
 
 
 class AnalysisRunDB(Base):
@@ -56,8 +56,9 @@ class AnalysisRunDB(Base):
     data_status = Column(String(30), nullable=False, default="OK")
     hold_reason = Column(String(40), nullable=True)
     llm_summary = Column(Text, nullable=True)
+    llm_cost_usd = Column(Float, nullable=False, default=0.0)
     is_cacheable = Column(Boolean, nullable=False, default=True)
-    created_at = Column(UTCDateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(UTCDateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     # Relationships
     articles = relationship("ArticleEvidenceDB", back_populates="run", cascade="all, delete-orphan")

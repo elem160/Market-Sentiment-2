@@ -54,6 +54,16 @@ class ProviderException(SentimentAppException):
         )
 
 
+class UnauthorizedException(SentimentAppException):
+    """Raised when request lacks valid authentication or authorization."""
+    def __init__(self, message: str = "Invalid or missing API key"):
+        super().__init__(
+            message=message,
+            status_code=401,
+            details={},
+        )
+
+
 class BudgetExceededException(SentimentAppException):
     """Raised when prompt or cost limits are exceeded."""
     def __init__(self, reason: str):

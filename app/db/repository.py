@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone, timedelta
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.db.models import AnalysisJobDB, AnalysisRunDB, ArticleEvidenceDB, ObservedFactDB
 from app.core.models import (
@@ -184,6 +185,7 @@ class SentimentRepository:
             data_status=result.data_status.value if hasattr(result.data_status, "value") else str(result.data_status),
             hold_reason=result.hold_reason.value if result.hold_reason else None,
             llm_summary=result.llm_summary,
+            llm_cost_usd=float(result.metrics.estimated_cost_usd if result.metrics else 0.0),
             is_cacheable=is_cacheable,
             created_at=datetime.now(timezone.utc),
         )
@@ -375,4 +377,19 @@ class SentimentRepository:
             config_version=record.config_version,
             provider_outcomes=provider_outcomes,
         )
+
+    @staticmethod
+    def get_daily_llm_spend(db: Session, target_date: datetime | None = None) -> float:
+        """Calculate total LLM cost (USD) for analysis runs created on target UTC day."""
+        if target_date is None:
+            target_date = datetime.now(timezone.utc)
+        start_of_day = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=timezone.utc)
+        end_of_day = start_of_day + timedelta(days=1)
+        total = (
+            db.query(func.coalesce(func.sum(AnalysisRunDB.llm_cost_usd), 0.0))
+            .filter(AnalysisRunDB.created_at >= start_of_day, AnalysisRunDB.created_at < end_of_day)
+            .scalar()
+        )
+        return float(total or 0.0)
+
 

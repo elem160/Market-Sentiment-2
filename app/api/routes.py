@@ -30,7 +30,7 @@ from app.api.schemas import (
     SSE_EVENT_FAILED,
     SSE_EVENT_PROGRESS,
 )
-from app.api.dependencies import get_client_ip, rate_limit
+from app.api.dependencies import get_client_ip, rate_limit, verify_api_key, verify_history_access
 from app.db.database import get_db, SessionLocal
 from app.db.repository import SentimentRepository
 from app.services.ticker_service import TickerService
@@ -103,6 +103,7 @@ async def analyze_ticker(
     request: Request,
     db: Session = Depends(get_db),
     _client_ip: str = Depends(rate_limit("analyze")),
+    _auth: None = Depends(verify_api_key),
 ):
     """
     Analyzes current-day market sentiment for a US-listed equity or ETF.
@@ -225,6 +226,7 @@ def get_analysis_result(
     run_id: str,
     db: Session = Depends(get_db),
     _client_ip: str = Depends(rate_limit("read")),
+    _auth: None = Depends(verify_history_access),
 ):
     """Fetch complete persisted diagnostic analysis and evidence chain for a specific run."""
     result = SentimentRepository.get_analysis_run(db, run_id)
@@ -238,6 +240,7 @@ def get_search_history(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
     _client_ip: str = Depends(rate_limit("read")),
+    _auth: None = Depends(verify_history_access),
 ):
     """Retrieve recent searches and historical sentiment verdicts."""
     recent = SentimentRepository.get_recent_runs(db, limit=limit)

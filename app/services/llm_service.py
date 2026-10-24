@@ -86,6 +86,23 @@ class LLMService:
     def __init__(self, client: AsyncOpenAI | None = None):
         self.client = client if client is not None else self.get_client()
 
+    @staticmethod
+    def _get_today_spend_sync(session_factory=None) -> float:
+        from app.db.database import SessionLocal
+        from app.db.repository import SentimentRepository
+        factory = session_factory or SessionLocal
+        with factory() as db:
+            return SentimentRepository.get_daily_llm_spend(db)
+
+    async def get_today_utc_spend(self) -> float:
+        """Calculate total spend for today UTC across analysis runs."""
+        from app.utils.executors import run_db
+        try:
+            return await run_db(self._get_today_spend_sync)
+        except Exception as e:
+            logger.debug(f"Could not compute daily spend: {e}")
+            return 0.0
+
     async def verify_and_synthesize(
         self, ticker: str, company_name: str, candidate_articles: list[ScoredArticle]
     ) -> tuple[list[ScoredArticle], list[ObservedFact], str, dict[str, Any]]:
@@ -107,6 +124,19 @@ class LLMService:
             return candidate_articles, [], "", {
                 "status": "SKIPPED",
                 "reason": skip_reason,
+                "candidates_sent": 0,
+                "attempts": [],
+            }
+
+        # Check daily budget before invoking LLM
+        today_spend = await self.get_today_utc_spend()
+        if today_spend >= settings.LLM_DAILY_BUDGET_USD:
+            logger.warning(
+                f"Daily LLM budget reached or exceeded (${today_spend:.4f} >= ${settings.LLM_DAILY_BUDGET_USD:.4f}). Skipping LLM synthesis."
+            )
+            return candidate_articles, [], "", {
+                "status": "SKIPPED",
+                "reason": "DAILY_BUDGET_EXCEEDED",
                 "candidates_sent": 0,
                 "attempts": [],
             }

@@ -149,6 +149,8 @@
           },
           "ticker": {
             "description": "US-listed equity or ETF ticker symbol (e.g. AAPL, NVDA, SPY)",
+            "maxLength": 20,
+            "minLength": 1,
             "title": "Ticker",
             "type": "string"
           }
@@ -1100,6 +1102,22 @@
               "title": "Run Id",
               "type": "string"
             }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
           }
         ],
         "responses": {
@@ -1131,6 +1149,24 @@
       "post": {
         "description": "Analyzes current-day market sentiment for a US-listed equity or ETF.\n- If cached within the session bucket: returns 200 OK with full result instantly.\n- If uncached: creates an async job and returns 202 Accepted with SSE event stream URL.",
         "operationId": "analyze_ticker_api_v1_analyze_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1211,6 +1247,22 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-API-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
             }
           }
         ],

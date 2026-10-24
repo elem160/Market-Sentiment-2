@@ -44,7 +44,7 @@ class JobFailedEvent(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
-    ticker: str = Field(..., description="US-listed equity or ETF ticker symbol (e.g. AAPL, NVDA, SPY)")
+    ticker: str = Field(..., min_length=1, max_length=20, description="US-listed equity or ETF ticker symbol (e.g. AAPL, NVDA, SPY)")
     force_refresh: bool = Field(False, description="Bypass local 15-minute intraday cache if True")
     enable_llm: bool = Field(True, description="Enable LLM catalyst verification and synthesis")
 

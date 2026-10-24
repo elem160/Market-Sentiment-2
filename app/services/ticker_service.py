@@ -128,6 +128,10 @@ class TickerService:
         if "/" not in cleaned and "." in cleaned and not cleaned.endswith(".F"):
             cleaned = cleaned.replace(".", "-")
 
+        # Global length validation: no ticker notation may exceed 20 characters
+        if len(cleaned) > 20:
+            raise InvalidTickerException(raw_ticker, "Ticker exceeds maximum length of 20 characters")
+
         # Length validation: if standard equity (no slash, no =, no -USD, not alias), limit to 6 chars
         if "/" not in cleaned and "=" not in cleaned and not cleaned.endswith("-USD"):
             if cleaned not in COMMODITY_ALIASES and cleaned not in CRYPTO_ALIASES and len(cleaned) > 6:

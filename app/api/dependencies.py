@@ -1,7 +1,8 @@
 import ipaddress
 from typing import Callable
-from fastapi import Depends, Request
+from fastapi import Depends, Header, Request
 from app.config import settings
+from app.core.exceptions import UnauthorizedException
 from app.utils.rate_limiter import rate_limiter
 
 
@@ -94,3 +95,34 @@ def rate_limit(scope: str) -> Callable:
         return client_ip
 
     return dependency
+
+
+def verify_api_key(
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> None:
+    """
+    Verify optional API key for guarded endpoints.
+    If settings.API_KEY is configured (non-empty), request must supply matching X-API-Key header.
+    """
+    expected = settings.API_KEY
+    if not expected:
+        return
+    if not x_api_key or x_api_key.strip() != expected.strip():
+        raise UnauthorizedException("Invalid or missing API key")
+
+
+def verify_history_access(
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+) -> None:
+    """
+    Enforce API key verification on history and analysis inspection endpoints
+    if settings.PUBLIC_HISTORY is False and settings.API_KEY is configured.
+    """
+    if settings.PUBLIC_HISTORY:
+        return
+    expected = settings.API_KEY
+    if not expected:
+        return
+    if not x_api_key or x_api_key.strip() != expected.strip():
+        raise UnauthorizedException("Invalid or missing API key")
+

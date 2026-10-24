@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
 
     # Security & Networking
+    API_KEY: str | None = None
+    PUBLIC_HISTORY: bool = True
     TRUST_PROXY_HEADERS: bool = False
     TRUSTED_PROXY_IPS: list[str] = []
     CORS_ORIGINS: list[str] = [
@@ -56,6 +58,7 @@ class Settings(BaseSettings):
     MAX_PROMPT_TOKENS: int = 8000
     MAX_COMPLETION_TOKENS: int = 1000
     MAX_COST_PER_RUN_USD: float = 0.05
+    LLM_DAILY_BUDGET_USD: float = 1.00
 
     # Rate Limiting
     RATE_LIMIT_ANALYSIS_PER_MINUTE: int = 15
