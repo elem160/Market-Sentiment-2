@@ -286,6 +286,15 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Configured security headers middleware adding `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and basic CSP (`default-src 'self'`); set CORS `allow_credentials=False`.
   - Added unit test suite `tests/unit/test_cost_and_abuse_controls.py` (9 tests) and migration test `tests/integration/test_migration_005.py`.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.08% (269 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+- **Task P3.7 — Data retention lifecycle, sample exclusion capping, and CLI (`5959820`):**
+  - Updated `DeduplicationService.process_and_deduplicate()` to return `DedupResult(retained, sample_excluded, cluster_map, counts)` preserving 3-element tuple unpacking while exposing `.counts`.
+  - Implemented sample exclusion capping: relevance, duplicate syndication, and capacity limit exclusions are all counted in full, but `sample_excluded` stores at most `MAX_EXCLUDED_SAMPLES_PER_REASON` (20) samples per reason.
+  - Updated `AnalysisOrchestrator` to accurately record total exclusions in `metrics.articles_excluded_total` and `metrics.excluded_counts` across all early-exit and normal branches, eliminating duplicate freshness counts and limiting persisted `AnalysisResult.articles` sample excluded items to at most 20 per reason.
+  - Created `app/services/maintenance.py` with `delete_expired_jobs(db, now)` removing jobs past `expires_at`, `delete_old_analysis_runs(db, retention_days=30, now)` cascading deletion to `ArticleEvidenceDB` and `ObservedFactDB`, and `run_maintenance(session_factory, retention_days, vacuum, now)` supporting SQLite autocommit `VACUUM`.
+  - Created `app/cli.py` providing CLI runner `python -m app.cli maintenance [--vacuum] [--retention-days N]`.
+  - Added hourly background maintenance worker in `app/main.py` lifespan running `run_maintenance()` on the DB thread pool and cleanly cancelling on server shutdown.
+  - Added test suite `tests/unit/test_maintenance.py` verifying job expiration, run retention cascade, maintenance CLI invocation, and deduplication sample capping.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 85.70% (274 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
 ## Deviations
 

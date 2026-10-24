@@ -14,14 +14,14 @@
 
 The project is executing a 5-phase architectural and algorithmic remediation to eliminate reliability hazards, silent data corruption, false confidence inflation, and contract drift. Following Phase 0, Phase 1, Phase 2 (and its 9-point auditor review), the project is actively executing **Phase 3 (Performance, Reliability, Security)** on branch `fix/phase-3-performance-reliability`.
 
-Tasks **P3.1 (Ingestion rework)**, **P3.2 (FinBERT throughput & dependency injection)**, **P3.3 (Stop blocking event loop)**, **P3.4 (Job manager & SSE)**, **P3.5 (Rate limiting & client IP)**, and **P3.6 (Cost, abuse & input controls)** are fully implemented, verified, and committed.
+Tasks **P3.1 (Ingestion rework)**, **P3.2 (FinBERT throughput & dependency injection)**, **P3.3 (Stop blocking event loop)**, **P3.4 (Job manager & SSE)**, **P3.5 (Rate limiting & client IP)**, **P3.6 (Cost, abuse & input controls)**, and **P3.7 (Data lifecycle & retention)** are fully implemented, verified, and committed.
 
 ### Current Project Health & Measured Quality Gates
 
 | Quality Gate | Requirement | Current Measured State | Status |
 |---|---|---|---|
-| **Backend Test Suite** | 100% offline pass | **269 passed**, 4 deselected (opt-in markers) in ~15.9s; **1 passed** in slow (real model) | **PASS** |
-| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **86.08%** overall backend coverage | **PASS** |
+| **Backend Test Suite** | 100% offline pass | **274 passed**, 4 deselected (opt-in markers) in ~16.1s; **1 passed** in slow (real model) | **PASS** |
+| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **85.70%** overall backend coverage | **PASS** |
 | **FinBERT Throughput Speedup** | $\ge 1.8\times$ batched vs loop | **1.81x** measured speedup via `scripts/bench_finbert.py` | **PASS** |
 | **Lint & Formatting** | `ruff check .` clean | 0 errors, 0 warnings across whole repo | **PASS** |
 | **Database Schema Drift** | `alembic check` zero drift | Current revision `005_operations` aligned with ORM | **PASS** |
@@ -183,13 +183,11 @@ Tasks P3.1, P3.2, P3.3, P3.4, P3.5, and P3.6 of Phase 3 are complete. The remain
 4. **P3.4 Job Manager, Concurrency Limits & Request Coalescing:** **COMPLETE** (`96d6131`)
 5. **P3.5 Rate Limiting & Proxy IP Resolution:** **COMPLETE** (`0e1889d`)
 6. **P3.6 Cost, Abuse & Input Controls:** **COMPLETE** (`54c726a`)
-7. **P3.7 Data Lifecycle & Retention (Finding: H16) — NEXT:**
-   - Lifespan retention task purging jobs past `expires_at` and runs older than `RUN_RETENTION_DAYS` (30).
-   - Cap stored excluded samples at 20 per reason; totals go to `metrics.excluded_counts`.
-   - `python -m app.cli maintenance [--vacuum]` script.
-8. **P3.8 Configuration & Startup (Findings: M13, L7, Decision: D3):**
+7. **P3.7 Data Lifecycle & Retention:** **COMPLETE** (`5959820`)
+8. **P3.8 Configuration & Startup (Findings: M13, L7, Decision: D3) — NEXT:**
    - Package-anchored path resolution for `.env` and SQLite DB; full `.env.example` alignment test.
    - Startup warning for timeout misconfigurations.
+   - Entry point `python -m app` uvicorn runner.
 
 ### Phase 4: Code Quality & Documentation
 *Branch to create: `fix/phase-4-code-quality` | Detailed in [docs/implementation_plan.md §8](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L495-L535)*
