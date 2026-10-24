@@ -279,7 +279,7 @@ export async function getHistory(limit: number = 20): Promise<HistoryItem[]> {
 }
 
 export async function getHealth(): Promise<HealthResponse> {
-  const res = await fetch('/health');
+  const res = await fetch(`${API_BASE}/health`);
   if (!res.ok) {
     const errorData = await res.json().catch(() => null);
     throw new Error(parseApiError(errorData, `Health check failed with status ${res.status}`));

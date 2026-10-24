@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisResult, PipelineStage, JobProgressEvent } from './types';
-import { startAnalysis, subscribeToJob, getAnalysisResult } from './services/api';
+import { startAnalysis, subscribeToJob, getAnalysisResult, getHealth } from './services/api';
 import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
 import { LoadingStepper } from './components/LoadingStepper';
@@ -24,6 +24,14 @@ export const App: React.FC = () => {
 
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const activeJobRef = useRef<string | null>(null);
+  const currentRequestIdRef = useRef<number>(0);
+
+  // Perform initial health check on mount
+  useEffect(() => {
+    getHealth().catch((err) => {
+      console.warn('Initial backend health check failed:', err);
+    });
+  }, []);
 
   // Clean up any SSE subscription on unmount
   useEffect(() => {
@@ -34,11 +42,14 @@ export const App: React.FC = () => {
     };
   }, []);
 
+
   const handleSearch = async (
     ticker: string,
     forceRefresh: boolean = false,
     enableLlm: boolean = false
   ) => {
+    const requestId = ++currentRequestIdRef.current;
+
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
       unsubscribeRef.current = null;
@@ -54,6 +65,11 @@ export const App: React.FC = () => {
 
     try {
       const response = await startAnalysis(ticker, forceRefresh, enableLlm);
+
+      // Stale request check: ignore if user selected history or started a newer search
+      if (currentRequestIdRef.current !== requestId) {
+        return;
+      }
 
       if (response.isCached && response.result) {
         // Cache Hit: Immediate Return
@@ -75,13 +91,13 @@ export const App: React.FC = () => {
           currentJobId,
           {
             onProgress: (event: JobProgressEvent) => {
-              if (activeJobRef.current !== currentJobId) return;
+              if (currentRequestIdRef.current !== requestId || activeJobRef.current !== currentJobId) return;
               setCurrentStage(event.stage);
               setProgressPct(event.progress_pct);
               setProgressMsg(event.message);
             },
             onComplete: (result: AnalysisResult) => {
-              if (activeJobRef.current !== currentJobId) return;
+              if (currentRequestIdRef.current !== requestId || activeJobRef.current !== currentJobId) return;
               setProgressPct(1.0);
               setProgressMsg('Analysis complete.');
               setAnalysisResult(result);
@@ -89,7 +105,7 @@ export const App: React.FC = () => {
               setHistoryTrigger((prev) => prev + 1);
             },
             onError: (err: string) => {
-              if (activeJobRef.current !== currentJobId) return;
+              if (currentRequestIdRef.current !== requestId || activeJobRef.current !== currentJobId) return;
               setErrorMessage(err);
               setIsLoading(false);
             },
@@ -98,12 +114,15 @@ export const App: React.FC = () => {
         );
       }
     } catch (err: any) {
+      if (currentRequestIdRef.current !== requestId) return;
       setErrorMessage(err.message || 'Failed to start analysis.');
       setIsLoading(false);
     }
   };
 
   const handleSelectHistoricalRun = async (runId: string) => {
+    const requestId = ++currentRequestIdRef.current;
+
     if (unsubscribeRef.current) {
       unsubscribeRef.current();
       unsubscribeRef.current = null;
@@ -114,10 +133,12 @@ export const App: React.FC = () => {
       setIsLoading(true);
       setErrorMessage(null);
       const res = await getAnalysisResult(runId);
+      if (currentRequestIdRef.current !== requestId) return;
       setActiveTicker(res.ticker);
       setAnalysisResult(res);
       setIsLoading(false);
     } catch (err: any) {
+      if (currentRequestIdRef.current !== requestId) return;
       setErrorMessage(err.message || 'Failed to load historical analysis.');
       setIsLoading(false);
     }
