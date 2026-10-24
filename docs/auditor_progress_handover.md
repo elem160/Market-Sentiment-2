@@ -14,14 +14,14 @@
 
 The project is executing a 5-phase architectural and algorithmic remediation to eliminate reliability hazards, silent data corruption, false confidence inflation, and contract drift. Following Phase 0, Phase 1, Phase 2 (and its 9-point auditor review), the project is actively executing **Phase 3 (Performance, Reliability, Security)** on branch `fix/phase-3-performance-reliability`.
 
-Tasks **P3.1 (Ingestion rework)** and **P3.2 (FinBERT throughput & dependency injection)** are fully implemented, verified, and committed.
+Tasks **P3.1 (Ingestion rework)**, **P3.2 (FinBERT throughput & dependency injection)**, and **P3.3 (Stop blocking event loop)** are fully implemented, verified, and committed.
 
 ### Current Project Health & Measured Quality Gates
 
 | Quality Gate | Requirement | Current Measured State | Status |
 |---|---|---|---|
-| **Backend Test Suite** | 100% offline pass | **241 passed**, 4 deselected (opt-in markers) in ~8.8s; **1 passed** in slow (real model) | **PASS** |
-| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **87.93%** overall backend coverage | **PASS** |
+| **Backend Test Suite** | 100% offline pass | **244 passed**, 4 deselected (opt-in markers) in ~8.8s; **1 passed** in slow (real model) | **PASS** |
+| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **87.91%** overall backend coverage | **PASS** |
 | **FinBERT Throughput Speedup** | $\ge 1.8\times$ batched vs loop | **1.81x** measured speedup via `scripts/bench_finbert.py` | **PASS** |
 | **Lint & Formatting** | `ruff check .` clean | 0 errors, 0 warnings across whole repo | **PASS** |
 | **Database Schema Drift** | `alembic check` zero drift | Current revision `004_decision_integrity` aligned with ORM | **PASS** |
@@ -141,23 +141,29 @@ The current agent completed tasks P2.5–P2.7 and addressed all 9 audit review f
   - Built `lead_text` directly at the source on `ScoredArticle`, eliminating the orchestrator's O(N²) patch loop.
   - Deleted legacy mock code (`set_mock_mode`, `reset_mock_mode`, `_is_mock`, `_mock_fn`) and `MAX_EXCERPT_TOKENS`; injected `KeywordScorer` via `set_default_scorer` and `PipelineDeps`.
   - Created `scripts/bench_finbert.py` achieving 1.81x throughput speedup (44.5 ms -> 24.6 ms/article).
+- **P3.3 Stop Blocking the Event Loop ([`a7cb23e`](file:///d:/Code%20Projects/Market%20Sentiment%202/app/utils/executors.py)):**
+  - Created `app/utils/executors.py` introducing dedicated worker pools: `db_executor` (4 threads) and `io_executor` (4 threads), along with `run_db(fn, *args)` async helper running repository functions in worker threads with their own isolated Sessions.
+  - Added SQLite `PRAGMA busy_timeout=5000` in `app/db/database.py` connection event listener to eliminate database locking contention.
+  - Registered `db_executor` and `io_executor` on `PipelineDeps` and `app.state` during lifespan, and ensured graceful shutdown in lifespan finally block.
+  - Converted DB-only endpoints (`/jobs/{job_id}`, `/analysis/{run_id}`, `/history`, and `/health`) to plain synchronous `def` handlers offloaded to FastAPI worker threads.
+  - Updated `run_background_job`, `analyze_ticker`, and `AnalysisOrchestrator` to offload repository caching and persistence calls via `run_db`.
+  - Added unit test suite `tests/unit/test_executors.py` verifying offloading to worker threads, executor shutdown, and demonstrating `/api/v1/health` responds in < 200 ms while a slow DB operation executes on `db_executor`.
 
 ---
 
 ## 4. What Remains to Be Done (Phases 3 and 4)
 
-Tasks P3.1 and P3.2 of Phase 3 are complete. The remaining tasks are:
+Tasks P3.1, P3.2, and P3.3 of Phase 3 are complete. The remaining tasks are:
 
 ### Phase 3: Performance, Reliability, Security (Remaining)
 *Active branch: `fix/phase-3-performance-reliability` | Detailed in [docs/implementation_plan.md §7](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L402-L493)*
 
 1. **P3.1 Ingestion Rework:** **COMPLETE** (`71b22f5`)
 2. **P3.2 FinBERT Throughput & Dependency Injection:** **COMPLETE** (`55ee3f6`)
-3. **P3.3 Stop Blocking the Event Loop (Finding: H11) — NEXT:**
-   - Dedicated `db_executor` (4 threads) and `io_executor` (4 threads); SQLite `PRAGMA busy_timeout=5000`.
-   - `await run_db(fn, *args)` helper for all repository interactions.
-4. **P3.4 Job Manager, Concurrency Limits & Request Coalescing (Findings: M7, M8, H15, L6):**
+3. **P3.3 Stop Blocking the Event Loop:** **COMPLETE** (`a7cb23e`)
+4. **P3.4 Job Manager, Concurrency Limits & Request Coalescing (Findings: M7, M8, H15, L6) — NEXT:**
    - New `JobManager` with `asyncio.Semaphore(MAX_CONCURRENT_PIPELINES)` (default 2), queue timeouts, in-flight coalescing by cache key, and SSE heartbeats.
+   - Delete `TickerLockManager` and `app/utils/lock_manager.py`.
 5. **P3.5 Rate Limiting & Proxy IP Resolution (Finding: H12):**
    - Scoped rate limiter (`analyze` 15/min, `jobs` 60/min, `read` 120/min) with bounded LRU key store.
    - Right-to-left `X-Forwarded-For` proxy walking against `TRUSTED_PROXY_IPS`.

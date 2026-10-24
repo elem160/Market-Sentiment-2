@@ -253,7 +253,14 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Updated `KeywordScorer` in `tests/fakes.py` to implement the `SentimentScorer` protocol while preserving callable backward compatibility; tests inject `KeywordScorer` via `set_default_scorer` and `PipelineDeps`.
   - Created `scripts/bench_finbert.py` demonstrating 1.81x throughput improvement (44.5 ms -> 24.6 ms per article) vs legacy sequential loop with encode/decode round trip.
   - Added unit test suite `tests/unit/test_scoring.py` covering protocol conformance, output normalization, batched chunking, inter-chunk cancellation, error states, and dependency injection.
-  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 87.93% (241 passed); `pytest -m slow` passed (real ProsusAI/finbert model weights); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+- **Task P3.3 — Stop blocking the event loop (`a7cb23e`):**
+  - Created `app/utils/executors.py` introducing dedicated worker pools: `db_executor` (4 threads) and `io_executor` (4 threads), along with `run_db(fn, *args)` async helper running repository functions in worker threads with their own isolated Sessions.
+  - Added SQLite `PRAGMA busy_timeout=5000` in `app/db/database.py` connection event listener to eliminate database locking contention.
+  - Registered `db_executor` and `io_executor` on `PipelineDeps` and `app.state` during lifespan, and ensured graceful shutdown in lifespan finally block.
+  - Converted DB-only endpoints (`/jobs/{job_id}`, `/analysis/{run_id}`, `/history`, and `/health`) to plain synchronous `def` handlers offloaded to FastAPI worker threads.
+  - Updated `run_background_job`, `analyze_ticker`, and `AnalysisOrchestrator` to offload repository caching and persistence calls via `run_db`.
+  - Added unit test suite `tests/unit/test_executors.py` verifying offloading to worker threads, executor shutdown, and demonstrating `/api/v1/health` responds in < 200 ms while a slow DB operation executes on `db_executor`.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 87.91% (244 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
 ## Deviations
 
