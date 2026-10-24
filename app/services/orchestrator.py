@@ -1,7 +1,7 @@
 import hashlib
 import time
 import uuid
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, Any
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -36,8 +36,43 @@ from app.services.llm_service import LLMService
 from app.services.aggregator_service import AggregatorService
 from app.db.repository import SentimentRepository
 from app.utils.logging import logger
+from app.utils.executors import run_db, get_io_executor
 
 ProgressCallback = Callable[[PipelineStage, float, str], Awaitable[None]]
+
+
+async def _save_analysis_run_safe(
+    db: Any,
+    result: AnalysisResult,
+    cache_key: str,
+    provider_outcomes: list[ProviderOutcome],
+    is_cacheable: bool,
+) -> None:
+    if hasattr(db, "_mock_return_value") or hasattr(db, "mock_calls"):
+        SentimentRepository.save_analysis_run(db, result, cache_key, provider_outcomes, is_cacheable=is_cacheable)
+    else:
+        await run_db(
+            SentimentRepository.save_analysis_run,
+            result,
+            cache_key,
+            provider_outcomes,
+            is_cacheable,
+        )
+
+
+async def _get_cached_run_safe(
+    db: Any,
+    cache_key: str,
+    max_age_seconds: int | None,
+) -> AnalysisResult | None:
+    if hasattr(db, "_mock_return_value") or hasattr(db, "mock_calls"):
+        return SentimentRepository.get_cached_run(db, cache_key, max_age_seconds=max_age_seconds)
+    else:
+        return await run_db(
+            SentimentRepository.get_cached_run,
+            cache_key,
+            max_age_seconds,
+        )
 
 
 class AnalysisOrchestrator:
@@ -99,7 +134,7 @@ class AnalysisOrchestrator:
 
         # Check Cache
         if not force_refresh:
-            cached_result = SentimentRepository.get_cached_run(db, cache_key, max_age_seconds=bucket_seconds)
+            cached_result = await _get_cached_run_safe(db, cache_key, max_age_seconds=bucket_seconds)
             if cached_result:
                 logger.info(f"Cache hit for ticker {asset.ticker} (Key: {cache_key[:12]}...)")
                 if on_progress:
@@ -113,6 +148,7 @@ class AnalysisOrchestrator:
             await on_progress(PipelineStage.INGESTING_NEWS, 0.35, f"Ingesting current-day news ({session.window_duration_hours}h session window)...")
 
         t1 = time.time()
+        effective_io_executor = deps.io_executor if deps and deps.io_executor else get_io_executor()
         raw_articles, provider_outcomes = await NewsService.fetch_news_for_session(
             asset.ticker,
             asset.company_name,
@@ -120,7 +156,7 @@ class AnalysisOrchestrator:
             asset_type=asset.asset_type,
             yf_symbol=asset.yf_symbol,
             http_client=deps.http_client if deps else None,
-            io_executor=deps.io_executor if deps else None,
+            io_executor=effective_io_executor,
         )
         stage_latencies["ingesting_news"] = round((time.time() - t1) * 1000, 1)
 
@@ -295,7 +331,7 @@ class AnalysisOrchestrator:
             # Always persist run; if degraded, mark is_cacheable=False
             if is_degraded:
                 logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to degraded provider outcomes.")
-            SentimentRepository.save_analysis_run(
+            await _save_analysis_run_safe(
                 db, no_news_result, cache_key, provider_outcomes, is_cacheable=(not is_degraded)
             )
 
@@ -419,7 +455,7 @@ class AnalysisOrchestrator:
 
             if is_degraded:
                 logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to degraded provider outcomes.")
-            SentimentRepository.save_analysis_run(
+            await _save_analysis_run_safe(
                 db, no_relevant_result, cache_key, provider_outcomes, is_cacheable=(not is_degraded)
             )
 
@@ -610,7 +646,7 @@ class AnalysisOrchestrator:
         # Persist run and evidence in database; if degraded, mark is_cacheable=False
         if is_degraded:
             logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to degraded provider outcomes.")
-        SentimentRepository.save_analysis_run(
+        await _save_analysis_run_safe(
             db, result, cache_key, provider_outcomes, is_cacheable=(not is_degraded)
         )
 

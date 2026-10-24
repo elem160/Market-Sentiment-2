@@ -113,7 +113,7 @@ async def test_complete_job_flow_and_cache_transitions(async_client, db_session)
 
 
 @pytest.mark.asyncio
-async def test_all_rss_failed_persists_run_and_bypasses_cache(async_client, db_session):
+async def test_all_rss_failed_persists_run_and_bypasses_cache(async_client, db_session, wait_for_jobs):
     """
     Test degraded run when all RSS providers fail (C2):
     - Run is successfully saved to the database.
@@ -173,3 +173,4 @@ async def test_all_rss_failed_persists_run_and_bypasses_cache(async_client, db_s
         subsequent_resp = await async_client.post("/api/v1/analyze", json={"ticker": "AAPL", "force_refresh": False})
         # If not cached, it returns 202 (queued new job) rather than 200 (cache hit)
         assert subsequent_resp.status_code == 202
+        await wait_for_jobs()

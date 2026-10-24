@@ -67,15 +67,22 @@ async def lifespan(app: FastAPI):
     )
     from app.services.scoring import FinBERTScorer
     scorer = FinBERTScorer.get_instance()
+    from app.utils.executors import get_db_executor, get_io_executor, shutdown_executors
+    db_executor = get_db_executor()
+    io_executor = get_io_executor()
     from app.core.models import PipelineDeps
     pipeline_deps = PipelineDeps(
         http_client=http_client,
         scorer=scorer,
         session_factory=SessionLocal,
+        db_executor=db_executor,
+        io_executor=io_executor,
     )
     app.state.http_client = http_client
     app.state.pipeline_deps = pipeline_deps
     app.state.scorer = scorer
+    app.state.db_executor = db_executor
+    app.state.io_executor = io_executor
 
     preload_task = None
     if settings.FINBERT_PRELOAD:
@@ -88,6 +95,7 @@ async def lifespan(app: FastAPI):
         if preload_task and not preload_task.done():
             preload_task.cancel()
         scorer.shutdown()
+        shutdown_executors()
         await http_client.aclose()
         from app.services.llm_service import LLMService
         await LLMService.close_client()
