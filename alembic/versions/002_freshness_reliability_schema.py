@@ -27,6 +27,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Downgrade safety: Revision 001 mandated NOT NULL on published_at_utc.
+    # To prevent SQLite constraint failures and preserve undated evidence rows,
+    # backfill null timestamps with the Unix epoch sentinel ('1970-01-01 00:00:00').
+    conn = op.get_bind()
+    conn.execute(
+        sa.text(
+            "UPDATE article_evidence SET published_at_utc = '1970-01-01 00:00:00' "
+            "WHERE published_at_utc IS NULL"
+        )
+    )
+
     with op.batch_alter_table('article_evidence', schema=None) as batch_op:
         batch_op.alter_column('published_at_utc', existing_type=sa.DateTime(), nullable=False)
         batch_op.drop_column('age_hours')
