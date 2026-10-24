@@ -14,14 +14,14 @@
 
 The project is executing a 5-phase architectural and algorithmic remediation to eliminate reliability hazards, silent data corruption, false confidence inflation, and contract drift. Following Phase 0, Phase 1, Phase 2 (and its 9-point auditor review), the project is actively executing **Phase 3 (Performance, Reliability, Security)** on branch `fix/phase-3-performance-reliability`.
 
-Tasks **P3.1 (Ingestion rework)**, **P3.2 (FinBERT throughput & dependency injection)**, and **P3.3 (Stop blocking event loop)** are fully implemented, verified, and committed.
+Tasks **P3.1 (Ingestion rework)**, **P3.2 (FinBERT throughput & dependency injection)**, **P3.3 (Stop blocking event loop)**, and **P3.4 (Job manager & SSE)** are fully implemented, verified, and committed.
 
 ### Current Project Health & Measured Quality Gates
 
 | Quality Gate | Requirement | Current Measured State | Status |
 |---|---|---|---|
-| **Backend Test Suite** | 100% offline pass | **244 passed**, 4 deselected (opt-in markers) in ~8.8s; **1 passed** in slow (real model) | **PASS** |
-| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **87.91%** overall backend coverage | **PASS** |
+| **Backend Test Suite** | 100% offline pass | **251 passed**, 4 deselected (opt-in markers) in ~14.8s; **1 passed** in slow (real model) | **PASS** |
+| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **87.19%** overall backend coverage | **PASS** |
 | **FinBERT Throughput Speedup** | $\ge 1.8\times$ batched vs loop | **1.81x** measured speedup via `scripts/bench_finbert.py` | **PASS** |
 | **Lint & Formatting** | `ruff check .` clean | 0 errors, 0 warnings across whole repo | **PASS** |
 | **Database Schema Drift** | `alembic check` zero drift | Current revision `004_decision_integrity` aligned with ORM | **PASS** |
@@ -148,12 +148,19 @@ The current agent completed tasks P2.5–P2.7 and addressed all 9 audit review f
   - Converted DB-only endpoints (`/jobs/{job_id}`, `/analysis/{run_id}`, `/history`, and `/health`) to plain synchronous `def` handlers offloaded to FastAPI worker threads.
   - Updated `run_background_job`, `analyze_ticker`, and `AnalysisOrchestrator` to offload repository caching and persistence calls via `run_db`.
   - Added unit test suite `tests/unit/test_executors.py` verifying offloading to worker threads, executor shutdown, and demonstrating `/api/v1/health` responds in < 200 ms while a slow DB operation executes on `db_executor`.
+- **P3.4 Job Manager: Limits, Coalescing, SSE ([`96d6131`](file:///d:/Code%20Projects/Market%20Sentiment%202/app/services/job_manager.py)):**
+  - Created `JobManager` with global concurrency semaphore (`MAX_CONCURRENT_PIPELINES=2`), queue position tracking with "Waiting for a worker (N ahead)", and queue timeout `JOB_QUEUE_TIMEOUT_SECONDS=120s` failing jobs with `QUEUE_TIMEOUT`.
+  - Implemented true request coalescing by cache key: subsequent concurrent requests for identical ticker and session bucket attach to active in-flight job with `coalesced: True` and receive the same `job_id`.
+  - Deleted `app/utils/lock_manager.py` (`TickerLockManager`), eliminating import-time lock binding and unbounded dictionary memory leaks.
+  - Built pub/sub in-process event channel for real-time SSE streaming with periodic `: ping\n\n` comments every `SSE_HEARTBEAT_SECONDS` (15s), fallback 1s DB polling, overall deadline tracking with `time.monotonic()`, and immediate disconnection cleanup.
+  - Added `cancel_job` in `SentimentRepository`; lifespan teardown cancels running pipeline tasks and marks jobs `CANCELLED` in database.
+  - Added comprehensive test suite `tests/unit/test_job_manager.py` (7 tests).
 
 ---
 
 ## 4. What Remains to Be Done (Phases 3 and 4)
 
-Tasks P3.1, P3.2, and P3.3 of Phase 3 are complete. The remaining tasks are:
+Tasks P3.1, P3.2, P3.3, and P3.4 of Phase 3 are complete. The remaining tasks are:
 
 ### Phase 3: Performance, Reliability, Security (Remaining)
 *Active branch: `fix/phase-3-performance-reliability` | Detailed in [docs/implementation_plan.md §7](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L402-L493)*
@@ -161,12 +168,11 @@ Tasks P3.1, P3.2, and P3.3 of Phase 3 are complete. The remaining tasks are:
 1. **P3.1 Ingestion Rework:** **COMPLETE** (`71b22f5`)
 2. **P3.2 FinBERT Throughput & Dependency Injection:** **COMPLETE** (`55ee3f6`)
 3. **P3.3 Stop Blocking the Event Loop:** **COMPLETE** (`a7cb23e`)
-4. **P3.4 Job Manager, Concurrency Limits & Request Coalescing (Findings: M7, M8, H15, L6) — NEXT:**
-   - New `JobManager` with `asyncio.Semaphore(MAX_CONCURRENT_PIPELINES)` (default 2), queue timeouts, in-flight coalescing by cache key, and SSE heartbeats.
-   - Delete `TickerLockManager` and `app/utils/lock_manager.py`.
-5. **P3.5 Rate Limiting & Proxy IP Resolution (Finding: H12):**
-   - Scoped rate limiter (`analyze` 15/min, `jobs` 60/min, `read` 120/min) with bounded LRU key store.
+4. **P3.4 Job Manager, Concurrency Limits & Request Coalescing:** **COMPLETE** (`96d6131`)
+5. **P3.5 Rate Limiting & Proxy IP Resolution (Finding: H12) — NEXT:**
+   - Scoped rate limiter (`analyze` 15/min, `jobs` 60/min, `read` 120/min) with bounded LRU key store (10,000 keys).
    - Right-to-left `X-Forwarded-For` proxy walking against `TRUSTED_PROXY_IPS`.
+   - `Retry-After` header on 429 responses.
 6. **P3.6 Cost, Abuse & Input Controls (Findings: H15, L3, L10, Decision: D2):**
    - Migration `005_operations.py` adding `analysis_runs.llm_cost_usd`.
    - Spend tracking against `LLM_DAILY_BUDGET_USD` ($1.00); optional `API_KEY` guard for `/analyze` and private history.

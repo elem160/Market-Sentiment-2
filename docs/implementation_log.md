@@ -261,6 +261,15 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Updated `run_background_job`, `analyze_ticker`, and `AnalysisOrchestrator` to offload repository caching and persistence calls via `run_db`.
   - Added unit test suite `tests/unit/test_executors.py` verifying offloading to worker threads, executor shutdown, and demonstrating `/api/v1/health` responds in < 200 ms while a slow DB operation executes on `db_executor`.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 87.91% (244 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+- **Task P3.4 — Job manager: limits, coalescing, SSE (`96d6131`):**
+  - Created `app/services/job_manager.py` implementing `JobManager` attached to `app.state.job_manager` with a global `asyncio.Semaphore(MAX_CONCURRENT_PIPELINES)` (default 2), queue position tracking with "Waiting for a worker (N ahead)" updates, and queue timeout `JOB_QUEUE_TIMEOUT_SECONDS` (120s) failing jobs with `QUEUE_TIMEOUT`.
+  - Implemented true request coalescing: `submit()` tracks in-flight jobs by cache key, attaching concurrent identical requests to the active job with `coalesced: True` and returning the same `job_id`.
+  - Completely removed import-time lock hazard and unbounded dictionary leak by deleting `app/utils/lock_manager.py` (`TickerLockManager`).
+  - Added pub/sub in-process event channel for real-time SSE streaming with periodic `: ping\n\n` comments every `SSE_HEARTBEAT_SECONDS` (15s), seamless fallback to 1s DB polling for out-of-process jobs, overall deadline calculation using `time.monotonic()`, and immediate disconnection cleanup upon client disconnect.
+  - Updated `JobCreatedResponse` schema with `coalesced: bool = False` and refreshed `frontend/src/api/openapi.json`.
+  - Added `cancel_job` in `SentimentRepository`; `JobManager.shutdown()` cancels running pipeline tasks and marks jobs `CANCELLED` in database.
+  - Added comprehensive test suite `tests/unit/test_job_manager.py` covering coalescing, sequential limit execution, queue timeout, pipeline timeout, shutdown cancellation, SSE heartbeats, and client disconnection.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 87.19% (251 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
 ## Deviations
 
