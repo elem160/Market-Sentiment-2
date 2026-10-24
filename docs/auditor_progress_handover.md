@@ -5,26 +5,29 @@
 **Governing Plan:** [docs/implementation_plan.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md) (Approved 2026-10-19; Decisions [D1–D8](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L42-L57))  
 **Remediation Audit Log:** [docs/implementation_log.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_log.md)  
 **Baseline Reference:** `main` @ `cab8b54` (Remediating 49 findings: [C1–C4, H1–H17, M1–M18, L1–L10](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L27))  
-**Current Active Branch:** `fix/phase-2-decision-integrity`  
+**Current Active Branch:** `fix/phase-3-performance-reliability`  
 **Current Working Tree:** Clean (all files tracked and verified, including this handover document)  
 
 ---
 
 ## 1. Executive Summary & Verification Gates
 
-The project is executing a 5-phase architectural and algorithmic remediation to eliminate reliability hazards, silent data corruption, false confidence inflation, and contract drift. Following the initial completion of Phase 2, a 9-point auditor review was conducted and all findings have been fully remediated and verified on this branch.
+The project is executing a 5-phase architectural and algorithmic remediation to eliminate reliability hazards, silent data corruption, false confidence inflation, and contract drift. Following Phase 0, Phase 1, Phase 2 (and its 9-point auditor review), the project is actively executing **Phase 3 (Performance, Reliability, Security)** on branch `fix/phase-3-performance-reliability`.
+
+Tasks **P3.1 (Ingestion rework)** and **P3.2 (FinBERT throughput & dependency injection)** are fully implemented, verified, and committed.
 
 ### Current Project Health & Measured Quality Gates
 
 | Quality Gate | Requirement | Current Measured State | Status |
 |---|---|---|---|
-| **Backend Test Suite** | 100% offline pass | **227 passed**, 4 deselected (opt-in markers) in ~9.8s | **PASS** |
-| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **89.58%** overall backend coverage | **PASS** |
+| **Backend Test Suite** | 100% offline pass | **241 passed**, 4 deselected (opt-in markers) in ~8.8s; **1 passed** in slow (real model) | **PASS** |
+| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **87.93%** overall backend coverage | **PASS** |
+| **FinBERT Throughput Speedup** | $\ge 1.8\times$ batched vs loop | **1.81x** measured speedup via `scripts/bench_finbert.py` | **PASS** |
 | **Lint & Formatting** | `ruff check .` clean | 0 errors, 0 warnings across whole repo | **PASS** |
 | **Database Schema Drift** | `alembic check` zero drift | Current revision `004_decision_integrity` aligned with ORM | **PASS** |
 | **Contract Alignment** | OpenAPI snapshot equality | [tests/contract/test_openapi_snapshot.py](file:///d:/Code%20Projects/Market%20Sentiment%202/tests/contract/test_openapi_snapshot.py) clean | **PASS** |
 | **Frontend Typecheck** | `tsc --noEmit` clean | 0 type errors across frontend and tests | **PASS** |
-| **Frontend Test Suite** | 100% Vitest pass | **14 passed** across 3 test files in ~1.8s | **PASS** |
+| **Frontend Test Suite** | 100% Vitest pass | **14 passed** across 3 test files | **PASS** |
 | **Static Bundle Drift** | Build matches committed assets | `git diff --exit-code ../app/static` clean (0 diff) | **PASS** |
 
 ---
@@ -125,28 +128,32 @@ The current agent completed tasks P2.5–P2.7 and addressed all 9 audit review f
 - **Finding 8 — Frontend health helper path ([`16051fd`](file:///d:/Code%20Projects/Market%20Sentiment%202/frontend/src/services/api.ts)):**
   - Updated `getHealth()` to request `${API_BASE}/health` (`/api/v1/health`).
   - Added focused contract unit tests in `frontend/src/services/api.test.ts`.
-- **Finding 9 — Project-state claims:**
-  - Accurately logged all remediation items in `docs/implementation_log.md` and tracked this handover document.
+### Phase 3 Tasks (In Progress on `fix/phase-3-performance-reliability`)
+- **P3.1 Ingestion Rework ([`71b22f5`](file:///d:/Code%20Projects/Market%20Sentiment%202/app/services/news_service.py)):**
+  - Re-architected `NewsService` launching Yahoo Finance and all RSS feeds concurrently with `asyncio.wait(..., timeout=INGESTION_TIMEOUT_SECONDS)`.
+  - Tenacity jitter retry on 429/5xx/timeouts; non-feed HTML rejection (`NOT_A_FEED`); straggler cancellation preserving partial items.
+  - Non-mutating `canonicalize_url()` stripping non-http(s) schemes; precomputed Jaccard token sets once per article.
+  - Defined `ProviderKind`, `FeedSpec`, `ProviderOutcome`, and `PipelineDeps`; exposed `AnalysisResult.provider_outcomes`.
+- **P3.2 FinBERT Throughput & Dependency Injection ([`55ee3f6`](file:///d:/Code%20Projects/Market%20Sentiment%202/app/services/scoring.py)):**
+  - Created `SentimentScorer` protocol, `ClassProbs` dataclass, and `FinBERTScorer` with dedicated single-thread executor and batched chunk inference (`FINBERT_BATCH_SIZE=16`).
+  - Output normalization across transformers versions; inter-chunk cooperative cancellation (`asyncio.CancelledError`).
+  - Non-blocking preload task in lifespan when `FINBERT_PRELOAD=true`.
+  - Built `lead_text` directly at the source on `ScoredArticle`, eliminating the orchestrator's O(N²) patch loop.
+  - Deleted legacy mock code (`set_mock_mode`, `reset_mock_mode`, `_is_mock`, `_mock_fn`) and `MAX_EXCERPT_TOKENS`; injected `KeywordScorer` via `set_default_scorer` and `PipelineDeps`.
+  - Created `scripts/bench_finbert.py` achieving 1.81x throughput speedup (44.5 ms -> 24.6 ms/article).
 
 ---
 
 ## 4. What Remains to Be Done (Phases 3 and 4)
 
-Phases 0 through 2 (and the audit remediation plan) are **100% complete**. The following work is pending in future phases on their respective planned branches:
+Tasks P3.1 and P3.2 of Phase 3 are complete. The remaining tasks are:
 
-### Phase 3: Performance, Reliability, Security
-*Branch to create: `fix/phase-3-performance-reliability` | Detailed in [docs/implementation_plan.md §7](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L402-L493)*
+### Phase 3: Performance, Reliability, Security (Remaining)
+*Active branch: `fix/phase-3-performance-reliability` | Detailed in [docs/implementation_plan.md §7](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L402-L493)*
 
-1. **P3.1 Ingestion Rework (Findings: H9, M15, M10, L10):**
-   - Single shared `httpx.AsyncClient` in lifespan with connection pooling and `HTTP_USER_AGENT`.
-   - Concurrent launch of Yahoo Finance and all RSS feeds with `asyncio.wait(..., timeout=INGESTION_TIMEOUT_SECONDS)`.
-   - Feed retry with jitter (tenacity); detect HTML non-feed responses as `FAILED("NOT_A_FEED")`.
-   - Non-mutating `canonicalize_url()` in [news_service.py](file:///d:/Code%20Projects/Market%20Sentiment%202/app/services/news_service.py); provider outcomes exposed in `AnalysisResult`.
-2. **P3.2 FinBERT Throughput & Dependency Injection (Findings: H8, M16):**
-   - Dedicated single-thread executor with batched chunk inference (`pipeline(..., batch_size=16)`).
-   - Non-blocking preload during lifespan (`FINBERT_PRELOAD=true`).
-   - Remove legacy mock code; inject `SentimentScorer` protocol via `PipelineDeps`.
-3. **P3.3 Stop Blocking the Event Loop (Finding: H11):**
+1. **P3.1 Ingestion Rework:** **COMPLETE** (`71b22f5`)
+2. **P3.2 FinBERT Throughput & Dependency Injection:** **COMPLETE** (`55ee3f6`)
+3. **P3.3 Stop Blocking the Event Loop (Finding: H11) — NEXT:**
    - Dedicated `db_executor` (4 threads) and `io_executor` (4 threads); SQLite `PRAGMA busy_timeout=5000`.
    - `await run_db(fn, *args)` helper for all repository interactions.
 4. **P3.4 Job Manager, Concurrency Limits & Request Coalescing (Findings: M7, M8, H15, L6):**

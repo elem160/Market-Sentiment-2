@@ -243,6 +243,18 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Added unit tests in `tests/unit/test_news_service.py` and `tests/unit/test_deduplication.py` for concurrent launch, timeout partial retention, HTML 200 rejection, 503 retry, Yahoo count, outcome kinds outage detection, non-http URL stripping, and exact id deduplication.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 88.69% (234 passed); `ruff check .` clean; `alembic check` clean; `npm.cmd test` (14 passed); `npm.cmd run typecheck` clean; static bundle drift clean.
 
+- **Task P3.2 — FinBERT throughput and dependency injection (`55ee3f6`):**
+  - Created `app/services/scoring.py` with `ClassProbs` dataclass and runtime checkable `SentimentScorer` protocol (`load()`, `state`, `async score(texts) -> list[ClassProbs]`).
+  - Implemented `FinBERTScorer` wrapping transformers pipeline on a dedicated single-thread executor (`ThreadPoolExecutor(max_workers=1, thread_name_prefix="finbert")`), lazily importing transformers and torch inside `load()`.
+  - Implemented batched inference `pipeline(chunk, batch_size=settings.FINBERT_BATCH_SIZE, truncation=True, max_length=512)` with output normalization across transformers versions and single/nested dict structures, optional `torch.set_num_threads(FINBERT_TORCH_THREADS)`, and cooperative inter-chunk cancellation checks (`asyncio.CancelledError`).
+  - Configured non-blocking preload task in `app/main.py` lifespan when `FINBERT_PRELOAD=True`, waiting for readiness within job timeouts, with executor shutdown on application exit.
+  - Built `lead_text` directly at the source (`f"{art.title}. {art.summary}".strip()[:500]`) on `ScoredArticle`, deleting the O(N²) patch loop in `app/services/orchestrator.py`.
+  - Removed legacy mock code (`set_mock_mode`, `reset_mock_mode`, `_is_mock`, `_mock_fn`) and `MAX_EXCERPT_TOKENS` from `FinBERTService` and `app/config.py`.
+  - Updated `KeywordScorer` in `tests/fakes.py` to implement the `SentimentScorer` protocol while preserving callable backward compatibility; tests inject `KeywordScorer` via `set_default_scorer` and `PipelineDeps`.
+  - Created `scripts/bench_finbert.py` demonstrating 1.81x throughput improvement (44.5 ms -> 24.6 ms per article) vs legacy sequential loop with encode/decode round trip.
+  - Added unit test suite `tests/unit/test_scoring.py` covering protocol conformance, output normalization, batched chunking, inter-chunk cancellation, error states, and dependency injection.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 87.93% (241 passed); `pytest -m slow` passed (real ProsusAI/finbert model weights); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+
 ## Deviations
 
 _None._
