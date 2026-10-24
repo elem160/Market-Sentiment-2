@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     MAX_COMPLETION_TOKENS: int = 1000
     MAX_COST_PER_RUN_USD: float = 0.05
     LLM_DAILY_BUDGET_USD: float = 1.00
+    MAX_EXCLUDED_SAMPLES_PER_REASON: int = 20
+    RUN_RETENTION_DAYS: int = 30
+    MAINTENANCE_INTERVAL_SECONDS: float = 3600.0
 
     # Rate Limiting
     RATE_LIMIT_ANALYSIS_PER_MINUTE: int = 15

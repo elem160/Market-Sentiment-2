@@ -250,10 +250,10 @@ class AnalysisOrchestrator:
                 observed_facts=[],
                 inferences=inferences,
             )
-            freshness_excluded_counts: dict[str, int] = {}
-            for _, reason, _ in freshness_excluded:
-                r_val = reason.value if hasattr(reason, "value") else str(reason)
-                freshness_excluded_counts[r_val] = freshness_excluded_counts.get(r_val, 0) + 1
+            freshness_excluded_counts = {
+                ExclusionReason.TIMESTAMP_OUT_OF_WINDOW.value: excluded_out_of_window,
+                ExclusionReason.MISSING_OR_UNTRUSTED_TIMESTAMP.value: excluded_missing_ts,
+            }
 
             metrics = PipelineMetrics(
                 total_sources=len(provider_outcomes),
@@ -261,10 +261,10 @@ class AnalysisOrchestrator:
                 distinct_clusters=0,
                 articles_ingested=len(raw_articles),
                 articles_retained=0,
-                articles_deduplicated=freshness_excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
+                articles_deduplicated=0,
                 articles_scored_local=0,
                 articles_sent_to_llm=0,
-                articles_excluded_total=len(freshness_excluded),
+                articles_excluded_total=excluded_out_of_window + excluded_missing_ts,
                 excluded_counts=freshness_excluded_counts,
                 directional_threshold=DIRECTIONAL_THRESHOLD,
                 excluded_out_of_window=excluded_out_of_window,
@@ -348,12 +348,22 @@ class AnalysisOrchestrator:
 
         t2 = time.time()
         relevance_matcher = RelevanceMatcher.for_asset(asset)
-        retained_articles, dedup_excluded, cluster_map = DeduplicationService.process_and_deduplicate(
+        dedup_res = DeduplicationService.process_and_deduplicate(
             in_window_articles, matcher=relevance_matcher
         )
+        retained_articles, dedup_excluded, cluster_map = dedup_res
+        dedup_counts = getattr(dedup_res, "counts", {})
         stage_latencies["filtering_deduplicating"] = round((time.time() - t2) * 1000, 1)
 
-        excluded_articles = freshness_excluded + dedup_excluded
+        total_excluded_counts: dict[str, int] = {
+            ExclusionReason.TIMESTAMP_OUT_OF_WINDOW.value: excluded_out_of_window,
+            ExclusionReason.MISSING_OR_UNTRUSTED_TIMESTAMP.value: excluded_missing_ts,
+            ExclusionReason.INSUFFICIENT_ENTITY_RELEVANCE.value: dedup_counts.get(ExclusionReason.INSUFFICIENT_ENTITY_RELEVANCE.value, 0),
+            ExclusionReason.DUPLICATE_SYNDICATION.value: dedup_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
+            ExclusionReason.CAPACITY_LIMIT.value: dedup_counts.get(ExclusionReason.CAPACITY_LIMIT.value, 0),
+        }
+        total_excluded_count = sum(total_excluded_counts.values())
+        sample_excluded_articles_raw = freshness_excluded + dedup_excluded
 
         # If zero articles survive relevance and deduplication, return NO_RELEVANT_NEWS cleanly (P2.6, M12)
         if len(retained_articles) == 0:
@@ -371,10 +381,6 @@ class AnalysisOrchestrator:
                     "Zero relevant articles passed filters: FinBERT and LLM synthesis skipped.",
                 ],
             )
-            relevance_excluded_counts: dict[str, int] = {}
-            for _, reason, _ in excluded_articles:
-                r_val = reason.value if hasattr(reason, "value") else str(reason)
-                relevance_excluded_counts[r_val] = relevance_excluded_counts.get(r_val, 0) + 1
 
             metrics = PipelineMetrics(
                 total_sources=len(provider_outcomes),
@@ -385,11 +391,11 @@ class AnalysisOrchestrator:
                 supporting_publishers=0,
                 articles_ingested=len(raw_articles),
                 articles_retained=0,
-                articles_deduplicated=relevance_excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
+                articles_deduplicated=total_excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
                 articles_scored_local=0,
                 articles_sent_to_llm=0,
-                articles_excluded_total=len(excluded_articles),
-                excluded_counts=relevance_excluded_counts,
+                articles_excluded_total=total_excluded_count,
+                excluded_counts=total_excluded_counts,
                 directional_threshold=DIRECTIONAL_THRESHOLD,
                 excluded_out_of_window=excluded_out_of_window,
                 excluded_missing_timestamp=excluded_missing_ts,
@@ -398,7 +404,7 @@ class AnalysisOrchestrator:
             )
 
             sample_excluded_articles: list[ScoredArticle] = []
-            for excl_art, reason, note in excluded_articles:
+            for excl_art, reason, note in sample_excluded_articles_raw:
                 canonical_pub = DeduplicationService.normalize_publisher(excl_art.source_name)
                 lead_text = f"{excl_art.title}. {excl_art.summary}".strip()[:500]
                 sample_excluded_articles.append(
@@ -492,7 +498,7 @@ class AnalysisOrchestrator:
 
         # Build complete article evidence list (retained + sample excluded)
         complete_article_list: list[ScoredArticle] = list(scored_retained)
-        for excl_art, reason, note in excluded_articles:
+        for excl_art, reason, note in sample_excluded_articles_raw:
             canonical_pub = DeduplicationService.normalize_publisher(excl_art.source_name)
             lead_text = f"{excl_art.title}. {excl_art.summary}".strip()[:500]
             complete_article_list.append(
@@ -575,12 +581,6 @@ class AnalysisOrchestrator:
             if a.cluster_id and a.exclusion_reason is None
         })
 
-        total_excluded = freshness_excluded + excluded_articles
-        excluded_counts: dict[str, int] = {}
-        for _, reason, _ in total_excluded:
-            r_val = reason.value if hasattr(reason, "value") else str(reason)
-            excluded_counts[r_val] = excluded_counts.get(r_val, 0) + 1
-
         metrics = PipelineMetrics(
             total_sources=len(provider_outcomes),
             distinct_publishers=distinct_publishers,
@@ -590,11 +590,11 @@ class AnalysisOrchestrator:
             supporting_publishers=agg_res.supporting_publishers,
             articles_ingested=len(raw_articles),
             articles_retained=len(scored_retained),
-            articles_deduplicated=excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
+            articles_deduplicated=total_excluded_counts.get(ExclusionReason.DUPLICATE_SYNDICATION.value, 0),
             articles_scored_local=len(scored_retained),
             articles_sent_to_llm=llm_telemetry.get("candidates_sent", 0) if llm_telemetry.get("status") != "SKIPPED" else 0,
-            articles_excluded_total=len(total_excluded),
-            excluded_counts=excluded_counts,
+            articles_excluded_total=total_excluded_count,
+            excluded_counts=total_excluded_counts,
             directional_threshold=DIRECTIONAL_THRESHOLD,
             excluded_out_of_window=excluded_out_of_window,
             excluded_missing_timestamp=excluded_missing_ts,

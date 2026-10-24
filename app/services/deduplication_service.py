@@ -51,6 +51,21 @@ PUBLISHER_NORMALIZATION_MAP = {
 
 
 
+class DedupResult(tuple):
+    """
+    Tuple subclass (retained, excluded, cluster_map) maintaining backward-compatible
+    3-element unpacking while exposing .counts attribute for exact exclusion totals.
+    """
+    def __new__(cls, retained, excluded, cluster_map, counts=None):
+        return super().__new__(cls, (retained, excluded, cluster_map))
+
+    def __init__(self, retained, excluded, cluster_map, counts=None):
+        self.retained = retained
+        self.excluded = excluded
+        self.cluster_map = cluster_map
+        self.counts = counts or {}
+
+
 class DeduplicationService:
     @staticmethod
     def canonicalize_url(raw_url: str) -> str:
@@ -177,7 +192,8 @@ class DeduplicationService:
         company_name: str = "",
         max_articles: int | None = None,
         matcher: RelevanceMatcher | None = None,
-    ) -> tuple[list[IngestedArticle], list[tuple[IngestedArticle, ExclusionReason, str]], dict[str, str]]:
+        max_samples_per_reason: int = MAX_EXCLUDED_SAMPLES_PER_REASON,
+    ) -> DedupResult:
         """
         Processes ingested articles:
         1. Canonicalizes URLs
@@ -186,13 +202,32 @@ class DeduplicationService:
         4. Enforces capacity limit (settings.MAX_RETAINED_ARTICLES or max_articles) newest first
         
         Returns:
-        - retained_articles: list[IngestedArticle]
-        - excluded_articles: list[tuple[IngestedArticle, ExclusionReason, str]] (article, reason, note)
-        - cluster_map: dict[article_id, cluster_id]
+        - DedupResult(retained, sample_excluded, cluster_map, counts)
+          (retained: list[IngestedArticle],
+           sample_excluded: list[tuple[IngestedArticle, ExclusionReason, str]],
+           cluster_map: dict[str, str],
+           counts: dict[str, int])
         """
         retained: list[IngestedArticle] = []
-        excluded: list[tuple[IngestedArticle, ExclusionReason, str]] = []
+        sample_excluded: list[tuple[IngestedArticle, ExclusionReason, str]] = []
         cluster_map: dict[str, str] = {}
+        counts: dict[str, int] = {
+            ExclusionReason.INSUFFICIENT_ENTITY_RELEVANCE.value: 0,
+            ExclusionReason.DUPLICATE_SYNDICATION.value: 0,
+            ExclusionReason.CAPACITY_LIMIT.value: 0,
+        }
+        sample_counts: dict[str, int] = {
+            ExclusionReason.INSUFFICIENT_ENTITY_RELEVANCE.value: 0,
+            ExclusionReason.DUPLICATE_SYNDICATION.value: 0,
+            ExclusionReason.CAPACITY_LIMIT.value: 0,
+        }
+
+        def record_exclusion(art: IngestedArticle, reason: ExclusionReason, note: str) -> None:
+            r_str = reason.value if hasattr(reason, "value") else str(reason)
+            counts[r_str] = counts.get(r_str, 0) + 1
+            if sample_counts.get(r_str, 0) < max_samples_per_reason:
+                sample_counts[r_str] = sample_counts.get(r_str, 0) + 1
+                sample_excluded.append((art, reason, note))
 
         # Clean URLs without mutating raw articles
         cleaned_articles: list[IngestedArticle] = []
@@ -230,11 +265,11 @@ class DeduplicationService:
             # 1. Relevance check via RelevanceMatcher
             match_reason = matcher.match(article.title, article.summary)
             if not match_reason:
-                excluded.append((
+                record_exclusion(
                     article,
                     ExclusionReason.INSUFFICIENT_ENTITY_RELEVANCE,
                     f"Headline does not mention {matcher.asset.ticker} or {matcher.asset.company_name} materially."
-                ))
+                )
                 continue
 
             # 2. Duplicate / Syndication check
@@ -246,11 +281,11 @@ class DeduplicationService:
                 if sim >= 0.82 or same_url:
                     is_dup = True
                     cluster_map[article.article_id] = cluster_id
-                    excluded.append((
+                    record_exclusion(
                         article,
                         ExclusionReason.DUPLICATE_SYNDICATION,
                         f"Syndicated copy of '{primary_art.title[:60]}...' (similarity: {sim:.2f})"
-                    ))
+                    )
                     break
 
             if not is_dup:
@@ -274,11 +309,11 @@ class DeduplicationService:
             if len(retained) < effective_limit:
                 retained.append(candidate)
             else:
-                excluded.append((
+                record_exclusion(
                     candidate,
                     ExclusionReason.CAPACITY_LIMIT,
                     f"Retained article limit ({effective_limit}) reached."
-                ))
+                )
 
-        return retained, excluded, cluster_map
+        return DedupResult(retained, sample_excluded, cluster_map, counts)
 

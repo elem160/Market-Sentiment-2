@@ -374,5 +374,7 @@ def test_env_example_matches_config_defaults():
     assert (env_vars.get("API_KEY") or None) == settings.API_KEY is None
     assert (env_vars["PUBLIC_HISTORY"].lower() == "true") == settings.PUBLIC_HISTORY is True
     assert float(env_vars["LLM_DAILY_BUDGET_USD"]) == settings.LLM_DAILY_BUDGET_USD == 1.00
+    assert int(env_vars["MAX_EXCLUDED_SAMPLES_PER_REASON"]) == settings.MAX_EXCLUDED_SAMPLES_PER_REASON == 20
+    assert int(env_vars["RUN_RETENTION_DAYS"]) == settings.RUN_RETENTION_DAYS == 30
 
 

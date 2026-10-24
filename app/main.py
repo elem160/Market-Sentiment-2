@@ -98,10 +98,37 @@ async def lifespan(app: FastAPI):
     if settings.FINBERT_PRELOAD:
         preload_task = asyncio.create_task(scorer.ensure_loaded())
 
+    from app.services.maintenance import run_maintenance
+
+    async def maintenance_worker():
+        while True:
+            try:
+                await asyncio.sleep(settings.MAINTENANCE_INTERVAL_SECONDS)
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(
+                    db_executor,
+                    run_maintenance,
+                    SessionLocal,
+                    settings.RUN_RETENTION_DAYS,
+                    False,
+                )
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error during scheduled database maintenance: {e}", exc_info=True)
+
+    maintenance_task = asyncio.create_task(maintenance_worker())
+
     try:
         yield
     finally:
         logger.info("Shutting down Market Sentiment Analysis application.")
+        if maintenance_task and not maintenance_task.done():
+            maintenance_task.cancel()
+            try:
+                await maintenance_task
+            except asyncio.CancelledError:
+                pass
         await job_manager.shutdown(timeout=10.0)
         if preload_task and not preload_task.done():
             preload_task.cancel()
