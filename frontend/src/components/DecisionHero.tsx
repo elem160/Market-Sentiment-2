@@ -57,7 +57,8 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
   };
 
   const distinctPubs = result.metrics?.distinct_publishers ?? 0;
-  const isCorroborated = distinctPubs >= 2;
+  const supportingPubs = result.metrics?.supporting_publishers ?? 0;
+  const isCorroborated = (verdict === 'BUY' || verdict === 'SELL') && supportingPubs >= 2;
   const isEvidenceFreeHold =
     verdict === 'HOLD' &&
     (result.hold_reason === 'NO_NEWS' ||
@@ -229,12 +230,19 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
               </span>
             ) : (
               <span className="badge badge-hold" style={{ fontSize: '0.82rem' }}>
-                <AlertTriangle size={14} /> {distinctPubs === 1 ? 'Single Publisher' : 'Sparse Evidence'}
+                <AlertTriangle size={14} />{' '}
+                {result.hold_reason === 'INSUFFICIENT_CORROBORATION'
+                  ? 'Insufficient Corroboration'
+                  : distinctPubs <= 1
+                    ? 'Single Publisher'
+                    : 'Uncorroborated'}
               </span>
             )}
           </div>
           <div className="metric-sub" style={{ marginTop: '8px' }}>
-            {distinctPubs} Distinct Source(s)
+            {verdict === 'BUY' || verdict === 'SELL'
+              ? `${supportingPubs} Supporting Source(s)`
+              : `${distinctPubs} Distinct Source(s)`}
           </div>
         </div>
       </div>

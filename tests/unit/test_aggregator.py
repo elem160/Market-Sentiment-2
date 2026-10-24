@@ -304,3 +304,47 @@ def test_neutral_sentiment_hold_reason(frozen_now):
 
     assert res.decision == DecisionVerdict.HOLD
     assert res.hold_reason == HoldReason.NEUTRAL
+
+
+def test_sell_corroboration_with_inferred_publishers(frozen_now):
+    """SELL requires >= 2 distinct non-inferred publishers; inferred negative publisher forces HOLD."""
+    session = compute_session_window(frozen_now)
+    # 1 negative from Bloomberg (authoritative), 1 negative from Reuters with publisher_inferred=True
+    art1 = create_mock_scored_article("1", "Bloomberg", -0.80, 0.90, frozen_now, cluster_id="c1", publisher_inferred=False)
+    art2 = create_mock_scored_article("2", "Reuters", -0.75, 0.85, frozen_now, cluster_id="c2", publisher_inferred=True)
+
+    res = AggregatorService.aggregate_and_decide("AAPL", "Apple Inc.", session, [art1, art2], [], "")
+    assert res.decision == DecisionVerdict.HOLD
+    assert res.hold_reason == HoldReason.INSUFFICIENT_CORROBORATION
+    assert res.publishers_negative == 1  # Only Bloomberg is eligible
+    assert res.supporting_publishers == 0
+
+
+def test_sell_with_mixed_positive_negative_publishers(frozen_now):
+    """SELL with 2 negative eligible publishers and 1 positive eligible publisher."""
+    session = compute_session_window(frozen_now)
+    neg1 = create_mock_scored_article("n1", "Bloomberg", -0.85, 0.90, frozen_now, cluster_id="c1")
+    neg2 = create_mock_scored_article("n2", "Wall Street Journal", -0.80, 0.85, frozen_now, cluster_id="c2")
+    pos1 = create_mock_scored_article("p1", "Reuters", 0.70, 0.80, frozen_now, cluster_id="c3")
+
+    res = AggregatorService.aggregate_and_decide("AAPL", "Apple Inc.", session, [neg1, neg2, pos1], [], "")
+    assert res.decision == DecisionVerdict.SELL
+    assert res.hold_reason is None
+    assert res.publishers_negative == 2
+    assert res.publishers_positive == 1
+    assert res.supporting_publishers == 2
+
+
+def test_conflicting_mixed_publishers_has_zero_supporting_publishers(frozen_now):
+    """Mixed 1 positive and 1 negative eligible publisher yields CONFLICTING HOLD with 0 supporting publishers."""
+    session = compute_session_window(frozen_now)
+    pos = create_mock_scored_article("p1", "Reuters", 0.85, 0.90, frozen_now, cluster_id="c1")
+    neg = create_mock_scored_article("n1", "Bloomberg", -0.85, 0.90, frozen_now, cluster_id="c2")
+
+    res = AggregatorService.aggregate_and_decide("AAPL", "Apple Inc.", session, [pos, neg], [], "")
+    assert res.decision == DecisionVerdict.HOLD
+    assert res.hold_reason == HoldReason.CONFLICTING
+    assert res.publishers_positive == 1
+    assert res.publishers_negative == 1
+    assert res.supporting_publishers == 0
+
