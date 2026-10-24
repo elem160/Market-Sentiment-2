@@ -253,8 +253,16 @@ cd ..
 ### 4. Run the Application
 
 ```bash
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+# Recommended: Run via the built-in runner (uses configured APP_HOST, APP_PORT, and proxy settings)
+python -m app
+
+# Or run via uvicorn directly:
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
+
+> [!NOTE]
+> **Single-Worker Deployment Architecture:**
+> SentimentPulse is designed for single-worker execution (`workers=1`). The in-memory `JobManager` performs live request coalescing, event streaming, and cooperative concurrency gating over local SQLite storage. When running behind a reverse proxy (Nginx, Traefik, AWS ALB), set `TRUST_PROXY_HEADERS=true` and configure `TRUSTED_PROXY_IPS` in `.env`.
 
 Open your browser at **`http://localhost:8000`**.
 

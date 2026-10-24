@@ -12,10 +12,9 @@ from app.db.database import Base
 import app.db.models  # Ensure all models are registered
 
 config = context.config
-target_url = config.get_main_option("sqlalchemy.url")
-if not target_url or target_url == "sqlite:///./data/sentiment.db":
-    target_url = settings.DATABASE_URL
-    config.set_main_option("sqlalchemy.url", target_url)
+x_args = context.get_x_argument(as_dictionary=True)
+target_url = x_args.get("db_url") or config.get_main_option("sqlalchemy.url") or settings.DATABASE_URL
+config.set_main_option("sqlalchemy.url", target_url)
 
 if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name, disable_existing_loggers=False)
@@ -36,16 +35,8 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    db_url = config.get_main_option("sqlalchemy.url") or settings.DATABASE_URL
+    db_url = config.get_main_option("sqlalchemy.url")
     is_sqlite = db_url.startswith("sqlite")
-    if is_sqlite and ":memory:" not in db_url:
-        db_path = db_url.replace("sqlite:///", "").replace("sqlite://", "")
-        if not os.path.isabs(db_path):
-            base_dir = os.path.dirname(os.path.dirname(__file__))
-            db_path = os.path.normpath(os.path.join(base_dir, db_path))
-            db_url = f"sqlite:///{db_path}"
-            config.set_main_option("sqlalchemy.url", db_url)
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
     connect_args = {"check_same_thread": False} if is_sqlite else {}
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),

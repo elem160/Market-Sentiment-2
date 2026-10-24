@@ -1,13 +1,16 @@
 import hashlib
 import json
+from pathlib import Path
 from typing import Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore"
     )
@@ -19,9 +22,26 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "sqlite:///./data/sentiment.db"
+    RUN_MIGRATIONS_ON_STARTUP: bool = True
+
+    # Scoring Algorithm Version (Decision Integrity & Cache Keying)
+    ALGORITHM_VERSION: int = 2
 
     # Logging
     LOG_LEVEL: str = "INFO"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        if v.startswith("sqlite") and ":memory:" not in v:
+            prefix = "sqlite:///" if v.startswith("sqlite:///") else "sqlite://"
+            raw_path = v[len(prefix):]
+            p = Path(raw_path)
+            if not p.is_absolute():
+                p = (BASE_DIR / p).resolve()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            return f"sqlite:///{p.as_posix()}"
+        return v
 
     # Model Identifiers
     FINBERT_MODEL_NAME: str = "ProsusAI/finbert"
@@ -146,9 +166,30 @@ class Settings(BaseSettings):
         return round(prompt_cost + comp_cost, 6)
 
     def get_config_hash(self) -> str:
-        """Deterministic fingerprint of model IDs and pipeline limits for cache keying."""
-        raw = f"{self.FINBERT_MODEL_NAME}|{self.LLM_MODEL_ID}|{self.LLM_FALLBACK_MODEL_ID}|{self.MAX_RETAINED_ARTICLES}|{self.MAX_LLM_CANDIDATES}|{self.ENABLE_LLM}"
+        """Deterministic fingerprint of model IDs, pipeline limits, and decision thresholds for cache keying."""
+        raw = (
+            f"{self.ALGORITHM_VERSION}|"
+            f"{self.FINBERT_MODEL_NAME}|"
+            f"{self.LLM_MODEL_ID}|"
+            f"{self.LLM_FALLBACK_MODEL_ID}|"
+            f"{self.MAX_RETAINED_ARTICLES}|"
+            f"{self.MAX_LLM_CANDIDATES}|"
+            f"{self.ENABLE_LLM}|"
+            f"0.15|0.2"
+        )
         return hashlib.sha256(raw.encode()).hexdigest()[:12]
+
+    def check_timeout_misconfiguration(self, finbert_est_seconds: float = 10.0) -> str | None:
+        """Check if stage timeouts exceed total pipeline timeout (Master Plan §7.8)."""
+        total_stage_timeouts = self.INGESTION_TIMEOUT_SECONDS + self.LLM_TIMEOUT_SECONDS + finbert_est_seconds
+        if total_stage_timeouts >= self.PIPELINE_TIMEOUT_SECONDS:
+            return (
+                f"Pipeline timeout misconfiguration: combined stage timeouts "
+                f"(ingestion={self.INGESTION_TIMEOUT_SECONDS}s + llm={self.LLM_TIMEOUT_SECONDS}s + "
+                f"finbert_est={finbert_est_seconds}s = {total_stage_timeouts}s) "
+                f">= PIPELINE_TIMEOUT_SECONDS ({self.PIPELINE_TIMEOUT_SECONDS}s)."
+            )
+        return None
 
 
 settings = Settings()

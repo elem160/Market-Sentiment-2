@@ -80,12 +80,16 @@ class AnalysisOrchestrator:
     def compute_cache_key(
         ticker: str,
         session_bucket: str,
-        provider_hash: str,
-        enable_llm: bool,
+        provider_hash: str = "yfinance_rss",
+        enable_llm: bool = True,
+        asset_type: str = "EQUITY",
     ) -> str:
-        """Deterministic multi-dimensional cache key."""
+        """
+        Deterministic multi-dimensional cache key (Master Plan §7.8).
+        sha256(ALGORITHM_VERSION, ticker, asset_type, bucket, enable_llm, config_hash)
+        """
         config_hash = settings.get_config_hash()
-        raw = f"{ticker}:{session_bucket}:{provider_hash}:{settings.FINBERT_MODEL_NAME}:{settings.LLM_MODEL_ID}:{config_hash}:{enable_llm}"
+        raw = f"{settings.ALGORITHM_VERSION}:{ticker.upper()}:{asset_type.upper()}:{session_bucket}:{enable_llm}:{config_hash}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @classmethod
@@ -127,10 +131,17 @@ class AnalysisOrchestrator:
         session = compute_session_window()
         stage_latencies["resolving_ticker"] = round((time.time() - t0) * 1000, 1)
 
-        # Multi-dimensional cache key calculation (F-03)
+        # Multi-dimensional cache key calculation (F-03 / Plan §7.8)
         session_bucket, bucket_seconds = compute_session_bucket(session)
         provider_hash = "yfinance_rss"
-        cache_key = cls.compute_cache_key(asset.ticker, session_bucket, provider_hash, enable_llm)
+        asset_type_str = asset.asset_type.value if hasattr(asset.asset_type, "value") else str(asset.asset_type)
+        cache_key = cls.compute_cache_key(
+            asset.ticker,
+            session_bucket,
+            provider_hash,
+            enable_llm,
+            asset_type=asset_type_str,
+        )
 
         # Check Cache
         if not force_refresh:

@@ -22,20 +22,11 @@ from app.api.schemas import JobCompletedEvent, JobFailedEvent, JobProgressEvent
 
 def run_migrations():
     """Run Alembic migrations programmatically to bring the database schema to head."""
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    ini_path = os.path.join(base_dir, "alembic.ini")
+    from app.config import BASE_DIR
+    ini_path = str(BASE_DIR / "alembic.ini")
     alembic_cfg = Config(ini_path)
-    alembic_cfg.set_main_option("script_location", os.path.join(base_dir, "alembic"))
-
-    db_url = settings.DATABASE_URL
-    if db_url.startswith("sqlite") and ":memory:" not in db_url:
-        db_path = db_url.replace("sqlite:///", "").replace("sqlite://", "")
-        if not os.path.isabs(db_path):
-            db_path = os.path.normpath(os.path.join(base_dir, db_path))
-            db_url = f"sqlite:///{db_path}"
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-
-    alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+    alembic_cfg.set_main_option("script_location", str(BASE_DIR / "alembic"))
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
     alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
 
@@ -43,9 +34,15 @@ def run_migrations():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Run Alembic migrations programmatically (failures raise and are not swallowed)
-    logger.info("Running database migrations via Alembic...")
-    run_migrations()
-    logger.info("Database schema successfully upgraded to head.")
+    if settings.RUN_MIGRATIONS_ON_STARTUP:
+        logger.info("Running database migrations via Alembic...")
+        run_migrations()
+        logger.info("Database schema successfully upgraded to head.")
+
+    # Startup: Timeout misconfiguration check (Finding M13 / Plan §7.8)
+    timeout_warning = settings.check_timeout_misconfiguration()
+    if timeout_warning:
+        logger.warning(timeout_warning)
 
     # Startup: recover any leftover jobs from unexpected crash/restart
     logger.info("Initializing Market Sentiment Analysis application...")

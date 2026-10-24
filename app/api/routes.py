@@ -117,8 +117,9 @@ async def analyze_ticker(
     from app.core.session_window import compute_session_window, compute_session_bucket
     session = compute_session_window()
     session_bucket, bucket_seconds = compute_session_bucket(session)
+    asset_type_str = asset.asset_type.value if hasattr(asset.asset_type, "value") else str(asset.asset_type)
     cache_key = AnalysisOrchestrator.compute_cache_key(
-        normalized_ticker, session_bucket, "yfinance_rss", req.enable_llm
+        normalized_ticker, session_bucket, "yfinance_rss", req.enable_llm, asset_type=asset_type_str
     )
 
     # 3. Quick Cache Check

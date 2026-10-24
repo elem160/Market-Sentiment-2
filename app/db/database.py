@@ -1,14 +1,6 @@
-import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from app.config import settings
-
-# Ensure data directory exists
-if settings.DATABASE_URL.startswith("sqlite"):
-    db_path = settings.DATABASE_URL.replace("sqlite:///", "").replace("sqlite://", "")
-    db_dir = os.path.dirname(db_path)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok=True)
 
 # Create SQLAlchemy engine
 connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
