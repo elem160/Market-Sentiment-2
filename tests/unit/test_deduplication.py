@@ -370,5 +370,6 @@ def test_env_example_matches_config_defaults():
     assert int(env_vars["MAX_CONCURRENT_PIPELINES"]) == settings.MAX_CONCURRENT_PIPELINES == 2
     assert float(env_vars["JOB_QUEUE_TIMEOUT_SECONDS"]) == settings.JOB_QUEUE_TIMEOUT_SECONDS == 120.0
     assert float(env_vars["SSE_HEARTBEAT_SECONDS"]) == settings.SSE_HEARTBEAT_SECONDS == 15.0
+    assert int(env_vars["RATE_LIMIT_READ_PER_MINUTE"]) == settings.RATE_LIMIT_READ_PER_MINUTE == 120
 
 

@@ -42,6 +42,7 @@ class Settings(BaseSettings):
 
     # Security & Networking
     TRUST_PROXY_HEADERS: bool = False
+    TRUSTED_PROXY_IPS: list[str] = []
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -59,6 +60,7 @@ class Settings(BaseSettings):
     # Rate Limiting
     RATE_LIMIT_ANALYSIS_PER_MINUTE: int = 15
     RATE_LIMIT_JOBS_PER_MINUTE: int = 60
+    RATE_LIMIT_READ_PER_MINUTE: int = 120
 
     # Pipeline Execution Timeout (in seconds)
     PIPELINE_TIMEOUT_SECONDS: int = 90
@@ -97,6 +99,23 @@ class Settings(BaseSettings):
         "nvidia/nemotron-3-super-120b-a12b:free": {"prompt_price_per_m": 0.0, "completion_price_per_m": 0.0},
         "openai/gpt-4o-mini": {"prompt_price_per_m": 0.15, "completion_price_per_m": 0.60},
     }
+
+    @field_validator("TRUSTED_PROXY_IPS", mode="before")
+    @classmethod
+    def parse_trusted_proxy_ips(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return []
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [ip.strip() for ip in v.split(",") if ip.strip()]
+        if isinstance(v, (list, tuple)):
+            return [str(ip).strip() for ip in v if str(ip).strip()]
+        return []
 
     @field_validator("MODEL_PRICING", mode="before")
     @classmethod

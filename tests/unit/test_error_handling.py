@@ -61,8 +61,8 @@ async def test_429_rate_limit_exceeded_with_retry_after(async_client: AsyncClien
     rate_limiter.reset()
     limit = settings.RATE_LIMIT_JOBS_PER_MINUTE
     for _ in range(limit):
-        rate_limiter.check("testclient", max_requests=limit, window_seconds=60)
-        rate_limiter.check("127.0.0.1", max_requests=limit, window_seconds=60)
+        rate_limiter.check("jobs", "testclient", max_requests=limit, window_seconds=60)
+        rate_limiter.check("jobs", "127.0.0.1", max_requests=limit, window_seconds=60)
     
     res = await async_client.get(f"/api/v1/jobs/{uuid.uuid4()}")
     assert res.status_code == 429

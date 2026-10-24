@@ -30,14 +30,13 @@ from app.api.schemas import (
     SSE_EVENT_FAILED,
     SSE_EVENT_PROGRESS,
 )
-from app.api.dependencies import get_client_ip
+from app.api.dependencies import get_client_ip, rate_limit
 from app.db.database import get_db, SessionLocal
 from app.db.repository import SentimentRepository
 from app.services.ticker_service import TickerService
 from app.services.finbert_service import FinBERTService
 from app.services.orchestrator import AnalysisOrchestrator
 from app.services.job_manager import JobManager, get_default_job_manager
-from app.utils.rate_limiter import rate_limiter
 from app.utils.logging import logger
 from app.utils.executors import run_db
 
@@ -103,17 +102,14 @@ async def analyze_ticker(
     response: Response,
     request: Request,
     db: Session = Depends(get_db),
-    client_ip: str = Depends(get_client_ip),
+    _client_ip: str = Depends(rate_limit("analyze")),
 ):
     """
     Analyzes current-day market sentiment for a US-listed equity or ETF.
     - If cached within the session bucket: returns 200 OK with full result instantly.
     - If uncached: creates an async job and returns 202 Accepted with SSE event stream URL.
     """
-    # 1. IP Rate Limiting
-    rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_ANALYSIS_PER_MINUTE)
-
-    # 2. Early ticker normalization & validation (bounded by TICKER_RESOLUTION_TIMEOUT_SECONDS)
+    # 1. Early ticker normalization & validation (bounded by TICKER_RESOLUTION_TIMEOUT_SECONDS)
     asset = await TickerService.resolve_ticker_async(req.ticker)
     normalized_ticker = asset.ticker
 
@@ -167,11 +163,9 @@ async def analyze_ticker(
 def get_job_status(
     job_id: str,
     db: Session = Depends(get_db),
-    client_ip: str = Depends(get_client_ip),
+    _client_ip: str = Depends(rate_limit("jobs")),
 ):
     """Polling fallback for background job progression."""
-    rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
-
     job = SentimentRepository.get_job(db, job_id)
     if not job:
         raise JobNotFoundException(job_id)
@@ -193,13 +187,12 @@ def get_job_status(
 async def stream_job_events(
     job_id: str,
     request: Request,
-    client_ip: str = Depends(get_client_ip),
+    _client_ip: str = Depends(rate_limit("jobs")),
 ):
     """
     Server-Sent Events (SSE) stream for real-time live pipeline progress.
     Emits progress, completed, and failed events with periodic heartbeats (: ping\n\n).
     """
-    rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
 
     job_manager: JobManager = (
         getattr(request.app.state, "job_manager", None)
@@ -228,7 +221,11 @@ async def stream_job_events(
 
 
 @router.get("/analysis/{run_id}", response_model=AnalysisResult)
-def get_analysis_result(run_id: str, db: Session = Depends(get_db)):
+def get_analysis_result(
+    run_id: str,
+    db: Session = Depends(get_db),
+    _client_ip: str = Depends(rate_limit("read")),
+):
     """Fetch complete persisted diagnostic analysis and evidence chain for a specific run."""
     result = SentimentRepository.get_analysis_run(db, run_id)
     if not result:
@@ -240,6 +237,7 @@ def get_analysis_result(run_id: str, db: Session = Depends(get_db)):
 def get_search_history(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
+    _client_ip: str = Depends(rate_limit("read")),
 ):
     """Retrieve recent searches and historical sentiment verdicts."""
     recent = SentimentRepository.get_recent_runs(db, limit=limit)
