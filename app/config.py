@@ -25,6 +25,9 @@ class Settings(BaseSettings):
 
     # Model Identifiers
     FINBERT_MODEL_NAME: str = "ProsusAI/finbert"
+    FINBERT_BATCH_SIZE: int = 16
+    FINBERT_PRELOAD: bool = True
+    FINBERT_TORCH_THREADS: int = 0
     LLM_MODEL_ID: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
     LLM_FALLBACK_MODEL_ID: str = "nvidia/nemotron-3-super-120b-a12b:free"
     ENABLE_LLM: bool = True
@@ -49,7 +52,6 @@ class Settings(BaseSettings):
     # Budget & Token Controls
     MAX_RETAINED_ARTICLES: int = 350
     MAX_LLM_CANDIDATES: int = 100
-    MAX_EXCERPT_TOKENS: int = 150
     MAX_PROMPT_TOKENS: int = 8000
     MAX_COMPLETION_TOKENS: int = 1000
     MAX_COST_PER_RUN_USD: float = 0.05

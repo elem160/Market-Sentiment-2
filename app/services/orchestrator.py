@@ -448,14 +448,11 @@ class AnalysisOrchestrator:
 
         t3 = time.time()
         finbert_service = FinBERTService.get_instance()
-        scored_retained = await finbert_service.score_articles_async(retained_articles, cluster_map)
+        scorer = deps.scorer if deps and deps.scorer else None
+        scored_retained = await finbert_service.score_articles_async(
+            retained_articles, cluster_map, scorer=scorer
+        )
         stage_latencies["finbert_scoring"] = round((time.time() - t3) * 1000, 1)
-
-        # Ensure lead_text is clean original text and not tokenizer round-trip (F-17)
-        for scored_art in scored_retained:
-            original_art = next((a for a in retained_articles if a.article_id == scored_art.article_id), None)
-            if original_art:
-                scored_art.lead_text = f"{original_art.title}. {original_art.summary}".strip()[:500]
 
         # Build complete article evidence list (retained + sample excluded)
         complete_article_list: list[ScoredArticle] = list(scored_retained)

@@ -1,23 +1,16 @@
 import asyncio
 import threading
-from typing import Callable
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
-from app.config import settings
-from app.core.models import IngestedArticle, ScoredArticle
-from app.services.deduplication_service import DeduplicationService
-from app.utils.logging import logger
-
+from typing import Any
 
 from app.core.constants import DIRECTIONAL_THRESHOLD
+from app.core.models import IngestedArticle, ScoredArticle
+from app.services.deduplication_service import DeduplicationService
+from app.services.scoring import ClassProbs, SentimentScorer, get_default_scorer
+
 
 class FinBERTService:
     _instance: "FinBERTService | None" = None
     _lock = threading.Lock()
-    _pipeline = None
-    _tokenizer = None
-    _is_mock: bool = False
-    _mock_fn: Callable[[str], dict[str, float]] | None = None
-    _status: str = "NOT_LOADED"
 
     @classmethod
     def get_instance(cls) -> "FinBERTService":
@@ -29,112 +22,24 @@ class FinBERTService:
 
     @classmethod
     def get_status(cls) -> str:
-        """Return truthful initialization status of the FinBERT model."""
-        if cls._is_mock:
-            return "LOADED"
-        if cls._instance is not None:
-            if cls._instance._pipeline is not None:
-                return "LOADED"
-            return cls._instance._status
-        return cls._status
+        """Return truthful initialization status of the active SentimentScorer."""
+        scorer = get_default_scorer()
+        return getattr(scorer, "state", "NOT_LOADED")
 
-    @classmethod
-    def set_mock_mode(cls, mock_fn: Callable[[str], dict[str, float]] | None = None):
-        """Enable deterministic mock mode for testing without GPU/model download."""
-        cls._is_mock = True
-        cls._status = "LOADED"
-        cls._mock_fn = staticmethod(mock_fn) if mock_fn else None
-
-    @classmethod
-    def reset_mock_mode(cls):
-        cls._is_mock = False
-        cls._status = "NOT_LOADED"
-        cls._mock_fn = None
-
-    def _ensure_model_loaded(self):
-        if self._is_mock:
-            self._status = "LOADED"
-            return
-        if self._pipeline is None:
-            with self._lock:
-                if self._pipeline is None:
-                    self._status = "LOADING"
-                    logger.info(f"Loading local FinBERT model ({settings.FINBERT_MODEL_NAME})...")
-                    try:
-                        self._tokenizer = AutoTokenizer.from_pretrained(settings.FINBERT_MODEL_NAME)
-                        model = AutoModelForSequenceClassification.from_pretrained(settings.FINBERT_MODEL_NAME)
-                        # top_k=None ensures all 3 classes: positive, negative, neutral are returned
-                        self._pipeline = pipeline(
-                            "sentiment-analysis",
-                            model=model,
-                            tokenizer=self._tokenizer,
-                            top_k=None,
-                            device=-1  # CPU inference
-                        )
-                        self._status = "LOADED"
-                        logger.info("FinBERT model successfully loaded into memory.")
-                    except Exception as e:
-                        self._status = "FAILED"
-                        logger.error(f"Failed to load FinBERT model: {e}")
-                        raise
-
-    def _prepare_text(self, title: str, summary: str) -> str:
-        """Tokenize text and truncate strictly to 512 tokens using FinBERT tokenizer."""
-        combined = f"{title}. {summary}".strip()
-        if self._is_mock or self._tokenizer is None:
-            # Word slicing fallback for mock mode
-            words = combined.split()[: settings.MAX_EXCERPT_TOKENS]
-            return " ".join(words)[:1200]
-        
-        tokens = self._tokenizer.encode(combined, max_length=512, truncation=True)
-        return self._tokenizer.decode(tokens, skip_special_tokens=True)
-
-    def _score_single_text_sync(self, text: str) -> dict[str, float]:
-        """Synchronous score of a single text returning {positive, negative, neutral} probabilities."""
-        if self._is_mock:
-            if FinBERTService._mock_fn is not None:
-                fn = FinBERTService._mock_fn
-                if hasattr(fn, "__func__"):
-                    fn = fn.__func__
-                return fn(text)
-            # Default mock rule: check word tokens cleanly
-            import re
-            lower = text.lower()
-            tokens = set(re.findall(r"\b[a-z]+\b", lower))
-            pos_words = {"beat", "record", "growth", "surge", "gain", "profit", "bull", "rally", "outperform", "robust"}
-            neg_words = {"miss", "fall", "drop", "loss", "decline", "bear", "lawsuit", "slashes", "cut", "warned", "restrictions"}
-
-            if tokens & neg_words and not (tokens & pos_words):
-                return {"positive": 0.05, "negative": 0.85, "neutral": 0.10}
-            elif tokens & pos_words and not (tokens & neg_words):
-                return {"positive": 0.85, "negative": 0.05, "neutral": 0.10}
-            elif tokens & neg_words:
-                return {"positive": 0.05, "negative": 0.85, "neutral": 0.10}
-            elif tokens & pos_words:
-                return {"positive": 0.85, "negative": 0.05, "neutral": 0.10}
-            else:
-                return {"positive": 0.10, "negative": 0.10, "neutral": 0.80}
-
-        self._ensure_model_loaded()
-        results = self._pipeline(text)[0]  # List of dicts: [{'label': 'positive', 'score': 0.88}, ...]
-        scores: dict[str, float] = {}
-        for r in results:
-            scores[r["label"].lower()] = round(float(r["score"]), 4)
-        return scores
-
-    def _batch_score_articles_sync(
-        self, articles: list[IngestedArticle], cluster_map: dict[str, str]
+    def _build_scored_articles(
+        self,
+        articles: list[IngestedArticle],
+        lead_texts: list[str],
+        probs_list: list[ClassProbs],
+        cluster_map: dict[str, str],
     ) -> list[ScoredArticle]:
-        """Runs batch FinBERT inference synchronously across all articles."""
         scored_list: list[ScoredArticle] = []
-
-        for art in articles:
-            prepared_lead = self._prepare_text(art.title, art.summary)
-            scores = self._score_single_text_sync(prepared_lead)
-
-            p_pos = scores.get("positive", 0.0)
-            p_neg = scores.get("negative", 0.0)
-            p_neu = scores.get("neutral", 0.0)
+        for i, art in enumerate(articles):
+            lead_text = lead_texts[i]
+            probs = probs_list[i] if i < len(probs_list) else ClassProbs(0.0, 0.0, 1.0)
+            p_pos = probs.positive
+            p_neg = probs.negative
+            p_neu = probs.neutral
 
             # Directional Score formula: P(pos) - P(neg) in [-1.0, 1.0]
             diff = round(p_pos - p_neg, 4)
@@ -164,7 +69,7 @@ class FinBERTService:
                     canonical_url=art.canonical_url,
                     title=art.title,
                     published_at_utc=art.published_at_utc,
-                    lead_text=prepared_lead,
+                    lead_text=lead_text,
                     finbert_positive=p_pos,
                     finbert_negative=p_neg,
                     finbert_neutral=p_neu,
@@ -177,16 +82,62 @@ class FinBERTService:
                     cluster_id=cluster_id,
                 )
             )
-
         return scored_list
 
-    async def score_articles_async(
-        self, articles: list[IngestedArticle], cluster_map: dict[str, str]
+    def _batch_score_articles_sync(
+        self,
+        articles: list[IngestedArticle],
+        cluster_map: dict[str, str],
+        scorer: SentimentScorer | None = None,
     ) -> list[ScoredArticle]:
-        """
-        Runs FinBERT inference offloaded to a worker thread pool via asyncio.to_thread,
-        preventing any blocking of FastAPI's async event loop.
-        """
+        """Synchronous batch scoring helper for sync tests/callers."""
         if not articles:
             return []
-        return await asyncio.to_thread(self._batch_score_articles_sync, articles, cluster_map)
+        active_scorer = scorer or get_default_scorer()
+        lead_texts = [f"{art.title}. {art.summary}".strip()[:500] for art in articles]
+
+        if callable(active_scorer):
+            probs_list: list[ClassProbs] = []
+            for t in lead_texts:
+                res = active_scorer(t)
+                if isinstance(res, ClassProbs):
+                    probs_list.append(res)
+                elif isinstance(res, dict):
+                    probs_list.append(
+                        ClassProbs(
+                            positive=float(res.get("positive", 0.0)),
+                            negative=float(res.get("negative", 0.0)),
+                            neutral=float(res.get("neutral", 0.0)),
+                        )
+                    )
+                else:
+                    probs_list.append(ClassProbs(0.0, 0.0, 1.0))
+        else:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as ex:
+                    probs_list = ex.submit(asyncio.run, active_scorer.score(lead_texts)).result()
+            else:
+                probs_list = asyncio.run(active_scorer.score(lead_texts))
+
+        return self._build_scored_articles(articles, lead_texts, probs_list, cluster_map)
+
+    async def score_articles_async(
+        self,
+        articles: list[IngestedArticle],
+        cluster_map: dict[str, str],
+        scorer: SentimentScorer | None = None,
+    ) -> list[ScoredArticle]:
+        """Runs FinBERT inference using the injected or default SentimentScorer."""
+        if not articles:
+            return []
+        active_scorer = scorer or get_default_scorer()
+        lead_texts = [f"{art.title}. {art.summary}".strip()[:500] for art in articles]
+        probs_list = await active_scorer.score(lead_texts)
+        return self._build_scored_articles(articles, lead_texts, probs_list, cluster_map)

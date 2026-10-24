@@ -5,6 +5,8 @@ from collections.abc import Iterable
 from types import SimpleNamespace
 from typing import Any
 
+from app.services.scoring import ClassProbs
+
 POSITIVE_WORDS = frozenset(
     {"beat", "record", "growth", "surge", "gain", "profit", "bull", "rally", "outperform", "robust"}
 )
@@ -20,6 +22,8 @@ NEUTRAL_PROBS = {"positive": 0.10, "negative": 0.10, "neutral": 0.80}
 class KeywordScorer:
     """Stand-in for FinBERT: classifies text with keyword lists; negative words win when both appear."""
 
+    state: str = "LOADED"
+
     def __init__(
         self,
         positive_words: Iterable[str] = POSITIVE_WORDS,
@@ -27,6 +31,10 @@ class KeywordScorer:
     ):
         self.positive_words = frozenset(positive_words)
         self.negative_words = frozenset(negative_words)
+        self.state = "LOADED"
+
+    def load(self) -> None:
+        self.state = "LOADED"
 
     def __call__(self, text: str) -> dict[str, float]:
         tokens = set(re.findall(r"\b[a-z]+\b", text.lower()))
@@ -35,6 +43,19 @@ class KeywordScorer:
         if tokens & self.positive_words:
             return dict(POSITIVE_PROBS)
         return dict(NEUTRAL_PROBS)
+
+    async def score(self, texts: list[str]) -> list[ClassProbs]:
+        results = []
+        for text in texts:
+            d = self(text)
+            results.append(
+                ClassProbs(
+                    positive=d.get("positive", 0.0),
+                    negative=d.get("negative", 0.0),
+                    neutral=d.get("neutral", 0.0),
+                )
+            )
+        return results
 
 
 def make_completion(

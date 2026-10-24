@@ -31,10 +31,11 @@ from httpx import ASGITransport, AsyncClient  # noqa: E402
 
 from app.api.routes import _background_tasks  # noqa: E402
 from app.core.enums import ProviderType  # noqa: E402
-from app.core.models import IngestedArticle  # noqa: E402
+from app.core.models import IngestedArticle, PipelineDeps  # noqa: E402
 from app.db.database import Base, SessionLocal, engine  # noqa: E402
 from app.main import app, run_migrations  # noqa: E402
 from app.services.finbert_service import FinBERTService  # noqa: E402
+from app.services.scoring import FinBERTScorer, set_default_scorer  # noqa: E402
 from app.services.ticker_service import TickerService  # noqa: E402
 from app.utils.rate_limiter import rate_limiter  # noqa: E402
 from fakes import KeywordScorer  # noqa: E402
@@ -187,11 +188,26 @@ def frozen_now(request) -> Iterator[datetime]:
 def _finbert_mock(request):
     """Score with the deterministic ``KeywordScorer``; tests marked ``slow`` load the real FinBERT."""
     if _is_marked(request, "slow"):
+        real_scorer = FinBERTScorer.get_instance()
+        set_default_scorer(real_scorer)
+        if hasattr(app, "state"):
+            if not hasattr(app.state, "pipeline_deps") or app.state.pipeline_deps is None:
+                app.state.pipeline_deps = PipelineDeps(scorer=real_scorer)
+            else:
+                app.state.pipeline_deps.scorer = real_scorer
         yield
+        set_default_scorer(None)
         return
-    FinBERTService.set_mock_mode(KeywordScorer())
+
+    fake_scorer = KeywordScorer()
+    set_default_scorer(fake_scorer)
+    if hasattr(app, "state"):
+        if not hasattr(app.state, "pipeline_deps") or app.state.pipeline_deps is None:
+            app.state.pipeline_deps = PipelineDeps(scorer=fake_scorer)
+        else:
+            app.state.pipeline_deps.scorer = fake_scorer
     yield
-    FinBERTService.reset_mock_mode()
+    set_default_scorer(None)
 
 
 # ---------------------------------------------------------------------------

@@ -70,8 +70,9 @@ async def test_finbert_scoring_positive_and_negative():
 
 def test_neutral_zero_weighting_rule():
     finbert = FinBERTService.get_instance()
-    # Configure custom mock function returning high neutral
-    FinBERTService.set_mock_mode(lambda text: {"positive": 0.20, "negative": 0.15, "neutral": 0.65})
+    # Configure custom scorer returning high neutral
+    def custom_scorer(text: str) -> dict[str, float]:
+        return {"positive": 0.20, "negative": 0.15, "neutral": 0.65}
 
     now = datetime.now(timezone.utc)
     art = IngestedArticle(
@@ -85,7 +86,7 @@ def test_neutral_zero_weighting_rule():
         retrieved_at_utc=now,
     )
 
-    results = finbert._batch_score_articles_sync([art], {})
+    results = finbert._batch_score_articles_sync([art], {}, scorer=custom_scorer)
     assert len(results) == 1
     scored = results[0]
 
@@ -98,7 +99,8 @@ def test_moderate_neutral_with_strong_directional_signal_not_zeroed():
     """Verify F-12: An article with p_neu >= 0.60 but strong directional diff (>= 0.15) is not zeroed."""
     finbert = FinBERTService.get_instance()
     # p_pos = 0.35, p_neg = 0.05, p_neu = 0.60 -> diff = 0.30 >= 0.15 threshold
-    FinBERTService.set_mock_mode(lambda text: {"positive": 0.35, "negative": 0.05, "neutral": 0.60})
+    def custom_scorer(text: str) -> dict[str, float]:
+        return {"positive": 0.35, "negative": 0.05, "neutral": 0.60}
 
     now = datetime.now(timezone.utc)
     art = IngestedArticle(
@@ -112,7 +114,7 @@ def test_moderate_neutral_with_strong_directional_signal_not_zeroed():
         retrieved_at_utc=now,
     )
 
-    results = finbert._batch_score_articles_sync([art], {})
+    results = finbert._batch_score_articles_sync([art], {}, scorer=custom_scorer)
     assert len(results) == 1
     scored = results[0]
 

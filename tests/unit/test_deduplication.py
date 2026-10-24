@@ -358,7 +358,9 @@ def test_env_example_matches_config_defaults():
 
     assert int(env_vars["MAX_RETAINED_ARTICLES"]) == settings.MAX_RETAINED_ARTICLES == 350
     assert int(env_vars["MAX_LLM_CANDIDATES"]) == settings.MAX_LLM_CANDIDATES == 100
-    assert int(env_vars["MAX_EXCERPT_TOKENS"]) == settings.MAX_EXCERPT_TOKENS == 150
+    assert int(env_vars["FINBERT_BATCH_SIZE"]) == settings.FINBERT_BATCH_SIZE == 16
+    assert (env_vars["FINBERT_PRELOAD"].lower() == "true") == settings.FINBERT_PRELOAD is True
+    assert int(env_vars["FINBERT_TORCH_THREADS"]) == settings.FINBERT_TORCH_THREADS == 0
     assert int(env_vars["MAX_PROMPT_TOKENS"]) == settings.MAX_PROMPT_TOKENS == 8000
     assert int(env_vars["MAX_COMPLETION_TOKENS"]) == settings.MAX_COMPLETION_TOKENS == 1000
     assert float(env_vars["MAX_COST_PER_RUN_USD"]) == settings.MAX_COST_PER_RUN_USD == 0.05

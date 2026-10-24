@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -56,7 +57,7 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    # Startup: Initialize shared HTTP client and PipelineDeps
+    # Startup: Initialize shared HTTP client, FinBERTScorer, and PipelineDeps
     import httpx
     http_client = httpx.AsyncClient(
         timeout=httpx.Timeout(8.0, connect=4.0),
@@ -64,18 +65,29 @@ async def lifespan(app: FastAPI):
         follow_redirects=True,
         limits=httpx.Limits(max_keepalive_connections=20, max_connections=50),
     )
+    from app.services.scoring import FinBERTScorer
+    scorer = FinBERTScorer.get_instance()
     from app.core.models import PipelineDeps
     pipeline_deps = PipelineDeps(
         http_client=http_client,
+        scorer=scorer,
         session_factory=SessionLocal,
     )
     app.state.http_client = http_client
     app.state.pipeline_deps = pipeline_deps
+    app.state.scorer = scorer
+
+    preload_task = None
+    if settings.FINBERT_PRELOAD:
+        preload_task = asyncio.create_task(scorer.ensure_loaded())
 
     try:
         yield
     finally:
         logger.info("Shutting down Market Sentiment Analysis application.")
+        if preload_task and not preload_task.done():
+            preload_task.cancel()
+        scorer.shutdown()
         await http_client.aclose()
         from app.services.llm_service import LLMService
         await LLMService.close_client()

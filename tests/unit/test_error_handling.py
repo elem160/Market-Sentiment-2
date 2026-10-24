@@ -107,9 +107,9 @@ async def test_health_check_healthy(async_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_health_check_not_loaded():
     """Verify FinBERTService reports NOT_LOADED when uninitialized."""
-    FinBERTService.reset_mock_mode()
-    FinBERTService._pipeline = None
-    FinBERTService._status = "NOT_LOADED"
+    from app.services.scoring import FinBERTScorer, set_default_scorer
+    scorer = FinBERTScorer()
+    set_default_scorer(scorer)
     assert FinBERTService.get_status() == "NOT_LOADED"
 
 
