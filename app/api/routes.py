@@ -36,7 +36,7 @@ from app.db.repository import SentimentRepository
 from app.services.ticker_service import TickerService
 from app.services.finbert_service import FinBERTService
 from app.services.orchestrator import AnalysisOrchestrator
-from app.utils.lock_manager import TickerLockManager
+from app.services.job_manager import JobManager, get_default_job_manager
 from app.utils.rate_limiter import rate_limiter
 from app.utils.logging import logger
 from app.utils.executors import run_db
@@ -44,7 +44,7 @@ from app.utils.executors import run_db
 router = APIRouter(prefix="/api/v1")
 
 # Strong reference set to prevent background tasks from being garbage collected mid-execution (F-03)
-_background_tasks: set[asyncio.Task] = set()
+_background_tasks: set[asyncio.Task] = get_default_job_manager()._background_tasks
 
 
 async def run_background_job(
@@ -56,41 +56,38 @@ async def run_background_job(
     deps: PipelineDeps | None = None,
 ):
     """
-    Durable in-app asynchronous background worker:
-    Executes the 6-stage pipeline under a per-ticker mutex for request coalescing,
-    persisting stage progress and completing the job record in SQLite.
+    Durable in-app asynchronous background worker.
+    Maintained for direct invocation and unit test backward compatibility.
     """
-    lock = await TickerLockManager.get_lock(ticker)
-    async with lock:
-        try:
-            async def on_progress(stage: PipelineStage, progress_pct: float, message: str):
-                await run_db(SentimentRepository.update_job_stage, job_id, stage, progress_pct, message)
+    try:
+        async def on_progress(stage: PipelineStage, progress_pct: float, message: str):
+            await run_db(SentimentRepository.update_job_stage, job_id, stage, progress_pct, message)
 
-            result = await asyncio.wait_for(
-                AnalysisOrchestrator.run_pipeline(
-                    ticker=ticker,
-                    db=None,
-                    force_refresh=force_refresh,
-                    enable_llm=enable_llm,
-                    on_progress=on_progress,
-                    asset=asset,
-                    deps=deps,
-                ),
-                timeout=float(settings.PIPELINE_TIMEOUT_SECONDS),
-            )
-            await run_db(SentimentRepository.complete_job, job_id, result.run_id)
-            logger.info(f"Job {job_id} for {ticker} completed successfully -> Run ID: {result.run_id}")
-        except asyncio.TimeoutError:
-            timeout_msg = f"Pipeline execution timed out after {settings.PIPELINE_TIMEOUT_SECONDS}s"
-            logger.error(f"Job {job_id} for {ticker} timed out: {timeout_msg}")
-            await run_db(SentimentRepository.fail_job, job_id, timeout_msg)
-        except SentimentAppException as e:
-            logger.warning(f"Job {job_id} for {ticker} failed with domain error: {e.message}")
-            await run_db(SentimentRepository.fail_job, job_id, e.message)
-        except Exception as e:
-            error_id = str(uuid.uuid4())
-            logger.exception(f"Job {job_id} for {ticker} encountered unexpected error [error_id={error_id}]: {e}")
-            await run_db(SentimentRepository.fail_job, job_id, f"Internal error (ref {error_id})")
+        result = await asyncio.wait_for(
+            AnalysisOrchestrator.run_pipeline(
+                ticker=ticker,
+                db=None,
+                force_refresh=force_refresh,
+                enable_llm=enable_llm,
+                on_progress=on_progress,
+                asset=asset,
+                deps=deps,
+            ),
+            timeout=float(settings.PIPELINE_TIMEOUT_SECONDS),
+        )
+        await run_db(SentimentRepository.complete_job, job_id, result.run_id)
+        logger.info(f"Job {job_id} for {ticker} completed successfully -> Run ID: {result.run_id}")
+    except asyncio.TimeoutError:
+        timeout_msg = f"Pipeline execution timed out after {settings.PIPELINE_TIMEOUT_SECONDS}s"
+        logger.error(f"Job {job_id} for {ticker} timed out: {timeout_msg}")
+        await run_db(SentimentRepository.fail_job, job_id, timeout_msg)
+    except SentimentAppException as e:
+        logger.warning(f"Job {job_id} for {ticker} failed with domain error: {e.message}")
+        await run_db(SentimentRepository.fail_job, job_id, e.message)
+    except Exception as e:
+        error_id = str(uuid.uuid4())
+        logger.exception(f"Job {job_id} for {ticker} encountered unexpected error [error_id={error_id}]: {e}")
+        await run_db(SentimentRepository.fail_job, job_id, f"Internal error (ref {error_id})")
 
 
 @router.post(
@@ -120,38 +117,39 @@ async def analyze_ticker(
     asset = await TickerService.resolve_ticker_async(req.ticker)
     normalized_ticker = asset.ticker
 
+    from app.core.session_window import compute_session_window, compute_session_bucket
+    session = compute_session_window()
+    session_bucket, bucket_seconds = compute_session_bucket(session)
+    cache_key = AnalysisOrchestrator.compute_cache_key(
+        normalized_ticker, session_bucket, "yfinance_rss", req.enable_llm
+    )
+
     # 3. Quick Cache Check
     if not req.force_refresh:
-        from app.core.session_window import compute_session_window, compute_session_bucket
-        session = compute_session_window()
-        session_bucket, bucket_seconds = compute_session_bucket(session)
-        cache_key = AnalysisOrchestrator.compute_cache_key(
-            normalized_ticker, session_bucket, "yfinance_rss", req.enable_llm
-        )
         cached = await run_db(SentimentRepository.get_cached_run, cache_key, bucket_seconds)
         if cached:
             response.status_code = status.HTTP_200_OK
             return cached
 
-    # 4. Create Background Job
-    job_id = str(uuid.uuid4())
-    await run_db(SentimentRepository.create_job, job_id, normalized_ticker)
+    # 4. Submit to JobManager
+    job_manager: JobManager = (
+        getattr(request.app.state, "job_manager", None)
+        if hasattr(request, "app")
+        else None
+    )
+    if job_manager is None:
+        job_manager = get_default_job_manager()
 
     deps = getattr(request.app.state, "pipeline_deps", None) if hasattr(request, "app") else None
 
-    # Launch in-app async background task with strong reference to prevent GC collection (F-03)
-    task = asyncio.create_task(
-        run_background_job(
-            job_id=job_id,
-            ticker=normalized_ticker,
-            force_refresh=req.force_refresh,
-            enable_llm=req.enable_llm,
-            asset=asset,
-            deps=deps,
-        )
+    job_id, coalesced, max_wait_seconds = await job_manager.submit(
+        ticker=normalized_ticker,
+        cache_key=cache_key,
+        force_refresh=req.force_refresh,
+        enable_llm=req.enable_llm,
+        asset=asset,
+        deps=deps,
     )
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
 
     response.status_code = status.HTTP_202_ACCEPTED
     return JobCreatedResponse(
@@ -160,7 +158,8 @@ async def analyze_ticker(
         status=JobStatus.QUEUED,
         poll_url=f"/api/v1/jobs/{job_id}",
         events_url=f"/api/v1/jobs/{job_id}/events",
-        max_wait_seconds=settings.PIPELINE_TIMEOUT_SECONDS + 60,
+        max_wait_seconds=max_wait_seconds,
+        coalesced=coalesced,
     )
 
 
@@ -193,94 +192,32 @@ def get_job_status(
 @router.get("/jobs/{job_id}/events")
 async def stream_job_events(
     job_id: str,
+    request: Request,
     client_ip: str = Depends(get_client_ip),
 ):
     """
     Server-Sent Events (SSE) stream for real-time live pipeline progress.
-    Emits progress, completed, and failed events.
+    Emits progress, completed, and failed events with periodic heartbeats (: ping\n\n).
     """
     rate_limiter.check(client_ip, max_requests=settings.RATE_LIMIT_JOBS_PER_MINUTE)
 
-    def _fetch_job():
-        db: Session = SessionLocal()
-        try:
-            return SentimentRepository.get_job(db, job_id)
-        finally:
-            db.close()
+    job_manager: JobManager = (
+        getattr(request.app.state, "job_manager", None)
+        if hasattr(request, "app")
+        else None
+    )
+    if job_manager is None:
+        job_manager = get_default_job_manager()
 
-    # Unknown job on /jobs/{id}/events -> 404 before streaming
-    initial_job = await asyncio.to_thread(_fetch_job)
-    if not initial_job:
-        raise JobNotFoundException(job_id)
-
-    async def event_generator():
-        last_stage = None
-        last_pct = -1.0
-        event_id = 1
-        max_wait_seconds = settings.PIPELINE_TIMEOUT_SECONDS + 60
-        start_time = asyncio.get_event_loop().time()
-
-        while True:
-            job = await asyncio.to_thread(_fetch_job)
-            if not job:
-                failed_evt = JobFailedEvent(
-                    job_id=job_id,
-                    status="FAILED",
-                    error_code="JOB_NOT_FOUND",
-                    error_message=f"Job '{job_id}' not found.",
-                )
-                yield f"id: {event_id}\nevent: {SSE_EVENT_FAILED}\ndata: {failed_evt.model_dump_json()}\n\n"
-                break
-
-            if job.status == JobStatus.COMPLETED.value:
-                completed_evt = JobCompletedEvent(
-                    job_id=job.id,
-                    status="COMPLETED",
-                    run_id=job.run_id or "",
-                    message=job.message or "Analysis complete.",
-                )
-                yield f"id: {event_id}\nevent: {SSE_EVENT_COMPLETED}\ndata: {completed_evt.model_dump_json()}\n\n"
-                break
-
-            if job.status == JobStatus.FAILED.value:
-                failed_evt = JobFailedEvent(
-                    job_id=job.id,
-                    status="FAILED",
-                    error_code="JOB_FAILED",
-                    error_message=job.error_message or "Unknown failure",
-                )
-                yield f"id: {event_id}\nevent: {SSE_EVENT_FAILED}\ndata: {failed_evt.model_dump_json()}\n\n"
-                break
-
-            # Emit progress update if changed
-            if job.stage != last_stage or abs(job.progress_pct - last_pct) > 0.04:
-                last_stage = job.stage
-                last_pct = job.progress_pct
-                progress_evt = JobProgressEvent(
-                    job_id=job.id,
-                    ticker=job.ticker,
-                    status=JobStatus(job.status),
-                    stage=PipelineStage(job.stage),
-                    progress_pct=job.progress_pct,
-                    message=job.message,
-                )
-                yield f"id: {event_id}\nevent: {SSE_EVENT_PROGRESS}\ndata: {progress_evt.model_dump_json()}\n\n"
-                event_id += 1
-
-            if asyncio.get_event_loop().time() - start_time > max_wait_seconds:
-                timeout_evt = JobFailedEvent(
-                    job_id=job.id,
-                    status="FAILED",
-                    error_code="STREAM_TIMEOUT",
-                    error_message="SSE stream timeout",
-                )
-                yield f"id: {event_id}\nevent: {SSE_EVENT_FAILED}\ndata: {timeout_evt.model_dump_json()}\n\n"
-                break
-
-            await asyncio.sleep(0.5)
+    # Pre-check if job exists (either in-flight or in DB) -> 404 before opening stream
+    inflight = job_manager.get_job(job_id)
+    if not inflight:
+        initial_job = await run_db(SentimentRepository.get_job, job_id)
+        if not initial_job:
+            raise JobNotFoundException(job_id)
 
     return StreamingResponse(
-        event_generator(),
+        job_manager.stream_events(job_id, request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

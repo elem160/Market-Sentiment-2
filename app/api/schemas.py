@@ -56,6 +56,7 @@ class JobCreatedResponse(BaseModel):
     poll_url: str
     events_url: str
     max_wait_seconds: int = 150
+    coalesced: bool = False
 
 
 class JobStatusResponse(BaseModel):

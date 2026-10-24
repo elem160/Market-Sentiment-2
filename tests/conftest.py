@@ -216,6 +216,10 @@ def _finbert_mock(request):
 
 async def drain_background_tasks(timeout: float = 5.0) -> None:
     """Wait for in-app background jobs; cancel whatever is still running after ``timeout``."""
+    from app.services.job_manager import get_default_job_manager
+    jm = get_default_job_manager()
+    await jm.drain(timeout=timeout)
+
     loop = asyncio.get_running_loop()
     foreign = {t for t in _background_tasks if t.get_loop() is not loop}
     _background_tasks.difference_update(foreign)

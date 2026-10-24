@@ -367,5 +367,8 @@ def test_env_example_matches_config_defaults():
     assert env_vars["LLM_MODEL_ID"] == settings.LLM_MODEL_ID == "nvidia/nemotron-3-ultra-550b-a55b:free"
     assert env_vars["FINBERT_MODEL_NAME"] == settings.FINBERT_MODEL_NAME == "ProsusAI/finbert"
     assert env_vars["LLM_FALLBACK_MODEL_ID"] == settings.LLM_FALLBACK_MODEL_ID == "nvidia/nemotron-3-super-120b-a12b:free"
+    assert int(env_vars["MAX_CONCURRENT_PIPELINES"]) == settings.MAX_CONCURRENT_PIPELINES == 2
+    assert float(env_vars["JOB_QUEUE_TIMEOUT_SECONDS"]) == settings.JOB_QUEUE_TIMEOUT_SECONDS == 120.0
+    assert float(env_vars["SSE_HEARTBEAT_SECONDS"]) == settings.SSE_HEARTBEAT_SECONDS == 15.0
 
 

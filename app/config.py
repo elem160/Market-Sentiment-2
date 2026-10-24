@@ -62,6 +62,9 @@ class Settings(BaseSettings):
 
     # Pipeline Execution Timeout (in seconds)
     PIPELINE_TIMEOUT_SECONDS: int = 90
+    MAX_CONCURRENT_PIPELINES: int = 2
+    JOB_QUEUE_TIMEOUT_SECONDS: float = 120.0
+    SSE_HEARTBEAT_SECONDS: float = 15.0
     INGESTION_TIMEOUT_SECONDS: float = 20.0
     YF_NEWS_COUNT: int = 50
     FEED_RETRY_ATTEMPTS: int = 2

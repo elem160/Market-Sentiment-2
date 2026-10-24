@@ -3,7 +3,7 @@ from unittest.mock import patch
 from app.services.orchestrator import AnalysisOrchestrator
 from app.core.models import Asset
 from app.core.enums import AssetType, CacheStatus
-from app.utils.lock_manager import TickerLockManager
+from app.services.job_manager import JobManager
 
 
 @pytest.mark.asyncio
@@ -37,14 +37,21 @@ async def test_cache_hit_and_force_refresh(db_session, sample_aapl_articles):
 
 
 @pytest.mark.asyncio
-async def test_ticker_lock_manager_coalescing():
-    """Verify that lock manager normalizes ticker keys and provides shared mutex."""
-    lock1 = await TickerLockManager.get_lock("AAPL")
-    lock2 = await TickerLockManager.get_lock("aapl")
-    lock3 = await TickerLockManager.get_lock("  AAPL  ")
+async def test_job_manager_request_coalescing():
+    """Verify that concurrent requests for the same cache key coalesce onto the same job_id."""
+    jm = JobManager()
+    cache_key = "test_coalesce_key_123"
 
-    assert lock1 is lock2
-    assert lock2 is lock3
+    with patch.object(jm, "_run_job"):
+        job1_id, coalesced1, _ = await jm.submit("AAPL", cache_key=cache_key)
+        assert coalesced1 is False
 
-    lock_diff = await TickerLockManager.get_lock("MSFT")
-    assert lock1 is not lock_diff
+        job2_id, coalesced2, _ = await jm.submit("AAPL", cache_key=cache_key)
+        assert coalesced2 is True
+        assert job2_id == job1_id
+
+        job_diff_id, coalesced_diff, _ = await jm.submit("MSFT", cache_key="other_cache_key")
+        assert coalesced_diff is False
+        assert job_diff_id != job1_id
+
+    await jm.shutdown()

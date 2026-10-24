@@ -84,6 +84,16 @@ async def lifespan(app: FastAPI):
     app.state.db_executor = db_executor
     app.state.io_executor = io_executor
 
+    from app.services.job_manager import JobManager, set_default_job_manager
+    job_manager = JobManager(
+        max_concurrent=settings.MAX_CONCURRENT_PIPELINES,
+        queue_timeout_seconds=settings.JOB_QUEUE_TIMEOUT_SECONDS,
+        pipeline_timeout_seconds=settings.PIPELINE_TIMEOUT_SECONDS,
+        heartbeat_seconds=settings.SSE_HEARTBEAT_SECONDS,
+    )
+    set_default_job_manager(job_manager)
+    app.state.job_manager = job_manager
+
     preload_task = None
     if settings.FINBERT_PRELOAD:
         preload_task = asyncio.create_task(scorer.ensure_loaded())
@@ -92,6 +102,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         logger.info("Shutting down Market Sentiment Analysis application.")
+        await job_manager.shutdown(timeout=10.0)
         if preload_task and not preload_task.done():
             preload_task.cancel()
         scorer.shutdown()

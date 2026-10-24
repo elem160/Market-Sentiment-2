@@ -85,6 +85,16 @@ class SentimentRepository:
             db.commit()
 
     @staticmethod
+    def cancel_job(db: Session, job_id: str, reason: str = "Server shutdown"):
+        job = db.query(AnalysisJobDB).filter(AnalysisJobDB.id == job_id).first()
+        if job and job.status in (JobStatus.QUEUED.value, JobStatus.PROCESSING.value):
+            job.status = JobStatus.CANCELLED.value
+            job.error_message = reason
+            job.message = f"Cancelled: {reason}"
+            job.updated_at = datetime.now(timezone.utc)
+            db.commit()
+
+    @staticmethod
     def get_job(db: Session, job_id: str) -> AnalysisJobDB | None:
         return db.query(AnalysisJobDB).filter(AnalysisJobDB.id == job_id).first()
 

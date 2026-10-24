@@ -322,6 +322,11 @@
       },
       "JobCreatedResponse": {
         "properties": {
+          "coalesced": {
+            "default": false,
+            "title": "Coalesced",
+            "type": "boolean"
+          },
           "events_url": {
             "title": "Events Url",
             "type": "string"
@@ -1280,7 +1285,7 @@
     },
     "/api/v1/jobs/{job_id}/events": {
       "get": {
-        "description": "Server-Sent Events (SSE) stream for real-time live pipeline progress.\nEmits progress, completed, and failed events.",
+        "description": "Server-Sent Events (SSE) stream for real-time live pipeline progress.\n    Emits progress, completed, and failed events with periodic heartbeats (: ping\n\n).",
         "operationId": "stream_job_events_api_v1_jobs__job_id__events_get",
         "parameters": [
           {
