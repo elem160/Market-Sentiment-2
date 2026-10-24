@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Model Identifiers
     FINBERT_MODEL_NAME: str = "ProsusAI/finbert"
     LLM_MODEL_ID: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
-    LLM_FALLBACK_MODEL_ID: str = ""
+    LLM_FALLBACK_MODEL_ID: str = "nvidia/nemotron-3-super-120b-a12b:free"
     ENABLE_LLM: bool = True
     LLM_REQUEST_TIMEOUT_SECONDS: float = 25.0
     LLM_TIMEOUT_SECONDS: float = 30.0
@@ -113,7 +113,7 @@ class Settings(BaseSettings):
 
     def get_config_hash(self) -> str:
         """Deterministic fingerprint of model IDs and pipeline limits for cache keying."""
-        raw = f"{self.FINBERT_MODEL_NAME}|{self.LLM_MODEL_ID}|{self.MAX_RETAINED_ARTICLES}|{self.MAX_LLM_CANDIDATES}|{self.ENABLE_LLM}"
+        raw = f"{self.FINBERT_MODEL_NAME}|{self.LLM_MODEL_ID}|{self.LLM_FALLBACK_MODEL_ID}|{self.MAX_RETAINED_ARTICLES}|{self.MAX_LLM_CANDIDATES}|{self.ENABLE_LLM}"
         return hashlib.sha256(raw.encode()).hexdigest()[:12]
 
 

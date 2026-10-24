@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import re
 import time
 from typing import Any
@@ -14,6 +15,21 @@ from app.core.constants import DIRECTIONAL_THRESHOLD
 from app.utils.logging import logger
 
 CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def estimate_prompt_tokens(text: str) -> int:
+    """Bounded conservative token estimation for LLM prompts.
+
+    Uses whichever is higher:
+    - 1 token per 3.0 characters (conservative for dense formatting/symbols)
+    - 1.35 tokens per whitespace-separated word + 4 overhead tokens
+    Ensures prompts are never underestimated against real tokenizers.
+    """
+    if not text:
+        return 0
+    char_bound = math.ceil(len(text) / 3.0)
+    word_bound = math.ceil(len(text.split()) * 1.35)
+    return max(char_bound, word_bound) + 4
 
 
 def sanitize_text(text: str, max_chars: int | None = None) -> str:
@@ -111,9 +127,31 @@ class LLMService:
         safe_ticker = sanitize_text(ticker, max_chars=32)
         safe_company = sanitize_text(company_name, max_chars=100)
 
-        # Build candidate lines and trim to fit MAX_PROMPT_TOKENS
-        base_prompt_chars = len(system_prompt) + len(f"Asset: {safe_ticker} ({safe_company})\n\n<untrusted_headlines_catalog>\n</untrusted_headlines_catalog>\n\nSelect the indices of true market-moving catalysts and provide an executive summary. Reply strictly with JSON.")
-        
+        # Build candidate lines and trim to strictly fit MAX_PROMPT_TOKENS
+        base_user_prompt = (
+            f"Asset: {safe_ticker} ({safe_company})\n\n"
+            "<untrusted_headlines_catalog>\n"
+            "\n"
+            "</untrusted_headlines_catalog>\n\n"
+            "Select the indices of true market-moving catalysts and provide an executive summary. Reply strictly with JSON."
+        )
+        base_prompt_tokens = estimate_prompt_tokens(system_prompt) + estimate_prompt_tokens(base_user_prompt)
+
+        # If system prompt + base template alone exceeds MAX_PROMPT_TOKENS, skip immediately
+        if base_prompt_tokens > settings.MAX_PROMPT_TOKENS:
+            logger.warning(
+                f"Base prompt tokens ({base_prompt_tokens}) exceeds MAX_PROMPT_TOKENS ({settings.MAX_PROMPT_TOKENS}). Skipping LLM synthesis."
+            )
+            return candidate_articles, [], "", {
+                "status": "SKIPPED",
+                "reason": "PROMPT_EXCEEDS_BUDGET",
+                "candidates_sent": 0,
+                "attempts": [],
+            }
+
+        user_prompt = ""
+        est_total_tokens = base_prompt_tokens
+
         while eval_candidates:
             catalog_lines = []
             for i, art in enumerate(eval_candidates, 1):
@@ -121,21 +159,31 @@ class LLMService:
                 safe_title = sanitize_text(art.title, max_chars=200)
                 safe_pub = sanitize_text(art.canonical_publisher, max_chars=60)
                 catalog_lines.append(f"[{i}] {safe_title} (Source: {safe_pub}, Sentiment: {sentiment})")
-            
+
             catalog_text = "\n".join(catalog_lines)
-            est_total_tokens = (base_prompt_chars + len(catalog_text)) // 4
-            if est_total_tokens <= settings.MAX_PROMPT_TOKENS or len(eval_candidates) <= 1:
+            user_prompt = (
+                f"Asset: {safe_ticker} ({safe_company})\n\n"
+                "<untrusted_headlines_catalog>\n"
+                f"{catalog_text}\n"
+                "</untrusted_headlines_catalog>\n\n"
+                "Select the indices of true market-moving catalysts and provide an executive summary. Reply strictly with JSON."
+            )
+            est_total_tokens = estimate_prompt_tokens(system_prompt) + estimate_prompt_tokens(user_prompt)
+            if est_total_tokens <= settings.MAX_PROMPT_TOKENS:
                 break
-            # Drop lowest-confidence candidate
+            # Drop lowest-confidence candidate to fit budget
             eval_candidates.pop()
 
-        user_prompt = (
-            f"Asset: {safe_ticker} ({safe_company})\n\n"
-            "<untrusted_headlines_catalog>\n"
-            f"{catalog_text}\n"
-            "</untrusted_headlines_catalog>\n\n"
-            "Select the indices of true market-moving catalysts and provide an executive summary. Reply strictly with JSON."
-        )
+        if not eval_candidates or est_total_tokens > settings.MAX_PROMPT_TOKENS:
+            logger.warning(
+                f"Prompt tokens ({est_total_tokens}) exceeds MAX_PROMPT_TOKENS ({settings.MAX_PROMPT_TOKENS}) even after candidate trimming. Skipping LLM synthesis."
+            )
+            return candidate_articles, [], "", {
+                "status": "SKIPPED",
+                "reason": "PROMPT_EXCEEDS_BUDGET",
+                "candidates_sent": 0,
+                "attempts": [],
+            }
 
         # Build candidate models: settings.LLM_MODEL_ID + optional settings.LLM_FALLBACK_MODEL_ID (no hardcoded models)
         models_to_try: list[str] = [settings.LLM_MODEL_ID]

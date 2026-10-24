@@ -360,4 +360,6 @@ def test_env_example_matches_config_defaults():
     assert float(env_vars["MAX_COST_PER_RUN_USD"]) == settings.MAX_COST_PER_RUN_USD == 0.05
     assert env_vars["LLM_MODEL_ID"] == settings.LLM_MODEL_ID == "nvidia/nemotron-3-ultra-550b-a55b:free"
     assert env_vars["FINBERT_MODEL_NAME"] == settings.FINBERT_MODEL_NAME == "ProsusAI/finbert"
-    assert env_vars["LLM_FALLBACK_MODEL_ID"] == settings.LLM_FALLBACK_MODEL_ID == ""
+    assert env_vars["LLM_FALLBACK_MODEL_ID"] == settings.LLM_FALLBACK_MODEL_ID == "nvidia/nemotron-3-super-120b-a12b:free"
+
+

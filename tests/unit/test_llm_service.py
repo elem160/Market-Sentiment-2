@@ -214,8 +214,8 @@ async def test_max_prompt_tokens_trimming():
     client = FakeLLMClient(make_completion('{"catalysts": [], "synthesis_summary": "Done"}'))
     service.client = client
 
-    # Set very tight MAX_PROMPT_TOKENS so that 3 candidates exceed it, forcing trimming
-    with patch("app.config.settings.MAX_PROMPT_TOKENS", 250):
+    # Set MAX_PROMPT_TOKENS to 520 so that 3 candidates exceed it (~570 tokens), forcing trimming
+    with patch("app.config.settings.MAX_PROMPT_TOKENS", 520):
         _, _, _, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art1, art2, art3])
         assert telemetry["candidates_sent"] < 3
         user_prompt = client.calls[0]["messages"][1]["content"]
@@ -258,3 +258,34 @@ async def test_client_closed_on_shutdown():
     await LLMService.close_client()
     assert fake_client.closed is True
     assert LLMService._shared_client is None
+
+
+@pytest.mark.asyncio
+async def test_max_prompt_tokens_exceeded_skips_synthesis():
+    """Verify that when the prompt still exceeds MAX_PROMPT_TOKENS with one candidate, LLM is safely skipped."""
+    art = create_candidate("art_1", 0.85, 0.90)
+    service = LLMService()
+    client = FakeLLMClient(make_completion('{"catalysts": [], "synthesis_summary": "Done"}'))
+    service.client = client
+
+    # Set MAX_PROMPT_TOKENS so small (e.g. 50) that even the base prompt cannot fit
+    with patch("app.config.settings.MAX_PROMPT_TOKENS", 50):
+        _, facts, summary, telemetry = await service.verify_and_synthesize("AAPL", "Apple Inc.", [art])
+        assert telemetry["status"] == "SKIPPED"
+        assert telemetry["reason"] == "PROMPT_EXCEEDS_BUDGET"
+        assert len(facts) == 0
+        assert summary == ""
+        assert len(client.calls) == 0
+
+
+def test_config_hash_fingerprint_models():
+    """Verify that config hash changes when either primary or fallback model changes (Decision D5)."""
+    h_orig = settings.get_config_hash()
+
+    with patch.object(settings, "LLM_MODEL_ID", "model/primary-different"):
+        h_primary_changed = settings.get_config_hash()
+        assert h_primary_changed != h_orig
+
+    with patch.object(settings, "LLM_FALLBACK_MODEL_ID", "model/fallback-different"):
+        h_fallback_changed = settings.get_config_hash()
+        assert h_fallback_changed != h_orig
