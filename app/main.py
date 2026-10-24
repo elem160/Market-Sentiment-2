@@ -84,7 +84,12 @@ def custom_openapi():
     components = openapi_schema.setdefault("components", {})
     schemas = components.setdefault("schemas", {})
     for model in (JobProgressEvent, JobCompletedEvent, JobFailedEvent):
-        schemas[model.__name__] = model.model_json_schema()
+        model_schema = model.model_json_schema(ref_template="#/components/schemas/{model}")
+        defs = model_schema.pop("$defs", {})
+        for def_name, def_schema in defs.items():
+            if def_name not in schemas:
+                schemas[def_name] = def_schema
+        schemas[model.__name__] = model_schema
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

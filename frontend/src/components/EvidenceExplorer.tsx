@@ -143,11 +143,11 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
                       age at run: {art.age_hours.toFixed(1)}h
                     </span>
                   )}
-                  {art.effective_weight !== undefined ? (
+                  {art.effective_weight !== undefined && art.effective_weight !== null ? (
                     <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>
                       Eff. Weight: {art.effective_weight.toFixed(3)}
                     </span>
-                  ) : art.final_weight !== undefined ? (
+                  ) : art.final_weight !== undefined && art.final_weight !== null ? (
                     <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
                       Weight: {art.final_weight.toFixed(3)}
                     </span>

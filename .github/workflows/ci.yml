@@ -68,5 +68,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Build
+      - name: Run unit and regression tests
+        run: npm test
+
+      - name: Build static bundle
         run: npm run build
+
+      - name: Verify committed static bundle matches build
+        run: git diff --exit-code ../app/static
+

@@ -380,32 +380,6 @@
         "type": "object"
       },
       "JobProgressEvent": {
-        "$defs": {
-          "JobStatus": {
-            "enum": [
-              "QUEUED",
-              "PROCESSING",
-              "COMPLETED",
-              "FAILED",
-              "CANCELLED"
-            ],
-            "title": "JobStatus",
-            "type": "string"
-          },
-          "PipelineStage": {
-            "enum": [
-              "RESOLVING_TICKER",
-              "INGESTING_NEWS",
-              "FILTERING_DEDUPLICATING",
-              "FINBERT_SCORING",
-              "CATALYST_SYNTHESIS",
-              "AGGREGATING_DECISION",
-              "DONE"
-            ],
-            "title": "PipelineStage",
-            "type": "string"
-          }
-        },
         "properties": {
           "job_id": {
             "title": "Job Id",
@@ -422,10 +396,10 @@
             "type": "number"
           },
           "stage": {
-            "$ref": "#/$defs/PipelineStage"
+            "$ref": "#/components/schemas/PipelineStage"
           },
           "status": {
-            "$ref": "#/$defs/JobStatus"
+            "$ref": "#/components/schemas/JobStatus"
           },
           "ticker": {
             "title": "Ticker",
