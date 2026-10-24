@@ -14,6 +14,10 @@ def test_canonicalize_url():
     raw_url = "https://www.reuters.com/business/tech/apple-results/?utm_source=twitter&utm_medium=social&fbclid=12345#comments"
     expected = "https://www.reuters.com/business/tech/apple-results"
     assert DeduplicationService.canonicalize_url(raw_url) == expected
+    assert DeduplicationService.canonicalize_url("javascript:alert(1)") == ""
+    assert DeduplicationService.canonicalize_url("ftp://example.com/file") == ""
+    assert DeduplicationService.canonicalize_url("data:text/html;base64,...") == ""
+    assert DeduplicationService.canonicalize_url("") == ""
 
 
 def test_normalize_publisher():

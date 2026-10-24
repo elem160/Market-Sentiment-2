@@ -81,6 +81,13 @@
             "$ref": "#/components/schemas/PipelineMode",
             "default": "HYBRID_FINBERT_LLM"
           },
+          "provider_outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderOutcome"
+            },
+            "title": "Provider Outcomes",
+            "type": "array"
+          },
           "rationale": {
             "$ref": "#/components/schemas/PipelineRationale"
           },
@@ -689,6 +696,59 @@
         ],
         "title": "PipelineStage",
         "type": "string"
+      },
+      "ProviderKind": {
+        "enum": [
+          "YFINANCE",
+          "RSS_GOOGLE",
+          "RSS_DIRECT"
+        ],
+        "title": "ProviderKind",
+        "type": "string"
+      },
+      "ProviderOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "default": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "latency_ms": {
+            "default": 0.0,
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "status"
+        ],
+        "title": "ProviderOutcome",
+        "type": "object"
       },
       "ProviderType": {
         "enum": [

@@ -54,17 +54,19 @@ PUBLISHER_NORMALIZATION_MAP = {
 class DeduplicationService:
     @staticmethod
     def canonicalize_url(raw_url: str) -> str:
-        """Strips query tracking parameters, anchors, and trailing slashes."""
+        """Strips query tracking parameters, anchors, and trailing slashes. Non-http(s) URLs become empty."""
         if not raw_url:
             return ""
         parsed = urllib.parse.urlparse(raw_url.strip())
+        if parsed.scheme.lower() not in ("http", "https"):
+            return ""
         query_pairs = urllib.parse.parse_qsl(parsed.query)
         cleaned_query = [
             (k, v) for k, v in query_pairs if k.lower() not in TRACKING_PARAMS
         ]
         new_query = urllib.parse.urlencode(cleaned_query)
         path = parsed.path.rstrip("/")
-        return urllib.parse.urlunparse((parsed.scheme, parsed.netloc.lower(), path, "", new_query, ""))
+        return urllib.parse.urlunparse((parsed.scheme.lower(), parsed.netloc.lower(), path, "", new_query, ""))
 
     @staticmethod
     def normalize_publisher(source_name: str) -> str:
@@ -97,16 +99,22 @@ class DeduplicationService:
         tokens = {t for t in cleaned.split() if len(t) > 2 and t not in STOP_WORDS}
         return tokens
 
-    @classmethod
-    def jaccard_similarity(cls, text_a: str, text_b: str) -> float:
-        """Compute Jaccard token similarity between two headlines."""
-        tokens_a = cls.tokenize(text_a)
-        tokens_b = cls.tokenize(text_b)
+    @staticmethod
+    def jaccard_similarity_tokens(tokens_a: set[str], tokens_b: set[str]) -> float:
+        """Compute Jaccard token similarity between two precomputed token sets."""
         if not tokens_a or not tokens_b:
             return 0.0
         intersection = tokens_a.intersection(tokens_b)
         union = tokens_a.union(tokens_b)
         return len(intersection) / len(union)
+
+    @classmethod
+    def jaccard_similarity(cls, text_a: str, text_b: str) -> float:
+        """Compute Jaccard token similarity between two headlines."""
+        tokens_a = cls.tokenize(text_a)
+        tokens_b = cls.tokenize(text_b)
+        return cls.jaccard_similarity_tokens(tokens_a, tokens_b)
+
 
 
     @classmethod
@@ -186,19 +194,31 @@ class DeduplicationService:
         excluded: list[tuple[IngestedArticle, ExclusionReason, str]] = []
         cluster_map: dict[str, str] = {}
 
-        # Clean URLs first
+        # Clean URLs without mutating raw articles
         cleaned_articles: list[IngestedArticle] = []
         for a in raw_articles:
-            a.canonical_url = cls.canonicalize_url(a.canonical_url)
-            cleaned_articles.append(a)
+            canonical = cls.canonicalize_url(a.canonical_url)
+            if canonical != a.canonical_url:
+                cleaned_articles.append(a.model_copy(update={"canonical_url": canonical}))
+            else:
+                cleaned_articles.append(a)
 
-        # Sort chronologically (earliest first so earliest release becomes cluster primary)
+        # Sort chronologically (prefer dated, earliest copies first)
         sorted_articles = sorted(
             cleaned_articles,
-            key=lambda x: x.published_at_utc or datetime.min.replace(tzinfo=timezone.utc)
+            key=lambda x: (
+                x.published_at_utc is None,
+                x.published_at_utc or datetime.max.replace(tzinfo=timezone.utc),
+            )
         )
 
-        seen_clusters: list[tuple[str, str, IngestedArticle]] = []  # (cluster_id, headline, primary_article)
+        # Precompute Jaccard token sets once per article
+        token_sets: dict[str, set[str]] = {
+            art.article_id: cls.tokenize(art.title)
+            for art in sorted_articles
+        }
+
+        seen_clusters: list[tuple[str, str, IngestedArticle]] = []  # (cluster_id, primary_id, primary_article)
         non_dup_candidates: list[IngestedArticle] = []
 
         if matcher is None:
@@ -218,10 +238,11 @@ class DeduplicationService:
                 continue
 
             # 2. Duplicate / Syndication check
+            art_tokens = token_sets[article.article_id]
             is_dup = False
-            for cluster_id, primary_headline, primary_art in seen_clusters:
-                sim = cls.jaccard_similarity(article.title, primary_headline)
-                same_url = article.canonical_url and (article.canonical_url == primary_art.canonical_url)
+            for cluster_id, primary_id, primary_art in seen_clusters:
+                sim = cls.jaccard_similarity_tokens(art_tokens, token_sets[primary_id])
+                same_url = bool(article.canonical_url and article.canonical_url == primary_art.canonical_url)
                 if sim >= 0.82 or same_url:
                     is_dup = True
                     cluster_map[article.article_id] = cluster_id
@@ -236,13 +257,16 @@ class DeduplicationService:
                 # New distinct event cluster
                 cluster_id = f"clust_{article.article_id}"
                 cluster_map[article.article_id] = cluster_id
-                seen_clusters.append((cluster_id, article.title, article))
+                seen_clusters.append((cluster_id, article.article_id, article))
                 non_dup_candidates.append(article)
 
         # F-05: Sort retained candidates newest first before applying MAX_RETAINED_ARTICLES
         non_dup_candidates.sort(
-            key=lambda x: x.published_at_utc or datetime.min.replace(tzinfo=timezone.utc),
-            reverse=True
+            key=lambda x: (
+                x.published_at_utc is not None,
+                x.published_at_utc or datetime.min.replace(tzinfo=timezone.utc),
+            ),
+            reverse=True,
         )
 
         effective_limit = max_articles if max_articles is not None else settings.MAX_RETAINED_ARTICLES

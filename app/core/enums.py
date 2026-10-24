@@ -41,6 +41,12 @@ class ProviderType(str, Enum):
     FIXTURE = "FIXTURE"
 
 
+class ProviderKind(str, Enum):
+    YFINANCE = "YFINANCE"
+    RSS_GOOGLE = "RSS_GOOGLE"
+    RSS_DIRECT = "RSS_DIRECT"
+
+
 class CatalystCategory(str, Enum):
     EARNINGS = "EARNINGS"
     M_AND_A = "M_AND_A"

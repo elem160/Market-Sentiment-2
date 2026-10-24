@@ -56,10 +56,27 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    # Startup: Initialize shared HTTP client and PipelineDeps
+    import httpx
+    http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(8.0, connect=4.0),
+        headers={"User-Agent": settings.HTTP_USER_AGENT},
+        follow_redirects=True,
+        limits=httpx.Limits(max_keepalive_connections=20, max_connections=50),
+    )
+    from app.core.models import PipelineDeps
+    pipeline_deps = PipelineDeps(
+        http_client=http_client,
+        session_factory=SessionLocal,
+    )
+    app.state.http_client = http_client
+    app.state.pipeline_deps = pipeline_deps
+
     try:
         yield
     finally:
         logger.info("Shutting down Market Sentiment Analysis application.")
+        await http_client.aclose()
         from app.services.llm_service import LLMService
         await LLMService.close_client()
 

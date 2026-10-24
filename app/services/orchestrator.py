@@ -11,8 +11,19 @@ from app.core.models import (
     PipelineMetrics,
     ScoredArticle,
     PipelineRationale,
+    PipelineDeps,
+    ProviderOutcome,
 )
-from app.core.enums import PipelineStage, PipelineMode, CacheStatus, DecisionVerdict, ExclusionReason, HoldReason, DataStatus
+from app.core.enums import (
+    PipelineStage,
+    PipelineMode,
+    CacheStatus,
+    DecisionVerdict,
+    ExclusionReason,
+    HoldReason,
+    DataStatus,
+    ProviderKind,
+)
 from app.core.session_window import compute_session_window, compute_session_bucket
 from app.core.exceptions import FreshnessViolationException, NewsUnavailableException
 from app.core.constants import DIRECTIONAL_THRESHOLD
@@ -52,6 +63,7 @@ class AnalysisOrchestrator:
         on_progress: ProgressCallback | None = None,
         resolved_asset: Asset | None = None,
         asset: Asset | None = None,
+        deps: PipelineDeps | None = None,
     ) -> AnalysisResult:
         """
         Executes the 6-stage analysis pipeline with live progress reporting:
@@ -107,19 +119,53 @@ class AnalysisOrchestrator:
             session,
             asset_type=asset.asset_type,
             yf_symbol=asset.yf_symbol,
+            http_client=deps.http_client if deps else None,
+            io_executor=deps.io_executor if deps else None,
         )
         stage_latencies["ingesting_news"] = round((time.time() - t1) * 1000, 1)
 
-        # Provider outage and health checks
+        # Provider outage and health checks driven by ProviderKind (P3.1)
+        normalized_outcomes: list[ProviderOutcome] = []
+        if isinstance(provider_outcomes, dict):
+            for k, v in provider_outcomes.items():
+                if k == "google_news_rss_total":
+                    continue
+                v_dict = v if isinstance(v, dict) else {}
+                kind = (
+                    ProviderKind.YFINANCE if k == "yfinance"
+                    else ProviderKind.RSS_DIRECT if k.startswith("forex_")
+                    else ProviderKind.RSS_GOOGLE
+                )
+                normalized_outcomes.append(
+                    ProviderOutcome(
+                        key=k,
+                        kind=kind,
+                        status=v_dict.get("status", "SUCCESS"),
+                        count=v_dict.get("count", 0),
+                        latency_ms=v_dict.get("latency_ms", 0.0),
+                        error_code=v_dict.get("error"),
+                    )
+                )
+        elif isinstance(provider_outcomes, list):
+            for item in provider_outcomes:
+                if isinstance(item, ProviderOutcome):
+                    normalized_outcomes.append(item)
+                elif isinstance(item, dict):
+                    normalized_outcomes.append(ProviderOutcome(**item))
+        else:
+            normalized_outcomes = []
+
+        provider_outcomes = normalized_outcomes
+
         all_providers_failed = bool(provider_outcomes) and all(
-            outcome.get("status") == "FAILED" for outcome in provider_outcomes.values()
+            po.status in ("FAILED", "TIMEOUT") for po in provider_outcomes
         )
-        rss_keys = [
-            k for k in provider_outcomes
-            if k.startswith("rss_") or k.startswith("forex_") or k == "google_news_rss_total"
+        rss_outcomes = [
+            po for po in provider_outcomes
+            if po.kind in (ProviderKind.RSS_GOOGLE, ProviderKind.RSS_DIRECT)
         ]
-        all_rss_failed = bool(rss_keys) and all(
-            provider_outcomes[k].get("status") == "FAILED" for k in rss_keys
+        all_rss_failed = bool(rss_outcomes) and all(
+            po.status in ("FAILED", "TIMEOUT") for po in rss_outcomes
         )
 
         is_degraded = all_providers_failed or all_rss_failed
@@ -243,6 +289,7 @@ class AnalysisOrchestrator:
                 llm_summary=None,
                 model_versions={"finbert": settings.FINBERT_MODEL_NAME, "llm": "NONE"},
                 config_version=settings.get_config_hash(),
+                provider_outcomes=provider_outcomes,
             )
 
             # Always persist run; if degraded, mark is_cacheable=False
@@ -367,6 +414,7 @@ class AnalysisOrchestrator:
                 llm_summary=None,
                 model_versions={"finbert": settings.FINBERT_MODEL_NAME, "llm": "NONE"},
                 config_version=settings.get_config_hash(),
+                provider_outcomes=provider_outcomes,
             )
 
             if is_degraded:
@@ -559,6 +607,7 @@ class AnalysisOrchestrator:
             llm_summary=llm_summary or None,
             model_versions=model_versions,
             config_version=settings.get_config_hash(),
+            provider_outcomes=provider_outcomes,
         )
 
         # Persist run and evidence in database; if degraded, mark is_cacheable=False

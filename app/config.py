@@ -60,6 +60,10 @@ class Settings(BaseSettings):
 
     # Pipeline Execution Timeout (in seconds)
     PIPELINE_TIMEOUT_SECONDS: int = 90
+    INGESTION_TIMEOUT_SECONDS: float = 20.0
+    YF_NEWS_COUNT: int = 50
+    FEED_RETRY_ATTEMPTS: int = 2
+    HTTP_USER_AGENT: str = "SentimentPulse/1.1 (+research)"
 
     # Ticker Resolution & Caching
     TICKER_CACHE_TTL_SECONDS: int = 21600

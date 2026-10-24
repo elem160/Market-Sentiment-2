@@ -1,12 +1,14 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, HttpUrl, Field
+from pydantic import BaseModel, ConfigDict, HttpUrl, Field, field_validator
+from typing import Any
 from app.core.enums import (
     AssetType,
     DecisionVerdict,
     DirectionalPolarity,
     CatalystCategory,
     ProviderType,
+    ProviderKind,
     PipelineMode,
     CacheStatus,
     ExclusionReason,
@@ -15,6 +17,46 @@ from app.core.enums import (
 )
 from app.core.session_window import SessionWindow
 from app.core.constants import DIRECTIONAL_THRESHOLD
+
+
+@dataclass
+class FeedSpec:
+    key: str
+    kind: ProviderKind
+    url: str
+    publisher: str
+    provider_type: ProviderType
+    publisher_is_authoritative: bool = False
+    enabled: bool = True
+
+
+class ProviderOutcome(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    kind: ProviderKind
+    status: str                         # "SUCCESS" | "FAILED" | "TIMEOUT"
+    count: int = 0
+    latency_ms: float = 0.0
+    error_code: str | None = None
+
+    def __getitem__(self, item: str) -> Any:
+        return getattr(self, item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        return getattr(self, item, default)
+
+
+
+@dataclass
+class PipelineDeps:
+    http_client: Any = None
+    scorer: Any = None
+    llm_service: Any = None
+    session_factory: Any = None
+    io_executor: Any = None
+    db_executor: Any = None
+
 
 
 @dataclass
@@ -128,4 +170,41 @@ class AnalysisResult(BaseModel):
     llm_summary: str | None = None
     model_versions: dict[str, str] = {}
     config_version: str = ""
+    provider_outcomes: list[ProviderOutcome] = Field(default_factory=list)
+
+    @field_validator("provider_outcomes", mode="before")
+    @classmethod
+    def normalize_provider_outcomes(cls, v: Any) -> list[ProviderOutcome]:
+        if isinstance(v, dict):
+            res = []
+            for k, val in v.items():
+                if k == "google_news_rss_total":
+                    continue
+                val_dict = val if isinstance(val, dict) else {}
+                kind = (
+                    ProviderKind.YFINANCE if k == "yfinance"
+                    else ProviderKind.RSS_DIRECT if k.startswith("forex_")
+                    else ProviderKind.RSS_GOOGLE
+                )
+                res.append(
+                    ProviderOutcome(
+                        key=k,
+                        kind=kind,
+                        status=val_dict.get("status", "SUCCESS"),
+                        count=val_dict.get("count", 0),
+                        latency_ms=val_dict.get("latency_ms", 0.0),
+                        error_code=val_dict.get("error"),
+                    )
+                )
+            return res
+        if isinstance(v, list):
+            res = []
+            for item in v:
+                if isinstance(item, ProviderOutcome):
+                    res.append(item)
+                elif isinstance(item, dict):
+                    res.append(ProviderOutcome(**item))
+            return res
+        return []
+
 

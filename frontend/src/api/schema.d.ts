@@ -167,6 +167,8 @@ export interface components {
             };
             /** @default HYBRID_FINBERT_LLM */
             pipeline_mode: components["schemas"]["PipelineMode"];
+            /** Provider Outcomes */
+            provider_outcomes?: components["schemas"]["ProviderOutcome"][];
             rationale: components["schemas"]["PipelineRationale"];
             /** Run Id */
             run_id: string;
@@ -492,6 +494,31 @@ export interface components {
          * @enum {string}
          */
         PipelineStage: "RESOLVING_TICKER" | "INGESTING_NEWS" | "FILTERING_DEDUPLICATING" | "FINBERT_SCORING" | "CATALYST_SYNTHESIS" | "AGGREGATING_DECISION" | "DONE";
+        /**
+         * ProviderKind
+         * @enum {string}
+         */
+        ProviderKind: "YFINANCE" | "RSS_GOOGLE" | "RSS_DIRECT";
+        /** ProviderOutcome */
+        ProviderOutcome: {
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+            /** Error Code */
+            error_code?: string | null;
+            /** Key */
+            key: string;
+            kind: components["schemas"]["ProviderKind"];
+            /**
+             * Latency Ms
+             * @default 0
+             */
+            latency_ms: number;
+            /** Status */
+            status: string;
+        };
         /**
          * ProviderType
          * @enum {string}

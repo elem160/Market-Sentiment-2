@@ -2,7 +2,7 @@ import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -16,7 +16,7 @@ from app.core.exceptions import (
     AnalysisRunNotFoundException,
 )
 from app.core.enums import PipelineStage, JobStatus
-from app.core.models import AnalysisResult, Asset
+from app.core.models import AnalysisResult, Asset, PipelineDeps
 from app.api.schemas import (
     AnalyzeRequest,
     HealthResponse,
@@ -52,6 +52,7 @@ async def run_background_job(
     force_refresh: bool,
     enable_llm: bool,
     asset: Asset | None = None,
+    deps: PipelineDeps | None = None,
 ):
     """
     Durable in-app asynchronous background worker:
@@ -77,6 +78,7 @@ async def run_background_job(
                     enable_llm=enable_llm,
                     on_progress=on_progress,
                     asset=asset,
+                    deps=deps,
                 ),
                 timeout=float(settings.PIPELINE_TIMEOUT_SECONDS),
             )
@@ -108,6 +110,7 @@ async def run_background_job(
 async def analyze_ticker(
     req: AnalyzeRequest,
     response: Response,
+    request: Request,
     db: Session = Depends(get_db),
     client_ip: str = Depends(get_client_ip),
 ):
@@ -140,6 +143,8 @@ async def analyze_ticker(
     job_id = str(uuid.uuid4())
     SentimentRepository.create_job(db, job_id, normalized_ticker)
 
+    deps = getattr(request.app.state, "pipeline_deps", None) if hasattr(request, "app") else None
+
     # Launch in-app async background task with strong reference to prevent GC collection (F-03)
     task = asyncio.create_task(
         run_background_job(
@@ -148,6 +153,7 @@ async def analyze_ticker(
             force_refresh=req.force_refresh,
             enable_llm=req.enable_llm,
             asset=asset,
+            deps=deps,
         )
     )
     _background_tasks.add(task)

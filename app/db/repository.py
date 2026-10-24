@@ -9,6 +9,7 @@ from app.core.models import (
     ObservedFact,
     PipelineRationale,
     PipelineMetrics,
+    ProviderOutcome,
 )
 from app.core.enums import (
     AssetType,
@@ -16,6 +17,7 @@ from app.core.enums import (
     DirectionalPolarity,
     CatalystCategory,
     ProviderType,
+    ProviderKind,
     PipelineMode,
     CacheStatus,
     ExclusionReason,
@@ -133,9 +135,19 @@ class SentimentRepository:
         db: Session,
         result: AnalysisResult,
         cache_key: str,
-        provider_outcomes: dict,
+        provider_outcomes: list[ProviderOutcome] | dict | None = None,
         is_cacheable: bool = True,
     ) -> AnalysisRunDB:
+        if provider_outcomes is None:
+            effective_outcomes = [po.model_dump() for po in result.provider_outcomes] if result.provider_outcomes else []
+        elif isinstance(provider_outcomes, list):
+            effective_outcomes = [
+                po.model_dump() if hasattr(po, "model_dump") else po
+                for po in provider_outcomes
+            ]
+        else:
+            effective_outcomes = provider_outcomes
+
         run_record = AnalysisRunDB(
             id=result.run_id,
             ticker=result.ticker,
@@ -155,7 +167,7 @@ class SentimentRepository:
             pipeline_mode=result.pipeline_mode.value,
             model_versions_json=json.dumps(result.model_versions),
             config_version=result.config_version,
-            provider_outcomes_json=json.dumps(provider_outcomes),
+            provider_outcomes_json=json.dumps(effective_outcomes),
             cache_status=result.cache_status.value,
             metrics_json=json.dumps(result.metrics.model_dump()),
             warnings_json=json.dumps(result.warnings),
@@ -295,6 +307,32 @@ class SentimentRepository:
         warnings = json.loads(record.warnings_json) if record.warnings_json else []
         model_versions = json.loads(record.model_versions_json) if record.model_versions_json else {}
 
+        raw_po = json.loads(record.provider_outcomes_json) if getattr(record, "provider_outcomes_json", None) else []
+        provider_outcomes: list[ProviderOutcome] = []
+        if isinstance(raw_po, list):
+            for item in raw_po:
+                if isinstance(item, dict):
+                    provider_outcomes.append(ProviderOutcome(**item))
+        elif isinstance(raw_po, dict):
+            for k, v in raw_po.items():
+                if k == "google_news_rss_total":
+                    continue
+                kind = (
+                    ProviderKind.YFINANCE if k == "yfinance"
+                    else ProviderKind.RSS_DIRECT if k.startswith("forex_")
+                    else ProviderKind.RSS_GOOGLE
+                )
+                provider_outcomes.append(
+                    ProviderOutcome(
+                        key=k,
+                        kind=kind,
+                        status=v.get("status", "SUCCESS"),
+                        count=v.get("count", 0),
+                        latency_ms=v.get("latency_ms", 0.0),
+                        error_code=v.get("error"),
+                    )
+                )
+
         return AnalysisResult(
             run_id=record.id,
             ticker=record.ticker,
@@ -325,5 +363,6 @@ class SentimentRepository:
             llm_summary=getattr(record, "llm_summary", None),
             model_versions=model_versions,
             config_version=record.config_version,
+            provider_outcomes=provider_outcomes,
         )
 
