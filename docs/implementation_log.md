@@ -228,6 +228,21 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Documented exact commands actually executed and verified. Tracked handover document in repository.
   - Verification: Full backend test suite `pytest --cov=app --cov-report=term-missing --cov-fail-under=85` passed at 89.58% (227 passed); `ruff check .` clean; `alembic check` clean; `npm.cmd run typecheck` clean; `npm.cmd test` passed (14 passed); static bundle drift check `git diff --exit-code ../app/static` clean.
 
+## Phase 3 — Performance, reliability, security
+
+- **Task P3.1 — Ingestion rework (`71b22f5`):**
+  - Re-architected `NewsService` with `FeedSpec` list and launched Yahoo Finance (`get_news(count=YF_NEWS_COUNT)`) on I/O executor and all RSS feeds concurrently using `asyncio.wait(tasks, timeout=settings.INGESTION_TIMEOUT_SECONDS)`.
+  - Configured tenacity retry with random exponential backoff and jitter on 429, 5xx, and transport/timeout exceptions.
+  - Implemented non-feed HTML response detection marking `status="FAILED"`, `error_code="NOT_A_FEED"` without retrying consent pages.
+  - Preserved partial results when timeouts occur, marking stragglers `status="TIMEOUT"`.
+  - Confined ingestion deduplication to dropping only exact duplicate `article_id`s; title and near-duplicate clustering moves after the freshness window filter.
+  - Enhanced `canonicalize_url()` to be non-mutating and return `""` for non-http(s) schemes; precomputed Jaccard token sets once per article in `DeduplicationService.process_and_deduplicate()`.
+  - Defined `ProviderKind` enum, `FeedSpec` dataclass, `ProviderOutcome` model, and `PipelineDeps` container; exposed `AnalysisResult.provider_outcomes` and persisted in `analysis_runs.provider_outcomes_json`.
+  - Updated orchestrator outage detection to evaluate `outcome.kind` rather than key string prefixes.
+  - Initialized shared `httpx.AsyncClient` in `app/main.py` lifespan and registered on `app.state.pipeline_deps`.
+  - Added unit tests in `tests/unit/test_news_service.py` and `tests/unit/test_deduplication.py` for concurrent launch, timeout partial retention, HTML 200 rejection, 503 retry, Yahoo count, outcome kinds outage detection, non-http URL stripping, and exact id deduplication.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 88.69% (234 passed); `ruff check .` clean; `alembic check` clean; `npm.cmd test` (14 passed); `npm.cmd run typecheck` clean; static bundle drift clean.
+
 ## Deviations
 
 _None._
@@ -235,4 +250,5 @@ _None._
 ## Follow-ups
 
 _None._
+
 
