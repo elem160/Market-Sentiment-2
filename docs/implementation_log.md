@@ -29,11 +29,11 @@
 | P2.5 | LLM robustness | H6, H7, M10, M17 | done | `7b9a8e1` |
 | P2.6 | Data status, HOLD reasons, confidence | M12, D6 | done | `e933e73` |
 | P2.7 | Documentation for Phase 2 behaviour | M18 | done | (current) |
-| P3.1 | Ingestion rework | H9, M15, M10, L10 | todo | |
-| P3.2 | FinBERT throughput and dependency injection | H8, M16 | todo | |
-| P3.3 | Stop blocking the event loop | H11 | todo | |
-| P3.4 | Job manager: limits, coalescing, SSE | M7, M8, H15, L6 | todo | |
-| P3.5 | Rate limiting and client IP | H12 | todo | |
+| P3.1 | Ingestion rework | H9, M15, M10, L10 | done | `71b22f5` |
+| P3.2 | FinBERT throughput and dependency injection | H8, M16 | done | `55ee3f6` |
+| P3.3 | Stop blocking the event loop | H11 | done | `a7cb23e` |
+| P3.4 | Job manager: limits, coalescing, SSE | M7, M8, H15, L6 | done | `96d6131` |
+| P3.5 | Rate limiting and client IP | H12 | done | `0e1889d` |
 | P3.6 | Cost, abuse and input controls | H15, L3, L10 | todo | |
 | P3.7 | Data lifecycle | H16 | todo | |
 | P3.8 | Configuration and startup | M13, L7 | todo | |
@@ -270,6 +270,14 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Added `cancel_job` in `SentimentRepository`; `JobManager.shutdown()` cancels running pipeline tasks and marks jobs `CANCELLED` in database.
   - Added comprehensive test suite `tests/unit/test_job_manager.py` covering coalescing, sequential limit execution, queue timeout, pipeline timeout, shutdown cancellation, SSE heartbeats, and client disconnection.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 87.19% (251 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+- **Task P3.5 — Rate limiting and client IP (`0e1889d`):**
+  - Refactored `SlidingWindowRateLimiter` to support scoped rate limits: `analyze` (15/min), `jobs` (60/min), and `read` (120/min via `RATE_LIMIT_READ_PER_MINUTE`), avoiding starvation between polling/reading and submission.
+  - Replaced unbounded dictionary with bounded `OrderedDict` LRU cache strictly capped at `max_keys=10000`, evicting oldest keys on overflow.
+  - Implemented precise `Retry-After` calculation bounded between 1 and window duration using `math.ceil(window - elapsed)`.
+  - Implemented secure right-to-left `X-Forwarded-For` proxy resolution walking back through `TRUSTED_PROXY_IPS` (supporting exact IPs and CIDR ranges) to the first untrusted IP, ignoring forged client-supplied leftmost headers when direct connection peer is untrusted.
+  - Converted routes to use declarative `rate_limit(scope)` dependencies (`/analyze` uses `analyze`, `/jobs/{job_id}` and `/jobs/{job_id}/events` use `jobs`, `/analysis/{run_id}` and `/history` use `read`).
+  - Added unit test suite `tests/unit/test_rate_limiter.py` and updated `tests/unit/test_api_security_and_limits.py`.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.79% (259 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
 ## Deviations
 
