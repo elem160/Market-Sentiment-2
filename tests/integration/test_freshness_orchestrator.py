@@ -97,8 +97,11 @@ async def test_empty_feed_with_success_status_does_not_trigger_503(db_session):
 
 
 @pytest.mark.asyncio
-async def test_total_provider_outage_raises_news_unavailable(db_session):
-    """When all news providers fail, orchestrator raises NewsUnavailableException (503)."""
+async def test_total_provider_outage_emits_degraded_non_cacheable_run(db_session):
+    """When all news providers fail, orchestrator emits a non-cacheable DEGRADED run per Phase 2 contract."""
+    from app.core.enums import HoldReason
+    from app.db.models import AnalysisRunDB
+
     mock_asset = Asset(
         ticker="AAPL",
         company_name="Apple Inc.",
@@ -111,10 +114,21 @@ async def test_total_provider_outage_raises_news_unavailable(db_session):
     with patch("app.services.ticker_service.TickerService.validate_and_resolve", return_value=mock_asset), \
          patch("app.services.news_service.NewsService.fetch_news_for_session", return_value=([], {"yfinance": {"status": "FAILED", "error": "Timeout"}, "google_rss": {"status": "FAILED", "error": "HTTP 500"}})):
 
-        with pytest.raises(NewsUnavailableException):
-            await AnalysisOrchestrator.run_pipeline(
-                ticker="AAPL",
-                db=db_session,
-                force_refresh=True,
-                enable_llm=False,
-            )
+        result = await AnalysisOrchestrator.run_pipeline(
+            ticker="AAPL",
+            db=db_session,
+            force_refresh=True,
+            enable_llm=False,
+        )
+
+        assert result.data_status == "DEGRADED"
+        assert result.decision == DecisionVerdict.HOLD
+        assert result.hold_reason == HoldReason.NO_NEWS
+
+        # Verify persisted record in DB has is_cacheable = False
+        db_record = db_session.query(AnalysisRunDB).filter(AnalysisRunDB.id == result.run_id).first()
+        assert db_record is not None
+        assert db_record.is_cacheable is False
+        assert db_record.data_status == "DEGRADED"
+
+

@@ -110,12 +110,10 @@ class AnalysisOrchestrator:
         )
         stage_latencies["ingesting_news"] = round((time.time() - t1) * 1000, 1)
 
-        # Total outage check (F-04): If every provider failed, raise 503 and do not cache
-        if provider_outcomes and all(outcome.get("status") == "FAILED" for outcome in provider_outcomes.values()):
-            logger.error(f"All external news providers failed for {asset.ticker}.")
-            raise NewsUnavailableException("All external news providers failed to respond.")
-
-        # RSS-specific health check: if all RSS providers fail, add warning and do not cache
+        # Provider outage and health checks
+        all_providers_failed = bool(provider_outcomes) and all(
+            outcome.get("status") == "FAILED" for outcome in provider_outcomes.values()
+        )
         rss_keys = [
             k for k in provider_outcomes
             if k.startswith("rss_") or k.startswith("forex_") or k == "google_news_rss_total"
@@ -123,13 +121,21 @@ class AnalysisOrchestrator:
         all_rss_failed = bool(rss_keys) and all(
             provider_outcomes[k].get("status") == "FAILED" for k in rss_keys
         )
-        rss_failure_warning = (
-            "All RSS news providers failed during ingestion sweep; analysis completed with degraded evidence and will not be cached."
-            if all_rss_failed
-            else None
-        )
-        if rss_failure_warning:
-            logger.warning(rss_failure_warning)
+
+        is_degraded = all_providers_failed or all_rss_failed
+
+        if all_providers_failed:
+            provider_failure_warning = (
+                "All external news providers failed to respond; analysis completed with degraded evidence and will not be cached."
+            )
+            logger.error(f"All external news providers failed for {asset.ticker}. Emitting degraded non-cacheable run.")
+        elif all_rss_failed:
+            provider_failure_warning = (
+                "All RSS news providers failed during ingestion sweep; analysis completed with degraded evidence and will not be cached."
+            )
+            logger.warning(provider_failure_warning)
+        else:
+            provider_failure_warning = None
 
         # ---------------------------------------------------------------------
         # Stage 2.5: Freshness Filtering (F-01 / F-07 Core Invariant)
@@ -138,20 +144,29 @@ class AnalysisOrchestrator:
             DeduplicationService.filter_by_session_window(raw_articles, session)
         )
 
-        # If zero in-window articles survive, return NO_FRESH_NEWS cleanly
+        # If zero in-window articles survive, return NO_FRESH_NEWS or DEGRADED cleanly
         if len(in_window_articles) == 0:
-            summary = (
-                f"No articles published inside the current session window "
-                f"({excluded_out_of_window} out of window, {excluded_missing_ts} undated)."
-            )
-            rationale = PipelineRationale(
-                summary=summary,
-                observed_facts=[],
-                inferences=[
+            if all_providers_failed:
+                summary = "All external news providers failed to respond during ingestion sweep."
+                inferences = [
+                    f"Session window: {session.window_start_utc.strftime('%Y-%m-%d %H:%M')} to {session.window_end_utc.strftime('%Y-%m-%d %H:%M')} UTC.",
+                    "All configured external news feeds failed to return valid data.",
+                    "Emitted degraded neutral stance with zero confidence.",
+                ]
+            else:
+                summary = (
+                    f"No articles published inside the current session window "
+                    f"({excluded_out_of_window} out of window, {excluded_missing_ts} undated)."
+                )
+                inferences = [
                     f"Session window: {session.window_start_utc.strftime('%Y-%m-%d %H:%M')} to {session.window_end_utc.strftime('%Y-%m-%d %H:%M')} UTC.",
                     f"Excluded {excluded_out_of_window} article(s) published outside session window.",
                     f"Excluded {excluded_missing_ts} article(s) with missing or untrusted timestamps.",
-                ],
+                ]
+            rationale = PipelineRationale(
+                summary=summary,
+                observed_facts=[],
+                inferences=inferences,
             )
             freshness_excluded_counts: dict[str, int] = {}
             for _, reason, _ in freshness_excluded:
@@ -220,25 +235,26 @@ class AnalysisOrchestrator:
                 rationale=rationale,
                 metrics=metrics,
                 articles=sample_excluded_articles,
-                warnings=[summary] if not rss_failure_warning else [summary, rss_failure_warning],
+                warnings=[summary] if not provider_failure_warning else [summary, provider_failure_warning],
                 pipeline_mode=PipelineMode.DETERMINISTIC_FINBERT_ONLY,
                 cache_status=CacheStatus.MISS,
-                data_status=DataStatus.DEGRADED if all_rss_failed else DataStatus.NO_FRESH_NEWS,
+                data_status=DataStatus.DEGRADED if is_degraded else DataStatus.NO_FRESH_NEWS,
                 hold_reason=HoldReason.NO_NEWS,
                 llm_summary=None,
                 model_versions={"finbert": settings.FINBERT_MODEL_NAME, "llm": "NONE"},
                 config_version=settings.get_config_hash(),
             )
 
-            # Always persist run; if all RSS providers failed, mark is_cacheable=False
-            if all_rss_failed:
-                logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to total RSS provider failure.")
+            # Always persist run; if degraded, mark is_cacheable=False
+            if is_degraded:
+                logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to degraded provider outcomes.")
             SentimentRepository.save_analysis_run(
-                db, no_news_result, cache_key, provider_outcomes, is_cacheable=(not all_rss_failed)
+                db, no_news_result, cache_key, provider_outcomes, is_cacheable=(not is_degraded)
             )
 
             if on_progress:
-                await on_progress(PipelineStage.DONE, 1.0, "Analysis complete (No fresh news).")
+                msg = "Analysis complete (Degraded provider outage)." if is_degraded else "Analysis complete (No fresh news)."
+                await on_progress(PipelineStage.DONE, 1.0, msg)
             return no_news_result
 
         # ---------------------------------------------------------------------
@@ -328,7 +344,7 @@ class AnalysisOrchestrator:
                     )
                 )
 
-            data_status = DataStatus.DEGRADED if all_rss_failed else DataStatus.NO_RELEVANT_NEWS
+            data_status = DataStatus.DEGRADED if is_degraded else DataStatus.NO_RELEVANT_NEWS
             no_relevant_result = AnalysisResult(
                 run_id=str(uuid.uuid4()),
                 ticker=asset.ticker,
@@ -343,7 +359,7 @@ class AnalysisOrchestrator:
                 rationale=rationale,
                 metrics=metrics,
                 articles=sample_excluded_articles,
-                warnings=[summary] if not rss_failure_warning else [summary, rss_failure_warning],
+                warnings=[summary] if not provider_failure_warning else [summary, provider_failure_warning],
                 pipeline_mode=PipelineMode.DETERMINISTIC_FINBERT_ONLY,
                 cache_status=CacheStatus.MISS,
                 data_status=data_status,
@@ -353,10 +369,10 @@ class AnalysisOrchestrator:
                 config_version=settings.get_config_hash(),
             )
 
-            if all_rss_failed:
-                logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to total RSS provider failure.")
+            if is_degraded:
+                logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to degraded provider outcomes.")
             SentimentRepository.save_analysis_run(
-                db, no_relevant_result, cache_key, provider_outcomes, is_cacheable=(not all_rss_failed)
+                db, no_relevant_result, cache_key, provider_outcomes, is_cacheable=(not is_degraded)
             )
 
             if on_progress:
@@ -515,8 +531,8 @@ class AnalysisOrchestrator:
             "llm": used_llm_model if pipeline_mode == PipelineMode.HYBRID_FINBERT_LLM else "NONE",
         }
 
-        if rss_failure_warning and rss_failure_warning not in warnings:
-            warnings.append(rss_failure_warning)
+        if provider_failure_warning and provider_failure_warning not in warnings:
+            warnings.append(provider_failure_warning)
 
         if not asset.verified and asset.resolution_warning and asset.resolution_warning not in warnings:
             warnings.append(asset.resolution_warning)
@@ -538,18 +554,18 @@ class AnalysisOrchestrator:
             warnings=warnings,
             pipeline_mode=pipeline_mode,
             cache_status=CacheStatus.MISS,
-            data_status=DataStatus.DEGRADED if all_rss_failed else DataStatus.OK,
+            data_status=DataStatus.DEGRADED if is_degraded else DataStatus.OK,
             hold_reason=agg_res.hold_reason,
             llm_summary=llm_summary or None,
             model_versions=model_versions,
             config_version=settings.get_config_hash(),
         )
 
-        # Persist run and evidence in database; if all RSS providers failed, mark is_cacheable=False
-        if all_rss_failed:
-            logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to total RSS provider failure.")
+        # Persist run and evidence in database; if degraded, mark is_cacheable=False
+        if is_degraded:
+            logger.warning(f"Persisting analysis run for {asset.ticker} with is_cacheable=False due to degraded provider outcomes.")
         SentimentRepository.save_analysis_run(
-            db, result, cache_key, provider_outcomes, is_cacheable=(not all_rss_failed)
+            db, result, cache_key, provider_outcomes, is_cacheable=(not is_degraded)
         )
 
         if on_progress:

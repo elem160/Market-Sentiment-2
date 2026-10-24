@@ -158,3 +158,47 @@ async def test_degraded_status_when_all_rss_fail(db_session):
         cache_key = AnalysisOrchestrator.compute_cache_key("AAPL", session_bucket, "yfinance_rss", False)
         cached = SentimentRepository.get_cached_run(db_session, cache_key, max_age_seconds=900)
         assert cached is None
+
+
+@pytest.mark.asyncio
+async def test_total_provider_outage_produces_persisted_degraded_run_and_not_cached(db_session):
+    """When Yahoo and all RSS feeds fail, orchestrator emits a persisted DEGRADED run with is_cacheable=False."""
+    mock_asset = Asset(ticker="TSLA", company_name="Tesla, Inc.", exchange="NASDAQ")
+    all_failed_outcomes = {
+        "yfinance": {"status": "FAILED", "error": "HTTP 503 Service Unavailable"},
+        "rss_reuters": {"status": "FAILED", "error": "Connection reset"},
+        "rss_google_news_general": {"status": "FAILED", "error": "HTTP 429 Too Many Requests"},
+        "google_news_rss_total": {"status": "FAILED", "error": "Timeout"},
+    }
+
+    with patch("app.services.ticker_service.TickerService.validate_and_resolve", return_value=mock_asset), \
+         patch("app.services.news_service.NewsService.fetch_news_for_session", new=AsyncMock(return_value=([], all_failed_outcomes))):
+
+        result = await AnalysisOrchestrator.run_pipeline("TSLA", db_session, force_refresh=True, enable_llm=False)
+        assert result.data_status == DataStatus.DEGRADED
+        assert result.decision == DecisionVerdict.HOLD
+        assert result.hold_reason == HoldReason.NO_NEWS
+        assert result.decision_confidence == 0.0
+        assert any("All external news providers failed to respond" in w for w in result.warnings)
+
+        # Assert persisted run status in DB
+        persisted = SentimentRepository.get_analysis_run(db_session, result.run_id)
+        assert persisted is not None
+        assert persisted.data_status == DataStatus.DEGRADED
+
+        from app.db.models import AnalysisRunDB
+        db_run = db_session.query(AnalysisRunDB).filter(AnalysisRunDB.id == result.run_id).first()
+        assert db_run is not None
+        assert db_run.is_cacheable is False
+        assert db_run.data_status == "DEGRADED"
+
+        # Assert retrievability via repository
+        assert persisted.ticker == "TSLA"
+        assert persisted.decision == DecisionVerdict.HOLD
+
+        # Assert cache exclusion
+        session = compute_session_window()
+        session_bucket, _ = compute_session_bucket(session)
+        cache_key = AnalysisOrchestrator.compute_cache_key("TSLA", session_bucket, "yfinance_rss", False)
+        cached = SentimentRepository.get_cached_run(db_session, cache_key, max_age_seconds=900)
+        assert cached is None
