@@ -168,6 +168,66 @@
   - Documented completion in `docs/implementation_log.md`.
   - Acceptance: 220 offline tests passed, 89% coverage, `ruff check .` clean, `alembic check` clean with zero drift.
 
+## Remediation Follow-up: Audit Findings Remediation (2026-10-24)
+
+Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
+
+- **Finding 1 — Rebuild and verify served frontend bundle (`7c253d5`):**
+  - Rebuilt static distribution bundle from `frontend/src` into `app/static` via `npm run build` (`index-zR2_NRAl.js`, `index-BmGRgiJJ.css`).
+  - Verified bundle contains all current pipeline stage identifiers (`RESOLVING_TICKER`, `INGESTING_NEWS`, `FILTERING_DEDUPLICATING`, `FINBERT_SCORING`, `CATALYST_SYNTHESIS`, `AGGREGATING_DECISION`), data statuses (`NO_FRESH_NEWS`, `NO_RELEVANT_NEWS`, `DEGRADED`), hold reasons (`NO_NEWS`, `SPARSE_EVIDENCE`, `INSUFFICIENT_CORROBORATION`, `CONFLICTING`, `NEUTRAL`), and corroboration badge strings (`Corroborated`, `Single Publisher`, `Uncorroborated`, `Supporting Source`).
+  - Added CI check to `.github/workflows/ci.yml` under `frontend` job executing `git diff --exit-code ../app/static`.
+  - Replaced outdated `index-CpE2UDUr.js` with committed `index-zR2_NRAl.js`.
+  - Verification: `npm.cmd run build` produced identical bundle hash; `git diff --exit-code ../app/static` returned 0.
+
+- **Finding 2 — Directional corroboration badge (`35f3717`):**
+  - Updated `DecisionHero.tsx` to evaluate `isCorroborated = (verdict === 'BUY' || verdict === 'SELL') && supportingPubs >= 2`.
+  - Gated badge text so that `HOLD` verdicts never display "Corroborated" regardless of `distinct_publishers`.
+  - Confirmed inferred publishers and aggregators cannot contribute to `supporting_publishers` in `AggregatorService`.
+  - Added unit test cases for BUY, SELL, HOLD, inferred publishers, and mixed positive/negative publisher sets in `tests/unit/test_aggregator.py`. Added 7 component tests in `frontend/src/components/DecisionHero.test.tsx`.
+  - Verification: `pytest tests/unit/test_aggregator.py` (18 passed); `npm.cmd test` (7 passed in `DecisionHero.test.tsx`).
+
+- **Finding 3 — Stale search request prevention (`16051fd`):**
+  - Introduced monotonic request generation counter `currentRequestIdRef` in `App.tsx` guarding both initial `/analyze` response handling and async `subscribeToJob` callbacks (`onProgress`, `onComplete`, `onError`).
+  - Selecting a historical run or initiating a newer search increments `currentRequestIdRef` and cancels existing SSE subscriptions; stale responses from earlier searches are discarded.
+  - Added regression test suite in `frontend/src/App.test.tsx` verifying:
+    1. Selecting a historical run while `/analyze` is pending discards the late-arriving search result.
+    2. Starting a new search cancels and discards subsequent job events from an older in-flight job.
+  - Verification: `npm.cmd test` (2 passed in `App.test.tsx`).
+
+- **Finding 4 — Total outage degraded persistence (`bd82f28`):**
+  - Reconciled total-provider-outage with Phase 2 data status contract: `AnalysisOrchestrator.run_pipeline` now emits a non-cacheable `DEGRADED` run (`data_status=DataStatus.DEGRADED`, `is_cacheable=False`, `decision=DecisionVerdict.HOLD`, `hold_reason=HoldReason.NO_NEWS`, `confidence=0.0`) instead of raising `NewsUnavailableException` (503).
+  - Persisted record in database has `is_cacheable=False`, is retrievable via `/analysis/{run_id}`, and is bypassed on subsequent cache lookups.
+  - Updated `test_total_provider_outage_produces_persisted_degraded_run_and_not_cached` in `tests/integration/test_data_status.py` and updated `test_total_provider_outage_emits_degraded_non_cacheable_run` in `tests/integration/test_freshness_orchestrator.py`.
+  - Verification: `pytest tests/integration/test_data_status.py` (4 passed); `pytest tests/integration/test_freshness_orchestrator.py` (3 passed).
+
+- **Finding 5 — Prompt budget enforcement (`4a9238a`):**
+  - Replaced character-based estimate with bounded conservative estimator `estimate_prompt_tokens()`: takes the maximum of `len(prompt) / 3.0` and `len(prompt.split()) * 1.35 + 4`.
+  - If prompt still exceeds `MAX_PROMPT_TOKENS` even with candidate articles trimmed down to 1, LLM synthesis is safely skipped with `status="SKIPPED"`, `reason="PROMPT_EXCEEDS_BUDGET"`, empty facts, and empty summary.
+  - Added unit test `test_max_prompt_tokens_exceeded_skips_synthesis` in `tests/unit/test_llm_service.py`.
+  - Verification: `pytest tests/unit/test_llm_service.py` (12 passed).
+
+- **Finding 6 — LLM fallback defaults per Decision D5 (`4a9238a`):**
+  - Configured `LLM_FALLBACK_MODEL_ID = "nvidia/nemotron-3-super-120b-a12b:free"` in `app/config.py` Settings and `.env.example`.
+  - Included `LLM_FALLBACK_MODEL_ID` in `Settings.get_config_hash()` so cache/config fingerprints change if either primary or fallback model changes.
+  - Maintained full environment variable override support via Pydantic settings.
+  - Added unit test `test_config_hash_fingerprint_models` in `tests/unit/test_llm_service.py` and updated `test_env_example_matches_config_defaults` in `tests/unit/test_deduplication.py`.
+  - Verification: `pytest tests/unit/test_llm_service.py -k "test_config_hash_fingerprint_models"` passed; `pytest tests/unit/test_deduplication.py -k "test_env_example_matches_config_defaults"` passed.
+
+- **Finding 7 — Migration 002 downgrade safety with nullable publication times (`a201e29`):**
+  - Updated `downgrade()` in `alembic/versions/002_freshness_reliability_schema.py` to backfill existing `NULL` rows in `article_evidence.published_at_utc` with Unix epoch sentinel `'1970-01-01 00:00:00'` before re-applying `nullable=False`.
+  - Created integration migration test `tests/integration/test_migration_002_downgrade.py`: inserts an undated article row with `published_at_utc=None`, executes `alembic downgrade -1` to 001, verifies the row is preserved with sentinel date, and upgrades back to `head`.
+  - Verification: `pytest tests/integration/test_migration_002_downgrade.py` passed; `alembic check` clean (zero schema drift).
+
+- **Finding 8 — Frontend health helper path (`16051fd`):**
+  - Updated `getHealth()` in `frontend/src/services/api.ts` to request `${API_BASE}/health` (`/api/v1/health`) matching backend mount route.
+  - Added unit tests in `frontend/src/services/api.test.ts` asserting exact path `/api/v1/health` and error parsing.
+  - Verification: `npm.cmd test` (5 passed in `api.test.ts`).
+
+- **Finding 9 — Project-state claims & handover accuracy:**
+  - Updated `docs/implementation_log.md` and `docs/auditor_progress_handover.md` to clearly distinguish completed Phase 2 audit fixes from pending Phase 3–4 work.
+  - Documented exact commands actually executed and verified. Tracked handover document in repository.
+  - Verification: Full backend test suite `pytest --cov=app --cov-report=term-missing --cov-fail-under=85` passed at 89.58% (227 passed); `ruff check .` clean; `alembic check` clean; `npm.cmd run typecheck` clean; `npm.cmd test` passed (14 passed); static bundle drift check `git diff --exit-code ../app/static` clean.
+
 ## Deviations
 
 _None._
@@ -175,3 +235,4 @@ _None._
 ## Follow-ups
 
 _None._
+
