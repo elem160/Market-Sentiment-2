@@ -12,16 +12,16 @@
 
 ## 1. Executive Summary & Verification Gates
 
-The project is executing a 5-phase architectural and algorithmic remediation to eliminate reliability hazards, silent data corruption, false confidence inflation, and contract drift. Following Phase 0, Phase 1, Phase 2 (and its 9-point auditor review), the project is actively executing **Phase 3 (Performance, Reliability, Security)** on branch `fix/phase-3-performance-reliability`.
+The project is executing a 5-phase architectural and algorithmic remediation to eliminate reliability hazards, silent data corruption, false confidence inflation, and contract drift. Following Phase 0, Phase 1, Phase 2 (and its 9-point auditor review), **Phase 3 (Performance, Reliability, Security)** has now been completely implemented, verified, and committed on branch `fix/phase-3-performance-reliability`.
 
-Tasks **P3.1 (Ingestion rework)**, **P3.2 (FinBERT throughput & dependency injection)**, **P3.3 (Stop blocking event loop)**, **P3.4 (Job manager & SSE)**, **P3.5 (Rate limiting & client IP)**, **P3.6 (Cost, abuse & input controls)**, and **P3.7 (Data lifecycle & retention)** are fully implemented, verified, and committed.
+All tasks **P3.1 through P3.8** are fully implemented, verified, and committed.
 
 ### Current Project Health & Measured Quality Gates
 
 | Quality Gate | Requirement | Current Measured State | Status |
 |---|---|---|---|
-| **Backend Test Suite** | 100% offline pass | **274 passed**, 4 deselected (opt-in markers) in ~16.1s; **1 passed** in slow (real model) | **PASS** |
-| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **85.70%** overall backend coverage | **PASS** |
+| **Backend Test Suite** | 100% offline pass | **282 passed**, 4 deselected (opt-in markers) in ~14.5s; **1 passed** in slow (real model) | **PASS** |
+| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **85.76%** overall backend coverage | **PASS** |
 | **FinBERT Throughput Speedup** | $\ge 1.8\times$ batched vs loop | **1.81x** measured speedup via `scripts/bench_finbert.py` | **PASS** |
 | **Lint & Formatting** | `ruff check .` clean | 0 errors, 0 warnings across whole repo | **PASS** |
 | **Database Schema Drift** | `alembic check` zero drift | Current revision `005_operations` aligned with ORM | **PASS** |
@@ -170,11 +170,11 @@ The current agent completed tasks P2.5–P2.7 and addressed all 9 audit review f
 
 ---
 
-## 4. What Remains to Be Done (Phases 3 and 4)
-
-Tasks P3.1, P3.2, P3.3, P3.4, P3.5, and P3.6 of Phase 3 are complete. The remaining tasks are:
-
-### Phase 3: Performance, Reliability, Security (Remaining)
+## 4. What Remains to Be Done (Phase 4)
+ 
+All Phase 3 tasks (P3.1 through P3.8) are complete. The remaining work belongs to **Phase 4 (Code Quality & Documentation)**:
+ 
+### Phase 3: Performance, Reliability, Security — ALL COMPLETE
 *Active branch: `fix/phase-3-performance-reliability` | Detailed in [docs/implementation_plan.md §7](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L402-L493)*
 
 1. **P3.1 Ingestion Rework:** **COMPLETE** (`71b22f5`)
@@ -184,12 +184,9 @@ Tasks P3.1, P3.2, P3.3, P3.4, P3.5, and P3.6 of Phase 3 are complete. The remain
 5. **P3.5 Rate Limiting & Proxy IP Resolution:** **COMPLETE** (`0e1889d`)
 6. **P3.6 Cost, Abuse & Input Controls:** **COMPLETE** (`54c726a`)
 7. **P3.7 Data Lifecycle & Retention:** **COMPLETE** (`5959820`)
-8. **P3.8 Configuration & Startup (Findings: M13, L7, Decision: D3) — NEXT:**
-   - Package-anchored path resolution for `.env` and SQLite DB; full `.env.example` alignment test.
-   - Startup warning for timeout misconfigurations.
-   - Entry point `python -m app` uvicorn runner.
+8. **P3.8 Configuration, Path Anchoring & Startup:** **COMPLETE** (`99e9583`)
 
-### Phase 4: Code Quality & Documentation
+### Phase 4: Code Quality & Documentation (Remaining)
 *Branch to create: `fix/phase-4-code-quality` | Detailed in [docs/implementation_plan.md §8](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L495-L535)*
 
 1. **P4.1 Orchestrator Refactor (Finding: M16):**
@@ -252,6 +249,6 @@ git diff --exit-code ../app/static
 
 ## 6. Audit Verdict & Recommendation
 
-- **Direction Assessment:** The implementation strictly adheres to the approved architectural blueprint in [docs/implementation_plan.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md), addresses all 9 audit findings, and accurately records progress in [docs/implementation_log.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_log.md).
-- **Integrity Assessment:** Zero regressions introduced; test coverage stands at 89.58% (well above the 85% requirement); 227 offline backend tests and 14 frontend tests pass without failure; frontend bundle is rebuilt, verified, and protected against drift in CI.
-- **Recommended Next Step:** Approve Phase 2 sign-off and create branch `fix/phase-3-performance-reliability` from `fix/phase-2-decision-integrity` to begin Task P3.1.
+- **Direction Assessment:** The implementation strictly adheres to the approved architectural blueprint in [docs/implementation_plan.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md) (§7 Phase 3, Tasks P3.1 through P3.8), and accurately records all engineering deliverables in [docs/implementation_log.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_log.md).
+- **Integrity Assessment:** Zero regressions introduced; test coverage stands at **85.76%** (satisfying the $\ge 85\%$ strict requirement); 282 offline backend tests and 14 frontend tests pass cleanly; FinBERT throughput speedup measured at 1.81x; 0 ruff errors; 0 alembic migration drift.
+- **Recommended Next Step:** Approve Phase 3 sign-off on branch `fix/phase-3-performance-reliability` and proceed to create branch `fix/phase-4-code-quality` for Phase 4 (Task P4.1 Orchestrator refactor).

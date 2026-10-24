@@ -295,6 +295,18 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Added hourly background maintenance worker in `app/main.py` lifespan running `run_maintenance()` on the DB thread pool and cleanly cancelling on server shutdown.
   - Added test suite `tests/unit/test_maintenance.py` verifying job expiration, run retention cascade, maintenance CLI invocation, and deduplication sample capping.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 85.70% (274 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+- **Task P3.8 — Configuration, path anchoring, cache keying, and startup runner (`99e9583`):**
+  - Anchored `BASE_DIR = Path(__file__).resolve().parent.parent` in `app/config.py`; configured `env_file=BASE_DIR / ".env"`.
+  - Added Pydantic `field_validator` for `DATABASE_URL` resolving relative SQLite paths against `BASE_DIR` and creating parent directories; removed duplicated path logic and URL default string hacks from `app/db/database.py`, `app/main.py`, and `alembic/env.py`.
+  - Updated `alembic/env.py` to use `x_args.get("db_url")` or `settings.DATABASE_URL`.
+  - Added `RUN_MIGRATIONS_ON_STARTUP: bool = True` to `Settings`, running programmatic migrations conditionally in `lifespan`.
+  - Bumped `ALGORITHM_VERSION: int = 2` and updated multi-dimensional cache key computation: `sha256(ALGORITHM_VERSION, ticker, asset_type, bucket, enable_llm, config_hash)`, passing `asset_type` from both orchestrator and routes.
+  - Added `settings.check_timeout_misconfiguration()` detecting when combined stage timeouts (`INGESTION + LLM + finbert_est`) exceed `PIPELINE_TIMEOUT_SECONDS`, logging a startup warning.
+  - Created `app/__main__.py` uvicorn runner (`python -m app`) configured with `APP_HOST`, `APP_PORT`, `workers=1`, and proxy headers.
+  - Synchronized `.env.example` with 100% of `Settings` fields, default values, and descriptive comments.
+  - Documented single-worker architecture and reverse proxy settings in `README.md`.
+  - Created comprehensive test suite `tests/unit/test_config.py` (8 tests) covering path anchoring, cache bucket validation, config hash sensitivity, cache key integrity, timeout warnings, `.env.example` alignment, and `app.__main__` runner.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 85.76% (282 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
 ## Deviations
 
