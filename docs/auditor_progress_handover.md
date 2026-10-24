@@ -14,17 +14,17 @@
 
 The project is executing a 5-phase architectural and algorithmic remediation to eliminate reliability hazards, silent data corruption, false confidence inflation, and contract drift. Following Phase 0, Phase 1, Phase 2 (and its 9-point auditor review), the project is actively executing **Phase 3 (Performance, Reliability, Security)** on branch `fix/phase-3-performance-reliability`.
 
-Tasks **P3.1 (Ingestion rework)**, **P3.2 (FinBERT throughput & dependency injection)**, **P3.3 (Stop blocking event loop)**, **P3.4 (Job manager & SSE)**, and **P3.5 (Rate limiting & client IP)** are fully implemented, verified, and committed.
+Tasks **P3.1 (Ingestion rework)**, **P3.2 (FinBERT throughput & dependency injection)**, **P3.3 (Stop blocking event loop)**, **P3.4 (Job manager & SSE)**, **P3.5 (Rate limiting & client IP)**, and **P3.6 (Cost, abuse & input controls)** are fully implemented, verified, and committed.
 
 ### Current Project Health & Measured Quality Gates
 
 | Quality Gate | Requirement | Current Measured State | Status |
 |---|---|---|---|
-| **Backend Test Suite** | 100% offline pass | **259 passed**, 4 deselected (opt-in markers) in ~14.8s; **1 passed** in slow (real model) | **PASS** |
-| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **86.79%** overall backend coverage | **PASS** |
+| **Backend Test Suite** | 100% offline pass | **269 passed**, 4 deselected (opt-in markers) in ~15.9s; **1 passed** in slow (real model) | **PASS** |
+| **Backend Code Coverage** | $\ge 85\%$ strict enforcement | **86.08%** overall backend coverage | **PASS** |
 | **FinBERT Throughput Speedup** | $\ge 1.8\times$ batched vs loop | **1.81x** measured speedup via `scripts/bench_finbert.py` | **PASS** |
 | **Lint & Formatting** | `ruff check .` clean | 0 errors, 0 warnings across whole repo | **PASS** |
-| **Database Schema Drift** | `alembic check` zero drift | Current revision `004_decision_integrity` aligned with ORM | **PASS** |
+| **Database Schema Drift** | `alembic check` zero drift | Current revision `005_operations` aligned with ORM | **PASS** |
 | **Contract Alignment** | OpenAPI snapshot equality | [tests/contract/test_openapi_snapshot.py](file:///d:/Code%20Projects/Market%20Sentiment%202/tests/contract/test_openapi_snapshot.py) clean | **PASS** |
 | **Frontend Typecheck** | `tsc --noEmit` clean | 0 type errors across frontend and tests | **PASS** |
 | **Frontend Test Suite** | 100% Vitest pass | **14 passed** across 3 test files | **PASS** |
@@ -160,12 +160,19 @@ The current agent completed tasks P2.5–P2.7 and addressed all 9 audit review f
   - Right-to-left `X-Forwarded-For` proxy resolution walking against `TRUSTED_PROXY_IPS` (supporting exact IPs and CIDR ranges) stopping at the first untrusted IP.
   - Header `Retry-After` precisely computed on 429 responses.
   - Tested in `tests/unit/test_rate_limiter.py` and `tests/unit/test_api_security_and_limits.py`.
+- **P3.6 Cost, Abuse & Input Controls ([`54c726a`](file:///d:/Code%20Projects/Market%20Sentiment%202/app/services/llm_service.py)):**
+  - Migration `005_operations.py` adding `analysis_runs.llm_cost_usd` (FLOAT, default 0.0), backfilled from `metrics_json` via SQLite JSON extract, and operational indexes `ix_analysis_runs_created_at` and `ix_analysis_jobs_expires_at`.
+  - UTC daily spend aggregation in `SentimentRepository.get_daily_llm_spend`; `LLMService.verify_and_synthesize` bounds spend against `LLM_DAILY_BUDGET_USD` ($1.00), skipping with `status="SKIPPED"`, `reason="DAILY_BUDGET_EXCEEDED"`.
+  - Optional `API_KEY` guard: `verify_api_key` dependency returning 401 `UnauthorizedException`; `verify_history_access` gates `/history` and `/analysis/{run_id}` when `PUBLIC_HISTORY=False`.
+  - Strict input limits: `AnalyzeRequest.ticker` constrained to `min_length=1, max_length=20` (422 `RequestValidationError`); `TickerService.normalize_ticker()` enforces 20-char max across all notations.
+  - Security headers middleware (`X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, basic CSP); CORS `allow_credentials=False`.
+  - Tested in `tests/unit/test_cost_and_abuse_controls.py` (9 tests) and `tests/integration/test_migration_005.py`.
 
 ---
 
 ## 4. What Remains to Be Done (Phases 3 and 4)
 
-Tasks P3.1, P3.2, P3.3, P3.4, and P3.5 of Phase 3 are complete. The remaining tasks are:
+Tasks P3.1, P3.2, P3.3, P3.4, P3.5, and P3.6 of Phase 3 are complete. The remaining tasks are:
 
 ### Phase 3: Performance, Reliability, Security (Remaining)
 *Active branch: `fix/phase-3-performance-reliability` | Detailed in [docs/implementation_plan.md §7](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L402-L493)*
@@ -175,13 +182,11 @@ Tasks P3.1, P3.2, P3.3, P3.4, and P3.5 of Phase 3 are complete. The remaining ta
 3. **P3.3 Stop Blocking the Event Loop:** **COMPLETE** (`a7cb23e`)
 4. **P3.4 Job Manager, Concurrency Limits & Request Coalescing:** **COMPLETE** (`96d6131`)
 5. **P3.5 Rate Limiting & Proxy IP Resolution:** **COMPLETE** (`0e1889d`)
-6. **P3.6 Cost, Abuse & Input Controls (Findings: H15, L3, L10, Decision: D2) — NEXT:**
-   - Migration `005_operations.py` adding `analysis_runs.llm_cost_usd`.
-   - Spend tracking against `LLM_DAILY_BUDGET_USD` ($1.00); optional `API_KEY` guard for `/analyze` and private history.
-   - Security headers middleware.
-7. **P3.7 Data Lifecycle & Retention (Finding: H16):**
+6. **P3.6 Cost, Abuse & Input Controls:** **COMPLETE** (`54c726a`)
+7. **P3.7 Data Lifecycle & Retention (Finding: H16) — NEXT:**
    - Lifespan retention task purging jobs past `expires_at` and runs older than `RUN_RETENTION_DAYS` (30).
-   - `python -m app.cli maintenance` script.
+   - Cap stored excluded samples at 20 per reason; totals go to `metrics.excluded_counts`.
+   - `python -m app.cli maintenance [--vacuum]` script.
 8. **P3.8 Configuration & Startup (Findings: M13, L7, Decision: D3):**
    - Package-anchored path resolution for `.env` and SQLite DB; full `.env.example` alignment test.
    - Startup warning for timeout misconfigurations.

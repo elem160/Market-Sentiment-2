@@ -34,7 +34,7 @@
 | P3.3 | Stop blocking the event loop | H11 | done | `a7cb23e` |
 | P3.4 | Job manager: limits, coalescing, SSE | M7, M8, H15, L6 | done | `96d6131` |
 | P3.5 | Rate limiting and client IP | H12 | done | `0e1889d` |
-| P3.6 | Cost, abuse and input controls | H15, L3, L10 | todo | |
+| P3.6 | Cost, abuse and input controls | H15, L3, L10 | done | `54c726a` |
 | P3.7 | Data lifecycle | H16 | todo | |
 | P3.8 | Configuration and startup | M13, L7 | todo | |
 | P4.1 | Orchestrator refactor | M16 | todo | |
@@ -278,6 +278,14 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Converted routes to use declarative `rate_limit(scope)` dependencies (`/analyze` uses `analyze`, `/jobs/{job_id}` and `/jobs/{job_id}/events` use `jobs`, `/analysis/{run_id}` and `/history` use `read`).
   - Added unit test suite `tests/unit/test_rate_limiter.py` and updated `tests/unit/test_api_security_and_limits.py`.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.79% (259 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+- **Task P3.6 — Cost, abuse and input controls (`54c726a`):**
+  - Created migration `alembic/versions/005_operations.py` adding `analysis_runs.llm_cost_usd` (FLOAT, default 0.0), backfilling from `metrics_json` via SQLite JSON extract, and adding operational indexes `ix_analysis_runs_created_at` and `ix_analysis_jobs_expires_at`.
+  - Implemented daily LLM spend tracking: added `SentimentRepository.get_daily_llm_spend(db, target_date)` aggregating UTC spend; `LLMService.verify_and_synthesize` checks `get_today_utc_spend()` against `LLM_DAILY_BUDGET_USD` ($1.00) and safely skips LLM calls with `status="SKIPPED"`, `reason="DAILY_BUDGET_EXCEEDED"`, degrading to deterministic FinBERT-only verdict.
+  - Implemented optional API key authentication: `API_KEY` setting and `verify_api_key` dependency rejecting missing or incorrect `X-API-Key` headers with 401 `UnauthorizedException`. Gated history inspection (`/history` and `/analysis/{run_id}`) behind `verify_history_access` when `PUBLIC_HISTORY=False`.
+  - Enforced strict ticker input controls: `AnalyzeRequest.ticker` constrained to `min_length=1, max_length=20` (returning 422 `RequestValidationError` for >20 chars); updated `TickerService.normalize_ticker()` to enforce maximum 20-character length across all notations.
+  - Configured security headers middleware adding `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and basic CSP (`default-src 'self'`); set CORS `allow_credentials=False`.
+  - Added unit test suite `tests/unit/test_cost_and_abuse_controls.py` (9 tests) and migration test `tests/integration/test_migration_005.py`.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.08% (269 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
 ## Deviations
 
