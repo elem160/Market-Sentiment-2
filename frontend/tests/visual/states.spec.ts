@@ -52,13 +52,10 @@ async function captureState(page: Page, stateName: string, width: number) {
 }
 
 test.describe('Visual States Harness', () => {
-  test.beforeEach(async (_, testInfo) => {
-    test.skip(testInfo.project.name !== 'desktop', 'States run viewports explicitly in desktop project');
-  });
-
   for (const vp of VIEWPORTS) {
     test.describe(`Viewport ${vp.width}x${vp.height}`, () => {
-      test.beforeEach(async ({ page }) => {
+      test.beforeEach(async ({ page }, testInfo) => {
+        test.skip(testInfo.project.name !== 'desktop', 'States run viewports explicitly in desktop project');
         await page.setViewportSize({ width: vp.width, height: vp.height });
       });
 

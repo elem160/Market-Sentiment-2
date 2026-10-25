@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Clock, ShieldAlert } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const [timeUtc, setTimeUtc] = useState<string>('');
@@ -27,34 +26,33 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      {/* Top Permanent Non-Advisory Legal Disclaimer */}
-      <div className="disclaimer-strip" id="legal-disclaimer-strip" role="region" aria-label="Research Disclaimer">
-        <ShieldAlert size={16} aria-hidden="true" />
+      {/* Top Permanent Non-Advisory Legal Disclaimer Strip */}
+      <div id="legal-disclaimer-strip" className="sp-legal" role="region" aria-label="Research Disclaimer">
+        <span className="sp-tag sp-tag--accent">Research only</span>
         <span>
           <strong>RESEARCH &amp; SENTIMENT EXPERIMENT ONLY:</strong> Not investment advice or solicitation. Directional classifications (BUY/HOLD/SELL) are algorithmic heuristic models based purely on current-session public news sentiment.
         </span>
       </div>
 
-      <header className="app-header">
-        <div className="header-brand">
-          <div className="brand-icon" aria-hidden="true">
-            <Activity size={20} />
-          </div>
-          <div>
-            <h1 className="brand-title">SENTIMENT PULSE</h1>
-            <div className="brand-subtitle">Real-Time Market Sentiment Intelligence</div>
-          </div>
+      {/* Sticky Top Navigation */}
+      <header className="sp-nav">
+        <div className="sp-nav-brand">
+          <h1 className="sp-display sp-nav-title">Sentiment Pulse</h1>
+          <span className="sp-label sp-nav-sub">Real-Time Market Sentiment Intelligence</span>
         </div>
 
-        <div className="header-clocks" aria-label="Session clocks" role="group">
-          <div className="clock-item" title="Eastern Time (NYSE/NASDAQ Market Anchor)">
-            <span className="clock-dot" aria-hidden="true"></span>
-            <Clock size={13} aria-hidden="true" />
-            <span id="header-clock-et" aria-label={`Eastern Time: ${timeEt}`}>{timeEt}</span>
+        <div className="sp-nav-clocks" role="group" aria-label="Session clocks">
+          <div className="sp-clock" title="Eastern Time (NYSE/NASDAQ Market Anchor)">
+            <span className="sp-label">ET</span>
+            <span id="header-clock-et" className="sp-mono" aria-label={`Eastern Time: ${timeEt}`}>
+              {timeEt}
+            </span>
           </div>
-          <div className="clock-item" title="Coordinated Universal Time">
-            <span className="clock-dot" aria-hidden="true"></span>
-            <span id="header-clock-utc" aria-label={`UTC: ${timeUtc}`}>{timeUtc}</span>
+          <div className="sp-clock" title="Coordinated Universal Time">
+            <span className="sp-label">UTC</span>
+            <span id="header-clock-utc" className="sp-mono" aria-label={`UTC: ${timeUtc}`}>
+              {timeUtc}
+            </span>
           </div>
         </div>
       </header>

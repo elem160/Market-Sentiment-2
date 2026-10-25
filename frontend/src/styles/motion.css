@@ -1,0 +1,47 @@
+/* ==========================================================================
+   Motion System (CSS Only)
+   ========================================================================== */
+
+@keyframes spEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spWipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+.sp-sheet {
+  animation: spEnter var(--sp-t-enter) var(--sp-ease) forwards;
+}
+
+.sp-main > *:nth-child(1) { animation-delay: 0ms; }
+.sp-main > *:nth-child(2) { animation-delay: 40ms; }
+.sp-main > *:nth-child(3) { animation-delay: 80ms; }
+.sp-main > *:nth-child(4) { animation-delay: 120ms; }
+.sp-main > *:nth-child(5) { animation-delay: 160ms; }
+.sp-main > *:nth-child(6) { animation-delay: 200ms; }
+.sp-main > *:nth-child(7) { animation-delay: 240ms; }
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .sp-verdict {
+    clip-path: none !important;
+  }
+}

@@ -10,7 +10,10 @@ import { RationaleSection } from './components/RationaleSection';
 import { EvidenceExplorer } from './components/EvidenceExplorer';
 import { TelemetryDrawer } from './components/TelemetryDrawer';
 import { HistorySidebar } from './components/HistorySidebar';
-import { AlertCircle, BarChart3 } from 'lucide-react';
+import { SectionRail } from './components/SectionRail';
+import { LandingHero } from './components/LandingHero';
+import { SiteFooter } from './components/SiteFooter';
+import { AlertCircle } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeTicker, setActiveTicker] = useState<string>('NVDA');
@@ -144,75 +147,72 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="app-container">
+    <div className="sp-app">
       <Header />
 
-      <main className="main-content">
-        <SearchBar
-          onSearch={handleSearch}
-          isLoading={isLoading}
-          activeTicker={activeTicker}
-        />
+      <div className="sp-page">
+        <SectionRail />
 
-        {errorMessage && (
-          <div className="analysis-error animate-fade-in" role="alert">
-            <AlertCircle size={20} style={{ flexShrink: 0 }} aria-hidden="true" />
-            <div>
-              <strong>Analysis Error:</strong> {errorMessage}
-            </div>
-          </div>
-        )}
+        <main className="sp-main">
+          {!analysisResult && !isLoading && !errorMessage && <LandingHero />}
 
-        {isLoading && (
-          <LoadingStepper
-            stage={currentStage}
-            progressPct={progressPct}
-            message={progressMsg}
-            ticker={activeTicker}
+          <SearchBar
+            onSearch={handleSearch}
+            isLoading={isLoading}
+            activeTicker={activeTicker}
           />
-        )}
 
-        {analysisResult && (
-          <>
-            <SessionWindowBanner
-              session={analysisResult.session}
+          {errorMessage && (
+            <div className="sp-error" role="alert">
+              <span className="sp-error-tag">ERR</span>
+              <AlertCircle size={20} style={{ flexShrink: 0 }} aria-hidden="true" />
+              <div className="sp-error-msg">
+                <strong>Analysis Error:</strong> {errorMessage}
+              </div>
+            </div>
+          )}
+
+          {isLoading && (
+            <LoadingStepper
+              stage={currentStage}
+              progressPct={progressPct}
+              message={progressMsg}
+              ticker={activeTicker}
             />
+          )}
 
-            <DecisionHero result={analysisResult} />
+          {analysisResult && (
+            <>
+              <SessionWindowBanner
+                session={analysisResult.session}
+              />
 
-            <RationaleSection
-              rationale={analysisResult.rationale}
-              articles={analysisResult.articles}
-              llmSummary={analysisResult.llm_summary}
-              modelVersions={analysisResult.model_versions}
-            />
+              <DecisionHero result={analysisResult} />
 
-            <EvidenceExplorer
-              articles={analysisResult.articles}
-              metrics={analysisResult.metrics}
-            />
+              <RationaleSection
+                rationale={analysisResult.rationale}
+                articles={analysisResult.articles}
+                llmSummary={analysisResult.llm_summary}
+                modelVersions={analysisResult.model_versions}
+              />
 
-            <TelemetryDrawer result={analysisResult} />
-          </>
-        )}
+              <EvidenceExplorer
+                articles={analysisResult.articles}
+                metrics={analysisResult.metrics}
+              />
 
-        <HistorySidebar
-          onSelectRun={handleSelectHistoricalRun}
-          refreshTrigger={historyTrigger}
-        />
+              <TelemetryDrawer result={analysisResult} />
+            </>
+          )}
 
-        {!analysisResult && !isLoading && !errorMessage && (
-          <div className="empty-state animate-fade-in" role="region" aria-label="Welcome and usage introduction">
-            <BarChart3 className="empty-state-icon" aria-hidden="true" />
-            <h2 className="font-display" style={{ fontSize: '1.25rem', color: 'var(--color-ink)' }}>
-              Live Market Sentiment &amp; Catalyst Intelligence
-            </h2>
-            <p style={{ maxWidth: '620px', lineHeight: 1.6, color: 'var(--color-ink-soft)' }}>
-              Enter any US equity, ETF, forex pair (e.g. EUR/USD), commodity future (e.g. GC=F), or crypto asset to execute session-anchored news ingestion, FinBERT neural scoring, and corroboration synthesis.
-            </p>
-          </div>
-        )}
-      </main>
+          <HistorySidebar
+            onSelectRun={handleSelectHistoricalRun}
+            refreshTrigger={historyTrigger}
+          />
+        </main>
+      </div>
+
+      <SiteFooter />
     </div>
   );
 };
