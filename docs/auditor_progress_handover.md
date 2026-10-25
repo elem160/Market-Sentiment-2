@@ -205,12 +205,18 @@ All Phase 3 tasks (P3.1 through P3.8) are complete. The remaining work belongs t
    - Created `docs/CHANGELOG.md` adhering to Keep a Changelog format with comprehensive v1.1.0 release notes.
    - Bumped application version to `1.1.0` in `app/main.py` and `frontend/package.json`; regenerated OpenAPI snapshot in `frontend/src/api/openapi.json`.
    - Rewrote `README.md` with honest feature claims, Mermaid architecture diagram with `JobManager` and executors, complete API reference, configuration reference table, decision mathematics, limitations, test markers, and accurate repository tree.
-4. **P4.4 Frontend Quality (Finding: L8):**
-   - Bundle self-hosted fonts; enforce strict TypeScript typing.
+4. **P4.4 Frontend Quality (Finding: L8):** **COMPLETE** (`c600fc5`)
+   - Bundled self-hosted fonts via `@fontsource/inter`, `@fontsource/jetbrains-mono`, and `@fontsource/plus-jakarta-sans`, removing Google Fonts CDN requests.
+   - Implemented `formatTickerLabel(ticker, assetType)` displaying `$` only for US equities and ETFs across `DecisionHero`, `LoadingStepper`, and `HistorySidebar`.
+   - Synchronized `SearchBar` input state with `activeTicker` on selection and history load.
+   - Refactored UI accessibility: clickable elements converted to `<button>` with `aria-expanded` attributes, visible `:focus-visible` outlines, and `@media (prefers-reduced-motion: reduce)` animation suppression.
+   - CSS cleanup: added `.btn-link`, `.no-fresh-news-banner` and `.no-fresh-news-banner.degraded`, removed unused `@keyframes pulseGlow` and `@keyframes shimmer`, and added narrow-screen `@media (max-width: 768px)` rules.
+   - Configured ESLint flat config (`eslint.config.js`) with `typescript-eslint`, `react-hooks`, and `jsx-a11y`; added `"lint": "eslint ."`.
+   - Frontend tests expanded to 23 tests across 4 suites (`formatters.test.ts`, `DecisionHero.test.tsx`, `api.test.ts`, `App.test.tsx`).
 5. **P4.5 Repository Hygiene (Finding: L9):**
-   - Add `.gitattributes` for LF/CRLF normalization; ensure `.gitignore` guards all test artifacts.
+   - Update `.gitignore`: change `lib/` to `/lib/` and add `data/*.bak*`; clean untracked caches; create `Dockerfile` and `.dockerignore`.
 6. **P4.6 Persistence Details (Finding: L4):**
-   - Audit cascade deletion constraints across all SQLite relationships.
+   - Carry `ScoredArticle.retrieved_at_utc` from ingestion into database; rebuild `SessionWindow` in `SentimentRepository._to_analysis_result()` from stored columns rather than recomputing from calendar.
 
 ---
 

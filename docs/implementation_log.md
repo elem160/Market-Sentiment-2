@@ -331,6 +331,16 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Rewrote `README.md` with honest feature claims (removing inaccurate "2-3s", "token-sort", and "durable" claims; providing measured 9.5-16.5s timings), updated Mermaid architecture diagram detailing `JobManager` and dedicated thread pools (`db_executor`, `io_executor`), complete API reference with SSE contract and unified error models, comprehensive configuration reference table for all 39 `.env` settings, decision model mathematics, limitations, test markers, and accurate repository tree.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.20% (284 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
+- **Task P4.4 — Frontend quality, accessibility, self-hosted fonts, and component styling (`c600fc5`):**
+  - Integrated self-hosted fonts using `@fontsource/inter`, `@fontsource/jetbrains-mono`, and `@fontsource/plus-jakarta-sans`, removing external Google Fonts CDN links from `frontend/index.html`.
+  - Implemented `formatTickerLabel(ticker: string, assetType?: string)` utility in `frontend/src/utils/formatters.ts` displaying `$` only for US equities and ETFs, with comprehensive test coverage in `formatters.test.ts` and `DecisionHero.test.tsx`.
+  - Integrated `formatTickerLabel` into `DecisionHero.tsx`, `LoadingStepper.tsx`, and `HistorySidebar.tsx`.
+  - Updated `SearchBar.tsx` to synchronize search input state with `activeTicker` across query selections and history navigation without cascading effects.
+  - Accessibility refactor: converted clickable `div`s in `HistorySidebar.tsx` to accessible `<button>` items with `aria-expanded` and semantic roles, added `aria-expanded` to `EvidenceExplorer.tsx` collapsible sections, added visible `:focus-visible` styling, and added `@media (prefers-reduced-motion: reduce)` animation suppression.
+  - CSS refinements in `index.css`: defined `.btn-link`, `.no-fresh-news-banner` and `.no-fresh-news-banner.degraded`, removed unused `@keyframes pulseGlow` and `@keyframes shimmer`, and added responsive `@media (max-width: 768px)` rules for header, clock, and search bar layout.
+  - Configured ESLint flat config (`eslint.config.js`) with `typescript-eslint`, `eslint-plugin-react-hooks`, and `eslint-plugin-jsx-a11y`; added `"lint": "eslint ."` script to `package.json`.
+  - Verification: `npm.cmd run lint` passed (0 errors, 0 warnings); `npm.cmd test` passed (23 passed across 4 files); `npm.cmd run typecheck` clean; `npm.cmd run build` clean; backend test suite passed (284 passed, 86.20% coverage); `ruff check .` clean; `alembic check` clean.
+
 ## Deviations
 
 _None._
