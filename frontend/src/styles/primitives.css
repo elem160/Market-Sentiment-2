@@ -80,10 +80,24 @@
 }
 .sp-sec-word {
   font-size: var(--sp-fs-section);
+  overflow-wrap: anywhere;
 }
 .sp-sec-word em {
   font-style: normal;
   color: var(--sp-accent-deep);
+}
+
+@media (max-width: 639px) {
+  .sp-sec-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .sp-sec-word {
+    width: 100%;
+    font-size: clamp(1.75rem, 8vw, 2.5rem);
+  }
 }
 
 /* Buttons */
@@ -151,4 +165,7 @@
 .sp-error-msg {
   font-size: var(--sp-fs-small);
   line-height: 1.4;
+}
+.sp-error svg {
+  flex-shrink: 0;
 }

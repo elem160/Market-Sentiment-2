@@ -157,6 +157,10 @@
   border-left-color: var(--sp-sell);
 }
 
+.sp-notice svg {
+  flex-shrink: 0;
+}
+
 .sp-notice strong {
   font-weight: 700;
 }

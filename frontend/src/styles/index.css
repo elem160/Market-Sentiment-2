@@ -17,6 +17,3 @@
 @import './history.css';
 @import './motion.css';
 @import './responsive.css';
-
-/* Temporary compatibility styles for unmigrated components (deleted in Phase 6) */
-@import './legacy.css';

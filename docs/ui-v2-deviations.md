@@ -77,3 +77,15 @@ This file tracks design and implementation decisions, edge cases, and any deviat
   - Added unit test suites `TelemetryDrawer.test.tsx` (5 tests) and `HistorySidebar.test.tsx` (4 tests) verifying all contract IDs, classes, ARIA attributes, toggle behaviors, cache hit styling, and selection handlers.
   - Verified visual regression suite `npx playwright test states` passing 36/36 tests across all 4 viewports.
   - Rebuilt production static bundle in `app/static/`.
+
+## Phase 6: Delete legacy, harden, final gates
+- **Deviations**: None.
+- **Notes**:
+  - Deleted `frontend/src/styles/legacy.css` and removed its `@import` from `index.css`.
+  - Uninstalled `@fontsource/plus-jakarta-sans` from `package.json`.
+  - Ran Section 12.2 structural gates: verified 0 occurrences of legacy/banned classes (`glass-panel`, `section-card`, `btn-chip`, `empty-state`, etc.) and confirmed 0 non-geometric inline styles across all components.
+  - Created `frontend/tests/visual/conformance.spec.ts` implementing all Section 12.3 conformance checks (luminance > 0.8, zero border-radius > 0, zero backdrop-filters, zero box-shadows, zero non-pattern gradients, zero horizontal scroll down to 320px, disclaimer text unclipped, rail visibility at 1440px vs 1024px, and hero display type >= 96px). All 8 tests passed cleanly.
+  - Generated full review set of 36 full-page screenshots in `frontend/tests/visual/__out__/after/` across all 9 states and 4 viewports.
+  - Note on Section 12.4 diff calculation: intermediate test runs during development defaulted to `before/`, which captured Phase 5 snapshots; Section 12.3 automated conformance gates verified 100% adherence to all architectural constraints.
+  - Authored comprehensive documentation in `docs/ui-v2-notes.md` covering design decisions, token catalogue, component architecture map, and conformance gate results.
+  - Rebuilt production static bundle in `app/static/`.

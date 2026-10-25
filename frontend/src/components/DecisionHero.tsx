@@ -120,7 +120,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
 
       {result.data_status === 'NO_FRESH_NEWS' && (
         <div className="sp-notice" role="status">
-          <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+          <AlertTriangle size={18} aria-hidden="true" />
           <span>
             <strong>NO FRESH NEWS IN SESSION:</strong> Zero articles satisfied current session window freshness criteria. The HOLD verdict is an uncorroborated default for zero active headlines.
           </span>
@@ -129,7 +129,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
 
       {result.data_status === 'NO_RELEVANT_NEWS' && (
         <div className="sp-notice" role="status">
-          <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+          <AlertTriangle size={18} aria-hidden="true" />
           <span>
             <strong>NO RELEVANT NEWS IN SESSION:</strong> Ingested articles did not pass multi-asset entity relevance filters for this symbol. The HOLD verdict is an evidence-free default.
           </span>
@@ -138,7 +138,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
 
       {result.data_status === 'DEGRADED' && (
         <div className="sp-notice sp-notice--degraded" role="alert">
-          <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+          <AlertTriangle size={18} aria-hidden="true" />
           <span>
             <strong>DEGRADED INGESTION:</strong> All external RSS news feeds failed during ingestion sweep. Analysis was completed using partial sources only and will not be cached.
           </span>
