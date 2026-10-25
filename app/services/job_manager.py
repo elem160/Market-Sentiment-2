@@ -1,17 +1,18 @@
 import asyncio
 import time
 import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import AsyncIterator
+
 from fastapi import Request
+
 from app.api.schemas import (
-    JobCompletedEvent,
-    JobFailedEvent,
-    JobProgressEvent,
     SSE_EVENT_COMPLETED,
     SSE_EVENT_FAILED,
     SSE_EVENT_PROGRESS,
+    JobCompletedEvent,
+    JobFailedEvent,
+    JobProgressEvent,
 )
 from app.config import settings
 from app.core.enums import JobStatus, PipelineStage
@@ -236,7 +237,7 @@ class JobManager:
                 self._semaphore.acquire(),
                 timeout=self.queue_timeout_seconds,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             async with self._lock:
                 if job_id in self._queue:
                     self._queue.remove(job_id)
@@ -310,7 +311,7 @@ class JobManager:
             )
             logger.info(f"Job {job_id} for {ticker} completed successfully -> Run ID: {result.run_id}")
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             timeout_msg = f"Pipeline execution timed out after {self.pipeline_timeout_seconds}s"
             logger.error(f"Job {job_id} for {ticker} timed out: {timeout_msg}")
             await run_db(SentimentRepository.fail_job, job_id, timeout_msg)
@@ -401,7 +402,7 @@ class JobManager:
 
                     try:
                         event = await asyncio.wait_for(queue.get(), timeout=self.heartbeat_seconds)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         # Heartbeat interval elapsed: emit SSE comment
                         yield ": ping\n\n"
                         continue

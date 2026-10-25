@@ -1,15 +1,14 @@
 import asyncio
-import os
-import json
 import time
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 
 from app.config import settings
-from app.core.enums import ProviderType, ProviderKind, AssetType, SessionType
-from app.core.models import IngestedArticle, SessionWindow, FeedSpec, ProviderOutcome
+from app.core.enums import AssetType, ProviderKind, ProviderType, SessionType
+from app.core.models import FeedSpec, IngestedArticle, ProviderOutcome, SessionWindow
 from app.services.news_service import NewsService
 
 
@@ -400,8 +399,8 @@ def test_yahoo_news_count_passed():
 @pytest.mark.asyncio
 async def test_provider_outcome_kinds_drive_outage_detection():
     """Verify that orchestrator outage logic correctly relies on outcome.kind."""
-    from app.services.orchestrator import AnalysisOrchestrator
     from app.core.models import Asset
+    from app.services.orchestrator import AnalysisOrchestrator
 
     asset = Asset(ticker="AAPL", company_name="Apple Inc.", exchange="")
 

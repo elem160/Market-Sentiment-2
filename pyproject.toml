@@ -5,22 +5,12 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC"]
 ignore = [
-    "E501",     # Line length violations (handled progressively; full cleanup in P4.2)
+    "E501",     # Line length violations (handled progressively)
     "E741",     # Ambiguous variable name (e.g. l)
-    "I001",     # Import sorting (handled in P4.2)
-    "F401",     # Unused imports (handled in P4.2)
-    "F841",     # Unused local variable (handled in P4.2)
-    "UP007",    # Use X | Y for type annotations (handled in P4.2)
-    "UP015",    # Redundant open mode (handled in P4.2)
-    "UP017",    # Use datetime.UTC alias (handled in P4.2)
-    "UP035",    # Deprecated import (handled in P4.2)
-    "UP041",    # Asyncio timeout (handled in P4.2)
-    "UP042",    # Class inherits from both str and Enum (handled in P4.2)
-    "B007",     # Loop control variable not used (handled in P4.2)
     "B008",     # Do not perform function call in argument defaults (FastAPI Depends)
-    "B904",     # Within an except clause, raise exceptions with raise ... from err (handled in P4.2)
-    "B905",     # zip() without an explicit strict= parameter (handled in P4.2)
-    "ASYNC109", # Async function with timeout parameter (handled in P4.2)
-    "ASYNC230", # Async file I/O operations (handled in P3.3/P4.2)
-    "ASYNC251", # Async sleep or similar (handled in P3.3/P4.2)
+    "UP017",    # datetime.UTC requires Python 3.12+ (runtime target is Python 3.11)
+    "UP042",    # str, Enum inheritance for Pydantic v2 JSON serialization
+    "ASYNC109", # Async function with timeout parameter
+    "ASYNC230", # Async file I/O operations
+    "ASYNC251", # Async sleep or similar in tests/background workers
 ]

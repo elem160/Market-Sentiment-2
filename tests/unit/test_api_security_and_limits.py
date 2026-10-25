@@ -1,11 +1,12 @@
-import time
 from unittest.mock import MagicMock
+
 import pytest
 from fastapi import Request
-from app.config import settings
-from app.utils.rate_limiter import SlidingWindowRateLimiter
-from app.core.exceptions import RateLimitExceededException
+
 from app.api.dependencies import get_client_ip, is_ip_trusted
+from app.config import settings
+from app.core.exceptions import RateLimitExceededException
+from app.utils.rate_limiter import SlidingWindowRateLimiter
 
 
 def test_rate_limiter_bounded_lru_cap():
@@ -13,7 +14,6 @@ def test_rate_limiter_bounded_lru_cap():
     limiter = SlidingWindowRateLimiter(max_keys=50)
 
     # Fill limiter with 60 distinct IP keys
-    now = time.time()
     for i in range(60):
         limiter.check("analyze", f"192.168.1.{i}", max_requests=10, window_seconds=60)
 

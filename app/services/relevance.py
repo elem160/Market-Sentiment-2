@@ -4,18 +4,19 @@ Evaluates headline and lead summary relevance across Equities, Forex, Futures/Co
 """
 import re
 from typing import Literal
-from app.core.models import Asset
-from app.core.enums import AssetType
+
 from app.core.asset_registry import (
-    EQUITY_ALIASES,
     COMMON_WORD_TICKERS,
-    CURRENCY_NAMES,
-    FUTURES_KEYWORDS,
     CRYPTO_NAMES,
-    MARKET_CONTEXT_TERMS,
+    CURRENCY_NAMES,
+    EQUITY_ALIASES,
+    FUTURES_KEYWORDS,
     GENERIC_NAME_TOKENS,
     LEGAL_CORPORATE_SUFFIXES,
+    MARKET_CONTEXT_TERMS,
 )
+from app.core.enums import AssetType
+from app.core.models import Asset
 
 MatchReason = Literal[
     "CASHTAG",

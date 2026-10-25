@@ -1,9 +1,10 @@
 from unittest.mock import MagicMock, patch
+
 import pytest
 from starlette.requests import Request
+
 from app.api.dependencies import get_client_ip
 from app.config import settings
-from app.core.exceptions import RateLimitExceededException
 from app.utils.rate_limiter import SlidingWindowRateLimiter, rate_limiter
 
 
@@ -101,8 +102,8 @@ async def test_job_polls_do_not_block_analyze(async_client, db_session):
     # 2. Verify /analyze is NOT rate limited and still succeeds
     with patch("app.services.ticker_service.TickerService.resolve_ticker_async") as mock_resolve, \
          patch("app.services.job_manager.JobManager._run_job"):
-        from app.core.models import Asset
         from app.core.enums import AssetType
+        from app.core.models import Asset
         mock_resolve.return_value = Asset(
             ticker="AAPL",
             company_name="Apple Inc.",
@@ -125,8 +126,8 @@ async def test_retry_after_header_present_on_429(async_client, db_session):
     # Analyze limit is 15 req/min
     with patch("app.services.ticker_service.TickerService.resolve_ticker_async") as mock_resolve, \
          patch("app.services.job_manager.JobManager._run_job"):
-        from app.core.models import Asset
         from app.core.enums import AssetType
+        from app.core.models import Asset
         mock_resolve.return_value = Asset(
             ticker="AAPL",
             company_name="Apple Inc.",

@@ -2,8 +2,9 @@
 Asset registry containing canonical alias dictionaries, common-word tickers,
 currency definitions, futures keywords, crypto names, and search query helpers.
 """
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+
 from app.core.enums import AssetType
 
 

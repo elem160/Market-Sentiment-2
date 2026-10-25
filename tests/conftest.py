@@ -27,6 +27,7 @@ import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
 import time_machine  # noqa: E402
 import yfinance  # noqa: E402
+from fakes import KeywordScorer  # noqa: E402
 from httpx import ASGITransport, AsyncClient  # noqa: E402
 
 from app.api.routes import _background_tasks  # noqa: E402
@@ -34,11 +35,9 @@ from app.core.enums import ProviderType  # noqa: E402
 from app.core.models import IngestedArticle, PipelineDeps  # noqa: E402
 from app.db.database import Base, SessionLocal, engine  # noqa: E402
 from app.main import app, run_migrations  # noqa: E402
-from app.services.finbert_service import FinBERTService  # noqa: E402
 from app.services.scoring import FinBERTScorer, set_default_scorer  # noqa: E402
 from app.services.ticker_service import TickerService  # noqa: E402
 from app.utils.rate_limiter import rate_limiter  # noqa: E402
-from fakes import KeywordScorer  # noqa: E402
 
 # Wednesday 2026-10-14 11:00 ET: a regular trading session.
 FROZEN_NOW = datetime(2026, 10, 14, 15, 0, tzinfo=timezone.utc)

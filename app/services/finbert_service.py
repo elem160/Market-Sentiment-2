@@ -1,6 +1,5 @@
 import asyncio
 import threading
-from typing import Any
 
 from app.core.constants import DIRECTIONAL_THRESHOLD
 from app.core.models import IngestedArticle, ScoredArticle

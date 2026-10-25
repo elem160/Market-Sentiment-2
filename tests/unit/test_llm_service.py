@@ -1,13 +1,13 @@
-import asyncio
-import pytest
-from unittest.mock import patch
 from datetime import datetime, timezone
+from unittest.mock import patch
+
+import pytest
+from fakes import FakeLLMClient, make_completion
 
 from app.config import settings
-from app.services.llm_service import LLMService, sanitize_text
+from app.core.enums import CatalystCategory, ProviderType
 from app.core.models import ScoredArticle
-from app.core.enums import ProviderType, CatalystCategory
-from fakes import FakeLLMClient, make_completion
+from app.services.llm_service import LLMService, sanitize_text
 
 
 @pytest.fixture(autouse=True)

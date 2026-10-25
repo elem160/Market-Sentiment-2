@@ -1,22 +1,24 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, HttpUrl, Field, field_validator
 from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.core.constants import DIRECTIONAL_THRESHOLD
 from app.core.enums import (
     AssetType,
+    CacheStatus,
+    CatalystCategory,
+    DataStatus,
     DecisionVerdict,
     DirectionalPolarity,
-    CatalystCategory,
-    ProviderType,
-    ProviderKind,
-    PipelineMode,
-    CacheStatus,
     ExclusionReason,
     HoldReason,
-    DataStatus,
+    PipelineMode,
+    ProviderKind,
+    ProviderType,
 )
 from app.core.session_window import SessionWindow
-from app.core.constants import DIRECTIONAL_THRESHOLD
 
 
 @dataclass
@@ -76,7 +78,7 @@ class IngestedArticle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     article_id: str                      # Deterministic hash of canonical_url + title
-    provider: ProviderType               # YFINANCE | FINNHUB | GOOGLE_RSS_AGGREGATOR | FIXTURE
+    provider: ProviderType               # YFINANCE | GOOGLE_RSS_AGGREGATOR | FIXTURE | INVESTING_FOREX_RSS | FXSTREET_RSS
     source_name: str                     # e.g., "Reuters", "CNBC", "PR Newswire"
     canonical_url: str                   # Cleaned URL without utm_* tracking
     title: str                           # Sanitized headline

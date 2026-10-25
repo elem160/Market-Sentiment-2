@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass

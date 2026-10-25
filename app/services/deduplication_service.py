@@ -1,14 +1,13 @@
 import re
 import urllib.parse
 from datetime import datetime, timezone
+
 from app.config import settings
-from app.core.models import IngestedArticle, Asset
+from app.core.constants import MAX_EXCLUDED_SAMPLES_PER_REASON
 from app.core.enums import ExclusionReason
+from app.core.models import Asset, IngestedArticle
 from app.core.session_window import SessionWindow
 from app.services.relevance import RelevanceMatcher
-
-
-from app.core.constants import MAX_EXCLUDED_SAMPLES_PER_REASON
 
 STOP_WORDS = {
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",

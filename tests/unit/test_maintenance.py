@@ -6,9 +6,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.core.enums import ExclusionReason
 from app.cli import main as cli_main
-from app.config import settings
+from app.core.enums import ExclusionReason
 from app.core.models import Asset, IngestedArticle
 from app.db.database import Base
 from app.db.models import AnalysisJobDB, AnalysisRunDB, ArticleEvidenceDB, ObservedFactDB

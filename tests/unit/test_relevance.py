@@ -1,16 +1,18 @@
 import json
 import os
+
 import pytest
-from app.core.models import Asset
-from app.core.enums import AssetType
-from app.services.relevance import RelevanceMatcher
+
 from app.core.asset_registry import build_google_query_subject
+from app.core.enums import AssetType
+from app.core.models import Asset
+from app.services.relevance import RelevanceMatcher
 
 FIXTURE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "fixtures", "relevance_cases.json"
 )
 
-with open(FIXTURE_PATH, "r", encoding="utf-8") as f:
+with open(FIXTURE_PATH, encoding="utf-8") as f:
     RELEVANCE_CASES = json.load(f)
 
 

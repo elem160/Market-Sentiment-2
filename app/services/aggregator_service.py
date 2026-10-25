@@ -1,16 +1,17 @@
 import math
-from datetime import datetime, timezone
-from app.core.models import (
-    ScoredArticle,
-    ObservedFact,
-    PipelineRationale,
-    DecisionVerdict,
-    PipelineMode,
-)
-from app.core.enums import HoldReason, DirectionalPolarity
-from app.core.session_window import SessionWindow
+from datetime import timezone
+
+from app.core.constants import DEFAULT_WEIGHT_FLOOR, DIRECTIONAL_THRESHOLD
+from app.core.enums import DirectionalPolarity, HoldReason
 from app.core.exceptions import FreshnessViolationException
-from app.core.constants import DIRECTIONAL_THRESHOLD, DEFAULT_WEIGHT_FLOOR
+from app.core.models import (
+    DecisionVerdict,
+    ObservedFact,
+    PipelineMode,
+    PipelineRationale,
+    ScoredArticle,
+)
+from app.core.session_window import SessionWindow
 
 # 14-hour half life for exponential recency decay
 LAMBDA_DECAY = math.log(2.0) / 14.0
@@ -57,7 +58,6 @@ class AggregatorService:
     def aggregate_and_decide(
         cls,
         ticker: str,
-        company_name: str,
         session: SessionWindow,
         articles: list[ScoredArticle],
         observed_facts: list[ObservedFact],

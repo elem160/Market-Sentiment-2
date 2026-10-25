@@ -15,10 +15,10 @@ import tenacity
 import yfinance as yf
 
 from app.config import settings
-from app.core.models import IngestedArticle, FeedSpec, ProviderOutcome
-from app.core.enums import ProviderType, ProviderKind, AssetType
-from app.core.session_window import SessionWindow
 from app.core.asset_registry import build_google_query_subject
+from app.core.enums import AssetType, ProviderKind, ProviderType
+from app.core.models import FeedSpec, IngestedArticle, ProviderOutcome
+from app.core.session_window import SessionWindow
 from app.utils.logging import logger
 
 

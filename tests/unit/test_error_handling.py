@@ -1,7 +1,9 @@
 import uuid
 from unittest.mock import patch
+
 import pytest
 from httpx import AsyncClient
+
 from app.services.finbert_service import FinBERTService
 from app.utils.rate_limiter import rate_limiter
 
@@ -48,7 +50,7 @@ async def test_422_domain_validation_error_unified_shape(async_client: AsyncClie
     res = await async_client.post("/api/v1/analyze", json={"ticker": "INVALID$$$"})
     assert res.status_code == 422
     data = res.json()
-    assert data["error"] in ("InvalidTickerException", "UnsupportedAssetException")
+    assert data["error"] == "InvalidTickerException"
     assert "message" in data
     assert "details" in data
 
@@ -79,6 +81,7 @@ async def test_429_rate_limit_exceeded_with_retry_after(async_client: AsyncClien
 async def test_500_internal_server_error_unified_shape():
     """Verify unhandled 500 returns unified shape with error_id and generic message."""
     from httpx import ASGITransport
+
     from app.main import app
     client = AsyncClient(transport=ASGITransport(app=app, raise_app_exceptions=False), base_url="http://testserver")
     async with client:

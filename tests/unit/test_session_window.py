@@ -1,22 +1,21 @@
-from datetime import datetime, date, time, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, time, timedelta, timezone
 from unittest.mock import patch
+
 import pytest
 
-from app.core.session_window import (
-    compute_session_window,
-    compute_session_bucket,
-    validate_cache_bucket_minutes,
-    EASTERN_TZ,
-)
-from app.core.market_calendar import (
-    is_nyse_holiday,
-    is_early_close,
-    is_trading_day,
-    get_market_close_time,
-    get_previous_trading_day,
-)
 from app.core.enums import SessionType
+from app.core.market_calendar import (
+    get_market_close_time,
+    is_early_close,
+    is_nyse_holiday,
+    is_trading_day,
+)
+from app.core.session_window import (
+    EASTERN_TZ,
+    compute_session_bucket,
+    compute_session_window,
+    validate_cache_bucket_minutes,
+)
 
 
 def test_wednesday_regular_hours():

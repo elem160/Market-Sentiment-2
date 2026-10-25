@@ -168,8 +168,7 @@
           "FOREX",
           "COMMODITY",
           "FUTURES",
-          "CRYPTO",
-          "INDEX"
+          "CRYPTO"
         ],
         "title": "AssetType",
         "type": "string"
@@ -230,7 +229,6 @@
           "TIMESTAMP_OUT_OF_WINDOW",
           "DUPLICATE_SYNDICATION",
           "INSUFFICIENT_ENTITY_RELEVANCE",
-          "CATALYST_REJECTED_AS_NOISE",
           "CAPACITY_LIMIT"
         ],
         "title": "ExclusionReason",
@@ -760,7 +758,6 @@
       "ProviderType": {
         "enum": [
           "YFINANCE",
-          "FINNHUB",
           "GOOGLE_RSS_AGGREGATOR",
           "INVESTING_FOREX_RSS",
           "FXSTREET_RSS",

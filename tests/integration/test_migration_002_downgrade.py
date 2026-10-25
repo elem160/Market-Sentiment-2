@@ -1,7 +1,9 @@
 import os
 import tempfile
-from sqlalchemy import create_engine, inspect, text
+
 from alembic.config import Config
+from sqlalchemy import create_engine, inspect, text
+
 from alembic import command
 
 

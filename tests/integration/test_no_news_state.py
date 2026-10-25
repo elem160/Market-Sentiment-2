@@ -1,9 +1,11 @@
-import pytest
 from unittest.mock import patch
-from app.services.orchestrator import AnalysisOrchestrator
-from app.core.models import Asset
+
+import pytest
+
 from app.core.enums import AssetType, DecisionVerdict
+from app.core.models import Asset
 from app.db.repository import SentimentRepository
+from app.services.orchestrator import AnalysisOrchestrator
 
 
 @pytest.mark.asyncio

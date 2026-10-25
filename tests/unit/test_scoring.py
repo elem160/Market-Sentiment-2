@@ -1,18 +1,17 @@
 import asyncio
-from unittest.mock import MagicMock, patch
-import pytest
+from unittest.mock import MagicMock
 
-from app.core.models import IngestedArticle, PipelineDeps
+import pytest
+from fakes import KeywordScorer
+
 from app.core.enums import ProviderType
+from app.core.models import IngestedArticle
+from app.services.finbert_service import FinBERTService
 from app.services.scoring import (
     ClassProbs,
     FinBERTScorer,
     SentimentScorer,
-    get_default_scorer,
-    set_default_scorer,
 )
-from app.services.finbert_service import FinBERTService
-from fakes import KeywordScorer
 
 
 def test_scorer_protocol_conformance():

@@ -1,45 +1,47 @@
 import hashlib
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Callable, Awaitable, Any
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.models import (
-    Asset,
-    AnalysisResult,
-    PipelineMetrics,
-    ScoredArticle,
-    PipelineRationale,
-    PipelineDeps,
-    ProviderOutcome,
-    IngestedArticle,
-    ObservedFact,
-)
+from app.core.constants import DIRECTIONAL_THRESHOLD
 from app.core.enums import (
-    PipelineStage,
-    PipelineMode,
     CacheStatus,
+    DataStatus,
     DecisionVerdict,
     ExclusionReason,
     HoldReason,
-    DataStatus,
+    PipelineMode,
+    PipelineStage,
     ProviderKind,
 )
-from app.core.session_window import SessionWindow, compute_session_window, compute_session_bucket
 from app.core.exceptions import FreshnessViolationException
-from app.core.constants import DIRECTIONAL_THRESHOLD
-from app.services.ticker_service import TickerService
-from app.services.news_service import NewsService
+from app.core.models import (
+    AnalysisResult,
+    Asset,
+    IngestedArticle,
+    ObservedFact,
+    PipelineDeps,
+    PipelineMetrics,
+    PipelineRationale,
+    ProviderOutcome,
+    ScoredArticle,
+)
+from app.core.session_window import SessionWindow, compute_session_bucket, compute_session_window
+from app.db.repository import SentimentRepository
+from app.services.aggregator_service import AggregatorService
 from app.services.deduplication_service import DeduplicationService
-from app.services.relevance import RelevanceMatcher
 from app.services.finbert_service import FinBERTService
 from app.services.llm_service import LLMService
-from app.services.aggregator_service import AggregatorService
-from app.db.repository import SentimentRepository
+from app.services.news_service import NewsService
+from app.services.relevance import RelevanceMatcher
+from app.services.ticker_service import TickerService
+from app.utils.executors import get_io_executor, run_db
 from app.utils.logging import logger
-from app.utils.executors import run_db, get_io_executor
 
 ProgressCallback = Callable[[PipelineStage, float, str], Awaitable[None]]
 
@@ -654,7 +656,6 @@ class AnalysisOrchestrator:
         t5 = time.time()
         ctx.agg_res = AggregatorService.aggregate_and_decide(
             ctx.asset.ticker,
-            ctx.asset.company_name,
             ctx.session,
             ctx.scored_retained,
             ctx.observed_facts,

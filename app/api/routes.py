@@ -1,44 +1,35 @@
 import asyncio
-import json
 import uuid
-from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.config import settings
-from app.core.exceptions import (
-    SentimentAppException,
-    InvalidTickerException,
-    UnsupportedAssetException,
-    TickerNotFoundException,
-    JobNotFoundException,
-    AnalysisRunNotFoundException,
-)
-from app.core.enums import PipelineStage, JobStatus
-from app.core.models import AnalysisResult, Asset, PipelineDeps
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import rate_limit, verify_api_key, verify_history_access
 from app.api.schemas import (
     AnalyzeRequest,
     HealthResponse,
-    JobCompletedEvent,
     JobCreatedResponse,
-    JobFailedEvent,
-    JobProgressEvent,
     JobStatusResponse,
     RecentRunSummary,
-    SSE_EVENT_COMPLETED,
-    SSE_EVENT_FAILED,
-    SSE_EVENT_PROGRESS,
 )
-from app.api.dependencies import get_client_ip, rate_limit, verify_api_key, verify_history_access
-from app.db.database import get_db, SessionLocal
+from app.config import settings
+from app.core.enums import JobStatus, PipelineStage
+from app.core.exceptions import (
+    AnalysisRunNotFoundException,
+    JobNotFoundException,
+    SentimentAppException,
+)
+from app.core.models import AnalysisResult, Asset, PipelineDeps
+from app.db.database import get_db
 from app.db.repository import SentimentRepository
-from app.services.ticker_service import TickerService
 from app.services.finbert_service import FinBERTService
-from app.services.orchestrator import AnalysisOrchestrator
 from app.services.job_manager import JobManager, get_default_job_manager
-from app.utils.logging import logger
+from app.services.orchestrator import AnalysisOrchestrator
+from app.services.ticker_service import TickerService
 from app.utils.executors import run_db
+from app.utils.logging import logger
 
 router = APIRouter(prefix="/api/v1")
 
@@ -76,7 +67,7 @@ async def run_background_job(
         )
         await run_db(SentimentRepository.complete_job, job_id, result.run_id)
         logger.info(f"Job {job_id} for {ticker} completed successfully -> Run ID: {result.run_id}")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         timeout_msg = f"Pipeline execution timed out after {settings.PIPELINE_TIMEOUT_SECONDS}s"
         logger.error(f"Job {job_id} for {ticker} timed out: {timeout_msg}")
         await run_db(SentimentRepository.fail_job, job_id, timeout_msg)
@@ -114,7 +105,7 @@ async def analyze_ticker(
     asset = await TickerService.resolve_ticker_async(req.ticker)
     normalized_ticker = asset.ticker
 
-    from app.core.session_window import compute_session_window, compute_session_bucket
+    from app.core.session_window import compute_session_bucket, compute_session_window
     session = compute_session_window()
     session_bucket, bucket_seconds = compute_session_bucket(session)
     asset_type_str = asset.asset_type.value if hasattr(asset.asset_type, "value") else str(asset.asset_type)

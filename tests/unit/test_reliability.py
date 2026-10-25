@@ -1,10 +1,12 @@
 import asyncio
 import threading
+
 import pytest
-from app.services.finbert_service import FinBERTService
-from app.api.routes import _background_tasks, run_background_job
+
+from app.api.routes import _background_tasks
 from app.config import settings
 from app.core.enums import CacheStatus
+from app.services.finbert_service import FinBERTService
 
 
 def test_finbert_service_thread_safety_lock():
@@ -59,6 +61,7 @@ def test_pipeline_timeout_setting_configured():
 def test_run_migrations_from_temp_working_directory(tmp_path, monkeypatch):
     """Verify run_migrations uses absolute paths and succeeds when run from arbitrary temp dir."""
     import os
+
     from app.main import run_migrations
 
     monkeypatch.chdir(tmp_path)
@@ -70,6 +73,7 @@ def test_run_migrations_from_temp_working_directory(tmp_path, monkeypatch):
 def test_run_migrations_failure_is_not_swallowed():
     """Verify run_migrations does not swallow migration exceptions."""
     from unittest.mock import patch
+
     from app.main import run_migrations
 
     with patch("app.main.Config", side_effect=RuntimeError("Simulated migration failure")):
@@ -80,6 +84,7 @@ def test_run_migrations_failure_is_not_swallowed():
 def test_run_migrations_preserves_application_loggers():
     """Verify run_migrations does not disable uvicorn.error or market_sentiment loggers (H2)."""
     import logging
+
     from app.main import run_migrations
 
     uvicorn_logger = logging.getLogger("uvicorn.error")
@@ -96,13 +101,14 @@ def test_run_migrations_preserves_application_loggers():
 @pytest.mark.asyncio
 async def test_all_rss_providers_fail_adds_warning_and_skips_caching(db_session):
     """Verify: When all RSS providers fail, pipeline adds a warning and does not cache the result."""
-    from unittest.mock import patch, AsyncMock
     from datetime import datetime, timezone
-    from app.services.orchestrator import AnalysisOrchestrator
-    from app.db.repository import SentimentRepository
-    from app.core.models import Asset, IngestedArticle
+    from unittest.mock import AsyncMock, patch
+
     from app.core.enums import AssetType, ProviderType
-    from app.core.session_window import compute_session_window, compute_session_bucket
+    from app.core.models import Asset, IngestedArticle
+    from app.core.session_window import compute_session_bucket, compute_session_window
+    from app.db.repository import SentimentRepository
+    from app.services.orchestrator import AnalysisOrchestrator
 
     now = datetime.now(timezone.utc)
     mock_asset = Asset(

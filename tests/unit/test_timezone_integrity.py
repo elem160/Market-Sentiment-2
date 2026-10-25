@@ -1,10 +1,10 @@
-from datetime import datetime, timezone, timedelta
-import pytest
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+
+import pytest
+
 from app.db.models import AnalysisRunDB
 from app.db.types import UTCDateTime
-from app.api.schemas import RecentRunSummary
-from app.core.enums import AssetType
 
 
 def test_utc_datetime_type_decorator_rejects_naive():

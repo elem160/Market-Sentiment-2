@@ -11,7 +11,7 @@ SNAPSHOT_PATH = os.path.join(PROJECT_ROOT, "frontend", "src", "api", "openapi.js
 def test_openapi_matches_committed_snapshot():
     assert os.path.exists(SNAPSHOT_PATH), f"OpenAPI snapshot not found at {SNAPSHOT_PATH}"
 
-    with open(SNAPSHOT_PATH, "r", encoding="utf-8") as f:
+    with open(SNAPSHOT_PATH, encoding="utf-8") as f:
         committed_schema = json.load(f)
 
     # Serialize and re-parse app.openapi() to normalize json types

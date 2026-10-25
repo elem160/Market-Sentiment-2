@@ -17,20 +17,6 @@ class InvalidTickerException(SentimentAppException):
         )
 
 
-class UnsupportedAssetException(SentimentAppException):
-    """Raised when an asset is outside the supported v1 scope (e.g., Forex, Crypto, Commodity)."""
-    def __init__(self, raw_input: str, detected_type: str):
-        super().__init__(
-            message=(
-                f"Asset '{raw_input}' ({detected_type}) is not supported in Version 1.0. "
-                "Version 1.0 strictly evaluates US-listed Equities and ETFs. "
-                "Forex, crypto, and commodities have distinct directional semantics and are scheduled for v2.0."
-            ),
-            status_code=422,
-            details={"raw_input": raw_input, "detected_type": detected_type}
-        )
-
-
 class TickerNotFoundException(SentimentAppException):
     """Raised when a ticker cannot be resolved with the market data provider."""
     def __init__(self, ticker: str, reason: str = ""):
@@ -61,16 +47,6 @@ class UnauthorizedException(SentimentAppException):
             message=message,
             status_code=401,
             details={},
-        )
-
-
-class BudgetExceededException(SentimentAppException):
-    """Raised when prompt or cost limits are exceeded."""
-    def __init__(self, reason: str):
-        super().__init__(
-            message=f"Budget limit reached: {reason}",
-            status_code=429,
-            details={"reason": reason}
         )
 
 

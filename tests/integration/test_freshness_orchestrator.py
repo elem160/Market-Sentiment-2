@@ -1,10 +1,10 @@
-import pytest
+from datetime import datetime, timezone
 from unittest.mock import patch
-from datetime import datetime, timezone, timedelta
 
-from app.core.models import Asset, IngestedArticle
+import pytest
+
 from app.core.enums import AssetType, DecisionVerdict, ProviderType
-from app.core.exceptions import NewsUnavailableException
+from app.core.models import Asset, IngestedArticle
 from app.services.orchestrator import AnalysisOrchestrator
 
 

@@ -1,27 +1,29 @@
 import asyncio
 from unittest.mock import MagicMock, patch
+
 import pytest
 from starlette.requests import Request
+
 from app.api.schemas import (
     SSE_EVENT_COMPLETED,
-    SSE_EVENT_FAILED,
     SSE_EVENT_PROGRESS,
-    JobCompletedEvent,
-    JobFailedEvent,
-    JobProgressEvent,
 )
-from datetime import datetime, timedelta, timezone
-from app.core.enums import AssetType, DecisionVerdict, DirectionalPolarity, JobStatus, PipelineMode, PipelineStage, SessionType
+from app.core.enums import (
+    AssetType,
+    DecisionVerdict,
+    JobStatus,
+    PipelineMode,
+    PipelineStage,
+)
 from app.core.models import (
     AnalysisResult,
     PipelineMetrics,
     PipelineRationale,
-    SessionWindow,
 )
+from app.core.session_window import compute_session_window
 from app.db.database import SessionLocal
 from app.db.repository import SentimentRepository
 from app.services.job_manager import JobManager
-from app.core.session_window import compute_session_window
 
 
 def _parse_sse_events(text: str) -> list[tuple[str, str]]:

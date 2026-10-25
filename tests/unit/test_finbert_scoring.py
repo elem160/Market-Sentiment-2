@@ -1,8 +1,10 @@
-import pytest
 from datetime import datetime, timezone
-from app.services.finbert_service import FinBERTService
-from app.core.models import IngestedArticle
+
+import pytest
+
 from app.core.enums import ProviderType
+from app.core.models import IngestedArticle
+from app.services.finbert_service import FinBERTService
 
 
 @pytest.mark.asyncio

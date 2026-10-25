@@ -16,6 +16,7 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+
 from app.config import settings
 from app.services.scoring import FinBERTScorer
 
@@ -82,7 +83,7 @@ async def run_benchmark():
 
     lead_texts = [f"{title}. {summary}".strip()[:500] for title, summary in full_sample]
     t1 = time.perf_counter()
-    batched_results = await scorer.score(lead_texts)
+    _ = await scorer.score(lead_texts)
     t_batched = time.perf_counter() - t1
     ms_per_article_batched = (t_batched / count) * 1000.0
     print(f"  Total time: {t_batched:.3f} s")

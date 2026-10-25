@@ -1,15 +1,17 @@
 import asyncio
 import re
 import time
+
 import yfinance as yf
+
 from app.config import settings
-from app.core.models import Asset
 from app.core.enums import AssetType
 from app.core.exceptions import (
     InvalidTickerException,
-    TickerNotFoundException,
     ProviderException,
+    TickerNotFoundException,
 )
+from app.core.models import Asset
 from app.utils.logging import logger
 
 FOREX_CURRENCIES = {
@@ -385,9 +387,9 @@ class TickerService:
                 asyncio.to_thread(cls.validate_and_resolve, raw_ticker),
                 timeout=float(settings.TICKER_RESOLUTION_TIMEOUT_SECONDS),
             )
-        except asyncio.TimeoutError:
+        except TimeoutError as err:
             raise ProviderException(
                 "Yahoo Finance",
                 f"Ticker resolution timed out after {settings.TICKER_RESOLUTION_TIMEOUT_SECONDS}s",
                 status_code=503,
-            )
+            ) from err

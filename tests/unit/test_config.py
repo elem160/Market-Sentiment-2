@@ -1,6 +1,5 @@
 import hashlib
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -104,7 +103,7 @@ def test_env_example_matches_all_settings_fields():
     assert env_example_path.exists()
 
     env_vars: dict[str, str] = {}
-    with open(env_example_path, "r", encoding="utf-8") as f:
+    with open(env_example_path, encoding="utf-8") as f:
         for line in f:
             stripped = line.strip()
             if not stripped or stripped.startswith("#"):

@@ -3,7 +3,7 @@ NYSE Market Calendar module.
 Provides explicit dated tables for NYSE holidays, special closures, and early closes
 for 2025–2027 (verified against nyse.com), with rule-based algorithmic fallback for other years.
 """
-from datetime import date, datetime, time, timedelta
+from datetime import date, time, timedelta
 from zoneinfo import ZoneInfo
 
 EASTERN_TZ = ZoneInfo("America/New_York")

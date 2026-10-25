@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta
-from app.services.aggregator_service import AggregatorService
-from app.core.models import ScoredArticle, ObservedFact
+
 from app.core.enums import (
-    ProviderType,
-    DecisionVerdict,
     CatalystCategory,
+    DecisionVerdict,
     DirectionalPolarity,
-    PipelineMode,
     HoldReason,
+    PipelineMode,
+    ProviderType,
 )
+from app.core.models import ObservedFact, ScoredArticle
 from app.core.session_window import compute_session_window
+from app.services.aggregator_service import AggregatorService
 
 
 def create_mock_scored_article(
@@ -52,7 +53,7 @@ def test_sparse_evidence_mandates_hold(frozen_now):
     art = create_mock_scored_article("1", "Reuters", 0.85, 0.90, frozen_now)
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art], [], ""
+        "AAPL", session, [art], [], ""
     )
 
     assert decision == DecisionVerdict.HOLD
@@ -67,7 +68,7 @@ def test_single_publisher_forces_hold_with_insufficient_corroboration(frozen_now
     art2 = create_mock_scored_article("2", "Reuters", 0.75, 0.85, frozen_now, cluster_id="c1")
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art1, art2], [], ""
+        "AAPL", session, [art1, art2], [], ""
     )
 
     # Corroboration requirement forces HOLD when < 2 distinct publishers
@@ -86,7 +87,7 @@ def test_neutral_articles_do_not_dilute_positive_buy(frozen_now):
     ]
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
-        "NVDA", "Nvidia Corp.", session, [pos1, pos2] + neutrals, [], ""
+        "NVDA", session, [pos1, pos2] + neutrals, [], ""
     )
 
     # Neutrals must NOT dilute directional score into HOLD!
@@ -108,7 +109,7 @@ def test_multi_publisher_positive_triggers_buy(frozen_now):
     )
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art1, art2], [fact1], "Strong earnings momentum confirmed."
+        "AAPL", session, [art1, art2], [fact1], "Strong earnings momentum confirmed."
     )
 
     assert decision == DecisionVerdict.BUY
@@ -124,7 +125,7 @@ def test_multi_publisher_negative_triggers_sell(frozen_now):
     art2 = create_mock_scored_article("2", "Wall Street Journal", -0.80, 0.90, frozen_now, cluster_id="c2")
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
-        "NVDA", "Nvidia Corp.", session, [art1, art2], [], ""
+        "NVDA", session, [art1, art2], [], ""
     )
 
     assert decision == DecisionVerdict.SELL
@@ -140,7 +141,7 @@ def test_conflicting_evidence_forces_hold(frozen_now):
     art3 = create_mock_scored_article("3", "CNBC", 0.10, 0.50, frozen_now, cluster_id="c3")
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
-        "TSLA", "Tesla Inc.", session, [art1, art2, art3], [], ""
+        "TSLA", session, [art1, art2, art3], [], ""
     )
 
     assert decision == DecisionVerdict.HOLD
@@ -154,7 +155,7 @@ def test_deterministic_finbert_only_confidence_ceiling(frozen_now):
 
     # In classifier-only mode, confidence must be capped at 0.60
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art1, art2], [], "", pipeline_mode=PipelineMode.DETERMINISTIC_FINBERT_ONLY
+        "AAPL", session, [art1, art2], [], "", pipeline_mode=PipelineMode.DETERMINISTIC_FINBERT_ONLY
     )
 
     assert confidence <= 0.60
@@ -170,7 +171,7 @@ def test_two_positive_single_publisher_vs_one_negative_forces_hold(frozen_now):
     neg1 = create_mock_scored_article("n1", "CNBC", -0.70, 0.85, frozen_now, cluster_id="c2")
 
     res = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [pos1, pos2, neg1], [], ""
+        "AAPL", session, [pos1, pos2, neg1], [], ""
     )
 
     assert res.decision == DecisionVerdict.HOLD
@@ -189,7 +190,7 @@ def test_two_positive_distinct_publishers_vs_one_negative_triggers_buy(frozen_no
     neg1 = create_mock_scored_article("n1", "Wall Street Journal", -0.70, 0.85, frozen_now, cluster_id="c3")
 
     res = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [pos1, pos2, neg1], [], ""
+        "AAPL", session, [pos1, pos2, neg1], [], ""
     )
 
     assert res.decision == DecisionVerdict.BUY
@@ -206,7 +207,7 @@ def test_only_inferred_publishers_forces_hold(frozen_now):
     pos2 = create_mock_scored_article("p2", "CNBC", 0.80, 0.85, frozen_now, cluster_id="c2", publisher_inferred=True)
 
     res = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [pos1, pos2], [], ""
+        "AAPL", session, [pos1, pos2], [], ""
     )
 
     assert res.decision == DecisionVerdict.HOLD
@@ -222,7 +223,7 @@ def test_aggregator_publishers_ignored_in_corroboration(frozen_now):
     pos2 = create_mock_scored_article("p2", "Unknown Aggregator", 0.80, 0.85, frozen_now, cluster_id="c2")
 
     res = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [pos1, pos2], [], ""
+        "AAPL", session, [pos1, pos2], [], ""
     )
 
     assert res.decision == DecisionVerdict.HOLD
@@ -245,7 +246,7 @@ def test_hybrid_confidence_ceiling_with_supporting_catalyst(frozen_now):
     )
 
     res = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art1, art2], [fact_pos], "Strong catalysts",
+        "AAPL", session, [art1, art2], [fact_pos], "Strong catalysts",
         pipeline_mode=PipelineMode.HYBRID_FINBERT_LLM
     )
 
@@ -263,7 +264,7 @@ def test_hybrid_confidence_ceiling_without_supporting_catalyst(frozen_now):
 
     # In HYBRID mode but with NO observed facts confirmed
     res = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art1, art2], [], "",
+        "AAPL", session, [art1, art2], [], "",
         pipeline_mode=PipelineMode.HYBRID_FINBERT_LLM
     )
 
@@ -282,7 +283,7 @@ def test_hold_verdict_confidence_capped_at_060(frozen_now):
     art4 = create_mock_scored_article("4", "WSJ", -0.90, 0.95, frozen_now, cluster_id="c4")
 
     res = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art1, art2, art3, art4], [], "",
+        "AAPL", session, [art1, art2, art3, art4], [], "",
         pipeline_mode=PipelineMode.HYBRID_FINBERT_LLM
     )
 
@@ -299,7 +300,7 @@ def test_neutral_sentiment_hold_reason(frozen_now):
     art2 = create_mock_scored_article("2", "CNBC", 0.17, 0.50, frozen_now, cluster_id="c2")
 
     res = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art1, art2], [], ""
+        "AAPL", session, [art1, art2], [], ""
     )
 
     assert res.decision == DecisionVerdict.HOLD
@@ -313,7 +314,7 @@ def test_sell_corroboration_with_inferred_publishers(frozen_now):
     art1 = create_mock_scored_article("1", "Bloomberg", -0.80, 0.90, frozen_now, cluster_id="c1", publisher_inferred=False)
     art2 = create_mock_scored_article("2", "Reuters", -0.75, 0.85, frozen_now, cluster_id="c2", publisher_inferred=True)
 
-    res = AggregatorService.aggregate_and_decide("AAPL", "Apple Inc.", session, [art1, art2], [], "")
+    res = AggregatorService.aggregate_and_decide("AAPL", session, [art1, art2], [], "")
     assert res.decision == DecisionVerdict.HOLD
     assert res.hold_reason == HoldReason.INSUFFICIENT_CORROBORATION
     assert res.publishers_negative == 1  # Only Bloomberg is eligible
@@ -327,7 +328,7 @@ def test_sell_with_mixed_positive_negative_publishers(frozen_now):
     neg2 = create_mock_scored_article("n2", "Wall Street Journal", -0.80, 0.85, frozen_now, cluster_id="c2")
     pos1 = create_mock_scored_article("p1", "Reuters", 0.70, 0.80, frozen_now, cluster_id="c3")
 
-    res = AggregatorService.aggregate_and_decide("AAPL", "Apple Inc.", session, [neg1, neg2, pos1], [], "")
+    res = AggregatorService.aggregate_and_decide("AAPL", session, [neg1, neg2, pos1], [], "")
     assert res.decision == DecisionVerdict.SELL
     assert res.hold_reason is None
     assert res.publishers_negative == 2
@@ -341,7 +342,7 @@ def test_conflicting_mixed_publishers_has_zero_supporting_publishers(frozen_now)
     pos = create_mock_scored_article("p1", "Reuters", 0.85, 0.90, frozen_now, cluster_id="c1")
     neg = create_mock_scored_article("n1", "Bloomberg", -0.85, 0.90, frozen_now, cluster_id="c2")
 
-    res = AggregatorService.aggregate_and_decide("AAPL", "Apple Inc.", session, [pos, neg], [], "")
+    res = AggregatorService.aggregate_and_decide("AAPL", session, [pos, neg], [], "")
     assert res.decision == DecisionVerdict.HOLD
     assert res.hold_reason == HoldReason.CONFLICTING
     assert res.publishers_positive == 1

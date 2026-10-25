@@ -1,8 +1,9 @@
-import json
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, Boolean, Text, ForeignKey, Index
+
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, String, Text
 from sqlalchemy.orm import relationship
+
 from app.db.database import Base
 from app.db.types import UTCDateTime
 

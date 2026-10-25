@@ -1,14 +1,14 @@
 from dataclasses import dataclass
-from datetime import datetime, date, time, timedelta, timezone
-from app.core.enums import SessionType
+from datetime import date, datetime, time, timedelta, timezone
+
 from app.core.constants import FUTURE_CLOCK_SKEW_MINUTES
+from app.core.enums import SessionType
 from app.core.market_calendar import (
     EASTERN_TZ,
-    is_nyse_holiday,
-    is_early_close,
-    is_trading_day,
     get_market_close_time,
     get_previous_trading_day,
+    is_early_close,
+    is_nyse_holiday,
 )
 
 

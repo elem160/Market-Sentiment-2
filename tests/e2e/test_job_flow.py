@@ -1,13 +1,12 @@
 """End-to-end integration tests for job execution, persistence, cache behavior, and article ID stability (C1, C2, H13)."""
 import asyncio
 from unittest.mock import AsyncMock, patch
+
 import pytest
 
-from app.api.schemas import SSE_EVENT_COMPLETED, SSE_EVENT_PROGRESS
-from app.core.enums import CacheStatus, DecisionVerdict, ProviderType
+from app.core.enums import CacheStatus, ProviderType
 from app.core.models import Asset, IngestedArticle
 from app.core.session_window import compute_session_window
-from app.db.database import SessionLocal
 from app.db.repository import SentimentRepository
 
 

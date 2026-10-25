@@ -1,21 +1,21 @@
-import os
 import json
+import os
+from datetime import datetime, timedelta, timezone
+
 import pytest
-from datetime import datetime, timezone, timedelta
 from pydantic import ValidationError
 
+from app.core.enums import DecisionVerdict, ProviderType, SessionType
+from app.core.exceptions import FreshnessViolationException
 from app.core.models import IngestedArticle, ScoredArticle, SessionWindow
-from app.core.enums import ProviderType, SessionType, DecisionVerdict
-from app.core.exceptions import FreshnessViolationException, NewsUnavailableException
-from app.core.session_window import compute_session_window
-from app.services.news_service import NewsService
-from app.services.deduplication_service import DeduplicationService
 from app.services.aggregator_service import AggregatorService
+from app.services.deduplication_service import DeduplicationService
+from app.services.news_service import NewsService
 
 
 def _load_yf_fixture(filename: str) -> list[dict]:
     fixture_path = os.path.join(os.path.dirname(__file__), "..", "fixtures", filename)
-    with open(fixture_path, "r", encoding="utf-8") as f:
+    with open(fixture_path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -102,7 +102,7 @@ def test_parse_yfinance_legacy_schema():
 def test_parse_google_rss_xml_with_source_tag():
     """Verify Google RSS parser extracts entry.source.title and preserves pubDate without now() default (F-06, F-07)."""
     fixture_path = os.path.join(os.path.dirname(__file__), "..", "fixtures", "google_rss_sample.xml")
-    with open(fixture_path, "r", encoding="utf-8") as f:
+    with open(fixture_path, encoding="utf-8") as f:
         xml_content = f.read()
 
     articles = NewsService.parse_rss_feed_content(xml_content, "AAPL", ProviderType.GOOGLE_RSS_AGGREGATOR)
@@ -341,7 +341,7 @@ def test_aggregator_out_of_window_assertion_raises_exception():
     )
 
     with pytest.raises(FreshnessViolationException) as exc_info:
-        AggregatorService.aggregate_and_decide("AAPL", "Apple Inc.", session, [art_stale], [], "")
+        AggregatorService.aggregate_and_decide("AAPL", session, [art_stale], [], "")
     assert "stale_1" in exc_info.value.message
     assert exc_info.value.details["article_id"] == "stale_1"
 
@@ -382,7 +382,7 @@ def test_aggregator_effective_weight_and_tally_consistency():
     )
 
     decision, confidence, score, quality, rationale, warnings = AggregatorService.aggregate_and_decide(
-        "AAPL", "Apple Inc.", session, [art1, art2], [], ""
+        "AAPL", session, [art1, art2], [], ""
     )
 
     assert decision == DecisionVerdict.BUY

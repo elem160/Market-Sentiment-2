@@ -1,8 +1,10 @@
-import pytest
 from unittest.mock import patch
-from app.core.models import Asset
-from app.core.enums import AssetType
+
+import pytest
+
 from app.config import settings
+from app.core.enums import AssetType
+from app.core.models import Asset
 
 
 @pytest.mark.asyncio

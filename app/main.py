@@ -2,22 +2,24 @@ import asyncio
 import os
 import uuid
 from contextlib import asynccontextmanager
+
+from alembic.config import Config
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from alembic import command
+from app.api.routes import router as api_router
+from app.api.schemas import JobCompletedEvent, JobFailedEvent, JobProgressEvent
 from app.config import settings
-from app.core.exceptions import SentimentAppException, RateLimitExceededException
+from app.core.exceptions import RateLimitExceededException, SentimentAppException
 from app.db.database import SessionLocal
 from app.db.repository import SentimentRepository
-from app.api.routes import router as api_router
 from app.utils.logging import logger
-from alembic.config import Config
-from alembic import command
-from fastapi.openapi.utils import get_openapi
-from app.api.schemas import JobCompletedEvent, JobFailedEvent, JobProgressEvent
 
 
 def run_migrations():

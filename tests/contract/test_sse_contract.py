@@ -1,6 +1,7 @@
 """Verify Server-Sent Events (SSE) contract, event ordering, and payload validation (C1)."""
 import asyncio
 import json
+
 import pytest
 
 from app.api.schemas import (

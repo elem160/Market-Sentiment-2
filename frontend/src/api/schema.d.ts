@@ -116,7 +116,9 @@ export interface paths {
         /**
          * Stream Job Events
          * @description Server-Sent Events (SSE) stream for real-time live pipeline progress.
-         *     Emits progress, completed, and failed events.
+         *         Emits progress, completed, and failed events with periodic heartbeats (: ping
+         *
+         *     ).
          */
         get: operations["stream_job_events_api_v1_jobs__job_id__events_get"];
         put?: never;
@@ -207,7 +209,7 @@ export interface components {
          * AssetType
          * @enum {string}
          */
-        AssetType: "EQUITY" | "ETF" | "FOREX" | "COMMODITY" | "FUTURES" | "CRYPTO" | "INDEX";
+        AssetType: "EQUITY" | "ETF" | "FOREX" | "COMMODITY" | "FUTURES" | "CRYPTO";
         /**
          * CacheStatus
          * @enum {string}
@@ -237,7 +239,7 @@ export interface components {
          * ExclusionReason
          * @enum {string}
          */
-        ExclusionReason: "MISSING_OR_UNTRUSTED_TIMESTAMP" | "TIMESTAMP_OUT_OF_WINDOW" | "DUPLICATE_SYNDICATION" | "INSUFFICIENT_ENTITY_RELEVANCE" | "CATALYST_REJECTED_AS_NOISE" | "CAPACITY_LIMIT";
+        ExclusionReason: "MISSING_OR_UNTRUSTED_TIMESTAMP" | "TIMESTAMP_OUT_OF_WINDOW" | "DUPLICATE_SYNDICATION" | "INSUFFICIENT_ENTITY_RELEVANCE" | "CAPACITY_LIMIT";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -277,6 +279,11 @@ export interface components {
         };
         /** JobCreatedResponse */
         JobCreatedResponse: {
+            /**
+             * Coalesced
+             * @default false
+             */
+            coalesced: boolean;
             /** Events Url */
             events_url: string;
             /** Job Id */
@@ -523,7 +530,7 @@ export interface components {
          * ProviderType
          * @enum {string}
          */
-        ProviderType: "YFINANCE" | "FINNHUB" | "GOOGLE_RSS_AGGREGATOR" | "INVESTING_FOREX_RSS" | "FXSTREET_RSS" | "FIXTURE";
+        ProviderType: "YFINANCE" | "GOOGLE_RSS_AGGREGATOR" | "INVESTING_FOREX_RSS" | "FXSTREET_RSS" | "FIXTURE";
         /** RecentRunSummary */
         RecentRunSummary: {
             /** @default EQUITY */
@@ -678,7 +685,9 @@ export interface operations {
     get_analysis_result_api_v1_analysis__run_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+            };
             path: {
                 run_id: string;
             };
@@ -709,7 +718,9 @@ export interface operations {
     analyze_ticker_api_v1_analyze_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -771,7 +782,9 @@ export interface operations {
             query?: {
                 limit?: number;
             };
-            header?: never;
+            header?: {
+                "X-API-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

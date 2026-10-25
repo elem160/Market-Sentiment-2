@@ -1,6 +1,8 @@
 import ipaddress
-from typing import Callable
+from collections.abc import Callable
+
 from fastapi import Depends, Header, Request
+
 from app.config import settings
 from app.core.exceptions import UnauthorizedException
 from app.utils.rate_limiter import rate_limiter

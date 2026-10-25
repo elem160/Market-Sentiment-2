@@ -1,18 +1,20 @@
 import uuid
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
+
 from app.config import settings
 from app.core.exceptions import InvalidTickerException
-from app.services.ticker_service import TickerService
 from app.services.llm_service import LLMService
+from app.services.ticker_service import TickerService
 
 
 @pytest.mark.asyncio
 async def test_api_key_required_when_configured(async_client: AsyncClient):
     """Verify missing or wrong X-API-Key returns 401 when API_KEY is set."""
-    from app.core.models import Asset
     from app.core.enums import AssetType
+    from app.core.models import Asset
 
     dummy_asset = Asset(ticker="AAPL", company_name="Apple Inc.", exchange="NASDAQ", asset_type=AssetType.EQUITY, yf_symbol="AAPL")
     with patch("app.services.ticker_service.TickerService.resolve_ticker_async", new_callable=AsyncMock, return_value=dummy_asset):
@@ -92,8 +94,9 @@ async def test_exhausted_daily_llm_budget_skips_synthesis():
 async def test_exhausted_budget_with_candidates_skips_llm():
     """Verify DAILY_BUDGET_EXCEEDED is returned when eligible candidates exist."""
     from datetime import datetime, timezone
-    from app.core.models import ScoredArticle
+
     from app.core.enums import ProviderType
+    from app.core.models import ScoredArticle
 
     now = datetime.now(timezone.utc)
     art = ScoredArticle(
@@ -173,7 +176,8 @@ async def test_cors_credentials_disallowed(async_client: AsyncClient):
 
 def test_repository_get_daily_llm_spend(db_session):
     """Verify SentimentRepository.get_daily_llm_spend computes UTC daily spend accurately."""
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     from app.db.models import AnalysisRunDB
     from app.db.repository import SentimentRepository
 

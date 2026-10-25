@@ -1,19 +1,19 @@
-import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import patch, MagicMock, PropertyMock, AsyncMock
-import time_machine
-import pytest
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
-from app.services.ticker_service import TickerService
+import pytest
+import time_machine
+
+from app.core.enums import AssetType
 from app.core.exceptions import (
     InvalidTickerException,
-    TickerNotFoundException,
     ProviderException,
+    TickerNotFoundException,
 )
-from app.core.enums import AssetType
 from app.core.models import Asset
 from app.services.orchestrator import AnalysisOrchestrator
+from app.services.ticker_service import TickerService
 
 
 @pytest.fixture(autouse=True)
@@ -307,8 +307,8 @@ async def test_orchestrator_never_calls_validate_and_resolve(db_session):
         resolution_warning="Yahoo Finance communication error for CUSTOM: connection dropped",
     )
 
-    from app.core.models import IngestedArticle
     from app.core.enums import ProviderType
+    from app.core.models import IngestedArticle
 
     art_yf = IngestedArticle(
         article_id="custom_art_1",

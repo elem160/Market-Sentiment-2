@@ -4,14 +4,15 @@ import math
 import re
 import time
 from typing import Any
+
 import httpx
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.core.models import ScoredArticle, ObservedFact
-from app.core.enums import CatalystCategory, DirectionalPolarity
 from app.core.constants import DIRECTIONAL_THRESHOLD
+from app.core.enums import CatalystCategory, DirectionalPolarity
+from app.core.models import ObservedFact, ScoredArticle
 from app.utils.logging import logger
 
 CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
@@ -234,7 +235,7 @@ class LLMService:
                 ),
                 timeout=float(settings.LLM_TIMEOUT_SECONDS),
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"LLM catalyst verification timed out after {settings.LLM_TIMEOUT_SECONDS}s deadline.")
             return candidate_articles, [], "", {
                 "status": "FAILED",

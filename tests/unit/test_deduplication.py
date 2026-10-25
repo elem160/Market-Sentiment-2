@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
+
+from app.core.enums import AssetType, ExclusionReason, ProviderType
+from app.core.models import Asset, IngestedArticle
 from app.services.deduplication_service import DeduplicationService
-from app.core.models import IngestedArticle, Asset
-from app.core.enums import ProviderType, ExclusionReason, AssetType
 from app.services.relevance import RelevanceMatcher
 
 
@@ -343,13 +344,14 @@ def test_relevance_distinctive_tokens_and_raw_att():
 def test_env_example_matches_config_defaults():
     """Verify .env.example defaults match config.py settings exactly."""
     import os
+
     from app.config import settings
 
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env.example")
     assert os.path.exists(env_path)
 
     env_vars = {}
-    with open(env_path, "r", encoding="utf-8") as f:
+    with open(env_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:

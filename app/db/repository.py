@@ -1,33 +1,35 @@
 import json
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from app.db.models import AnalysisJobDB, AnalysisRunDB, ArticleEvidenceDB, ObservedFactDB
-from app.core.models import (
-    AnalysisResult,
-    ScoredArticle,
-    ObservedFact,
-    PipelineRationale,
-    PipelineMetrics,
-    ProviderOutcome,
-)
+
 from app.core.enums import (
     AssetType,
+    CacheStatus,
+    CatalystCategory,
+    DataStatus,
     DecisionVerdict,
     DirectionalPolarity,
-    CatalystCategory,
-    ProviderType,
-    ProviderKind,
-    PipelineMode,
-    CacheStatus,
     ExclusionReason,
-    JobStatus,
-    PipelineStage,
     HoldReason,
-    DataStatus,
+    JobStatus,
+    PipelineMode,
+    PipelineStage,
+    ProviderKind,
+    ProviderType,
+)
+from app.core.models import (
+    AnalysisResult,
+    ObservedFact,
+    PipelineMetrics,
+    PipelineRationale,
+    ProviderOutcome,
+    ScoredArticle,
 )
 from app.core.session_window import compute_session_window
+from app.db.models import AnalysisJobDB, AnalysisRunDB, ArticleEvidenceDB, ObservedFactDB
 
 
 class SentimentRepository:

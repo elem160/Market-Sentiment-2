@@ -1,7 +1,7 @@
 import logging
 import re
 import sys
-from typing import Any
+
 from app.config import settings
 
 # Pattern to redact API keys and secrets in logs
