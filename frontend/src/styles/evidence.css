@@ -1,0 +1,457 @@
+/* ==========================================================================
+   05 Evidence — Ledger Table, Row Inversion, and Excluded Grouping (Spec Sheet v2)
+   ========================================================================== */
+
+#evidence-explorer.sp-evidence {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sheet-gap);
+}
+
+.sp-evidence-subtitle {
+  color: var(--sp-ink-3);
+}
+
+/* 4-Cell Filter Tabs */
+.sp-filter {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--sp-rule);
+  border: 1px solid var(--sp-rule-strong);
+  border-top-width: 3px;
+}
+
+.sp-filter-tab {
+  min-height: 3.5rem;
+  padding: 0 var(--sp-3);
+  background: var(--sp-cell);
+  border: 0;
+  border-radius: 0;
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  font-weight: 600;
+  color: var(--sp-ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-filter-tab.active {
+  background: var(--sp-ink);
+  color: var(--sp-on-slab);
+}
+
+.sp-filter-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--sp-accent);
+}
+
+.sp-filter-tab:not(.active):hover {
+  background: var(--sp-ink);
+  color: var(--sp-on-slab);
+}
+
+/* Empty Filter Hatch Box (160px min-height) */
+.sp-empty-filter {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-cell-pad);
+  background: var(--sp-cell);
+  border: 1px solid var(--sp-rule-strong);
+  border-top-width: 3px;
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  color: var(--sp-ink-3);
+  text-align: center;
+}
+
+/* Evidence Ledger Table */
+.sp-ledger-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--sp-rule);
+  border: 1px solid var(--sp-rule-strong);
+  border-top-width: 3px;
+}
+
+.sp-ledger-head {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 2.2fr) minmax(0, 1.1fr) 9.5rem 9rem 8rem auto;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-cell-pad);
+  background: var(--sp-slab);
+  color: var(--sp-on-slab-2);
+  align-items: center;
+  user-select: none;
+}
+
+/* Article Row (Ruled cell, zero radius, hover inverts to ink) */
+.sp-row {
+  background: var(--sp-cell);
+  display: flex;
+  flex-direction: column;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+  min-width: 0;
+}
+
+.sp-row:hover,
+.sp-row:focus-within {
+  background: var(--sp-ink);
+  color: var(--sp-on-slab);
+}
+
+.sp-row-main {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 2.2fr) minmax(0, 1.1fr) 9.5rem 9rem 8rem auto;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-cell-pad);
+  align-items: center;
+  min-width: 0;
+}
+
+.sp-row-n {
+  font-weight: 700;
+  color: var(--sp-ink-3);
+}
+
+.sp-row:hover .sp-row-n,
+.sp-row:focus-within .sp-row-n {
+  color: var(--sp-on-slab-2);
+}
+
+.sp-row-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sp-row-link {
+  font-family: var(--sp-font-ui);
+  font-size: var(--sp-fs-body);
+  font-weight: 600;
+  color: var(--sp-ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.sp-row:hover .sp-row-link,
+.sp-row:focus-within .sp-row-link {
+  color: var(--sp-on-slab);
+  text-decoration: underline;
+}
+
+.sp-row-src {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--sp-fs-label);
+  min-width: 0;
+}
+
+.sp-row-src strong {
+  color: currentColor;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.sp-row-src span {
+  color: var(--sp-ink-3);
+}
+
+.sp-row:hover .sp-row-src span,
+.sp-row:focus-within .sp-row-src span {
+  color: var(--sp-on-slab-2);
+}
+
+.sp-row-time {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--sp-fs-label);
+  color: var(--sp-ink-3);
+}
+
+.sp-row:hover .sp-row-time,
+.sp-row:focus-within .sp-row-time {
+  color: var(--sp-on-slab-2);
+}
+
+.sp-row-sent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.sp-row-score {
+  font-size: var(--sp-fs-small);
+  font-weight: 600;
+}
+
+.sp-row-score.is-pos {
+  color: var(--sp-buy);
+}
+
+.sp-row-score.is-neg {
+  color: var(--sp-sell);
+}
+
+.sp-row-score.is-flat {
+  color: var(--sp-ink-3);
+}
+
+.sp-row:hover .sp-row-score.is-pos,
+.sp-row:focus-within .sp-row-score.is-pos {
+  color: #4ADE80;
+}
+
+.sp-row:hover .sp-row-score.is-neg,
+.sp-row:focus-within .sp-row-score.is-neg {
+  color: #F87171;
+}
+
+.sp-row:hover .sp-row-score.is-flat,
+.sp-row:focus-within .sp-row-score.is-flat {
+  color: var(--sp-on-slab-2);
+}
+
+/* Tri-segment Sentiment Bar */
+.sp-tri {
+  height: 8px;
+  width: 100%;
+  display: flex;
+  overflow: hidden;
+  background: var(--sp-rule);
+}
+
+.sp-tri .p {
+  background: var(--sp-buy);
+  display: block;
+  height: 100%;
+}
+
+.sp-tri .u {
+  background: var(--sp-rule);
+  background-image: var(--sp-hatch);
+  display: block;
+  height: 100%;
+}
+
+.sp-tri .n {
+  background: var(--sp-sell);
+  display: block;
+  height: 100%;
+}
+
+.sp-row-w {
+  font-size: var(--sp-fs-label);
+  color: var(--sp-ink-3);
+}
+
+.sp-row:hover .sp-row-w,
+.sp-row:focus-within .sp-row-w {
+  color: var(--sp-on-slab-2);
+}
+
+.sp-row-toggle {
+  background: transparent;
+  border: 1px solid var(--sp-rule);
+  padding: var(--sp-1) var(--sp-3);
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-label);
+  font-weight: 600;
+  color: var(--sp-ink);
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 32px;
+  border-radius: 0;
+  transition: border-color var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-row:hover .sp-row-toggle,
+.sp-row:focus-within .sp-row-toggle {
+  border-color: var(--sp-on-slab-2);
+  color: var(--sp-on-slab);
+}
+
+/* Row Detail Drawer (no height animation) */
+.sp-row-detail {
+  padding: var(--sp-3) var(--sp-cell-pad) var(--sp-4) calc(var(--sp-cell-pad) + 3rem + var(--sp-3));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  border-top: 1px solid var(--sp-rule);
+  background: inherit;
+  color: inherit;
+}
+
+.sp-row-lead {
+  font-size: var(--sp-fs-small);
+  line-height: 1.5;
+  color: inherit;
+  margin: 0;
+}
+
+.sp-row-pct {
+  font-size: var(--sp-fs-label);
+  color: var(--sp-ink-3);
+}
+
+.sp-row:hover .sp-row-pct,
+.sp-row:focus-within .sp-row-pct {
+  color: var(--sp-on-slab-2);
+}
+
+/* Excluded Articles Section */
+.sp-excluded-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-excl-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--sp-3) var(--sp-cell-pad);
+  background: var(--sp-cell);
+  border: 1px solid var(--sp-rule-strong);
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  font-weight: 600;
+  color: var(--sp-ink);
+  cursor: pointer;
+  border-radius: 0;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-excl-toggle:hover {
+  background: var(--sp-ink);
+  color: var(--sp-on-slab);
+}
+
+.sp-excluded-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-cell-pad);
+  background: var(--sp-cell);
+  border: 1px solid var(--sp-rule-strong);
+  border-top: 0;
+  background-image: var(--sp-hatch);
+}
+
+.sp-excluded-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sp-excluded-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.sp-excluded-count {
+  font-size: var(--sp-fs-label);
+  color: var(--sp-ink-2);
+}
+
+.sp-excluded-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--sp-rule);
+  border: 1px solid var(--sp-rule);
+}
+
+/* Responsive Overrides */
+@media (max-width: 1099px) and (min-width: 640px) {
+  .sp-ledger-head {
+    display: none;
+  }
+
+  .sp-row-main {
+    grid-template-columns: 3rem 1fr auto;
+    grid-template-rows: auto auto;
+    gap: var(--sp-2);
+  }
+
+  .sp-row-n {
+    grid-row: 1 / 3;
+    grid-column: 1;
+  }
+
+  .sp-row-title {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .sp-row-toggle {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .sp-row-src {
+    grid-column: 2;
+    grid-row: 2;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+
+  .sp-row-time {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .sp-row-sent,
+  .sp-row-w {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .sp-filter {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .sp-ledger-head {
+    display: none;
+  }
+
+  .sp-row-main {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+  }
+
+  .sp-row-toggle {
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .sp-row-detail {
+    padding-left: var(--sp-3);
+  }
+}
