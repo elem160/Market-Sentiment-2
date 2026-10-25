@@ -315,6 +315,15 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Added golden snapshot test suite `tests/integration/test_orchestrator_golden_snapshot.py` asserting deterministic contract invariants, metrics, and rationale before and after refactoring.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.20% (284 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
+- **Task P4.2 — Dead code removal and lint tightening (`eb2282d`):**
+  - Removed unused exceptions `UnsupportedAssetException` and `BudgetExceededException` from `app/core/exceptions.py`.
+  - Removed dead enum values: `AssetType.INDEX`, `ProviderType.FINNHUB`, and `ExclusionReason.CATALYST_REJECTED_AS_NOISE` from `app/core/enums.py`.
+  - Removed unused `company_name` parameter from `AggregatorService.aggregate_and_decide()`, updating all callers in `orchestrator.py`, `test_aggregator.py`, and `test_freshness.py`.
+  - Removed unused `HttpUrl` import from `app/core/models.py` and updated stale `FINNHUB` comment references.
+  - Tightened Ruff rules in `pyproject.toml` removing temporary ignores, formatted and organized imports across all python modules, and resolved exception chaining (`raise ProviderException(...) from err`).
+  - Exported synchronized OpenAPI schema to `frontend/src/api/openapi.json` and generated updated TypeScript interfaces via `npm.cmd run gen:api` in `frontend/src/api/schema.d.ts`.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.20% (284 passed); `ruff check .` clean (0 errors); `alembic check` clean (0 drift); `npm.cmd run typecheck` clean; `npm.cmd test` passed (14 passed); frontend production bundle built cleanly.
+
 ## Deviations
 
 _None._

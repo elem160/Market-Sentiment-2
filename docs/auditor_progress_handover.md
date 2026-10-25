@@ -193,8 +193,13 @@ All Phase 3 tasks (P3.1 through P3.8) are complete. The remaining work belongs t
    - Refactored `AnalysisOrchestrator.run_pipeline` into discrete stage methods over a `PipelineContext` dataclass (`_resolve_and_check_cache`, `_ingest`, `_filter_fresh`, `_select_relevant`, `_assert_freshness_invariants`, `_score`, `_synthesize`, `_aggregate`, `_build_result`, `_persist`).
    - Consolidated duplicate exclusions into `build_excluded_article()` and metrics into `build_pipeline_metrics()`; unified disclaimer into module constant `DISCLAIMER`.
    - Added golden snapshot test suite `tests/integration/test_orchestrator_golden_snapshot.py` asserting deterministic contract invariants, metrics, and rationale before and after refactoring.
-2. **P4.2 Dead Code & Lint (Finding: L1):**
-   - Remove unused exceptions, enums (`FINNHUB`, `INDEX`), and dead models. Tighten Ruff rules.
+2. **P4.2 Dead Code & Lint (Finding: L1):** **COMPLETE** (`eb2282d`)
+   - Removed unused exceptions `UnsupportedAssetException` and `BudgetExceededException`.
+   - Removed dead enum values `AssetType.INDEX`, `ProviderType.FINNHUB`, and `ExclusionReason.CATALYST_REJECTED_AS_NOISE`.
+   - Removed unused `company_name` parameter from `AggregatorService.aggregate_and_decide`.
+   - Removed unused `HttpUrl` import from models.py and resolved exception chaining (`raise ProviderException(...) from err`).
+   - Tightened Ruff configuration in `pyproject.toml` and formatted/organized imports across all modules.
+   - Synchronized OpenAPI snapshot schema in `frontend/src/api/openapi.json` and generated TypeScript schema in `frontend/src/api/schema.d.ts`.
 3. **P4.3 Documentation & Versioning (Finding: M18):**
    - Archive legacy `IMPLEMENTATION_PLAN.md` to `docs/history/`; create `CHANGELOG.md` for v1.1.0; bump version numbers.
 4. **P4.4 Frontend Quality (Finding: L8):**
