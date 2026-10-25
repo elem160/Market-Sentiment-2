@@ -89,3 +89,12 @@ This file tracks design and implementation decisions, edge cases, and any deviat
   - Note on Section 12.4 diff calculation: intermediate test runs during development defaulted to `before/`, which captured Phase 5 snapshots; Section 12.3 automated conformance gates verified 100% adherence to all architectural constraints.
   - Authored comprehensive documentation in `docs/ui-v2-notes.md` covering design decisions, token catalogue, component architecture map, and conformance gate results.
   - Rebuilt production static bundle in `app/static/`.
+
+## Section 07 History Ledger Polish
+- **Deviations**: None.
+- **Notes**:
+  - Fixed ticker typography: replaced oversized `--sp-fs-score` (36px–64px) with crisp tabular display (`font-size: 1.125rem`, `line-height: 1.2`, `white-space: nowrap`, `overflow: hidden`, `text-overflow: ellipsis`) and removed `.sp-display` class from the ticker span to eliminate line-wrapping and letter collision.
+  - Fixed dark hover state: defined fallback token aliases in `tokens.css` (`--sp-paper`, `--sp-orange`, `--sp-rule-on-slab`, `--sp-buy-ink`, `--sp-sell-ink`) and explicitly set `.sp-hrow:hover .sp-hrow-ticker` to `var(--sp-on-slab)` to prevent text turning invisible on black background.
+  - Refined tag contrast and styling: added high-contrast hover states for verdict tags (`#4ADE80` for BUY, `#F87171` for SELL, and `var(--sp-hatch-on-slab)` with white text for HOLD), ensuring perfect legibility in both default and hovered states.
+  - Added dedicated mobile 2-row grid layout for viewports <= 640px: line 1 displays ticker and UTC time; line 2 displays verdict/asset/status tags and the right arrow; with minimum 56px touch target and zero horizontal overflow.
+  - Added visual test coverage for `history-hovered` in `states.spec.ts` and validated via Playwright conformance and states suites.

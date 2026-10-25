@@ -68,7 +68,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
             Recent Analysis Queries ({history.length})
           </span>
         </div>
-        <span className="sp-mono">{isOpen ? 'Collapse −' : 'Expand +'}</span>
+        <span className="sp-mono sp-history-toggle-state">{isOpen ? 'Collapse −' : 'Expand +'}</span>
       </button>
 
       {isOpen && (
@@ -81,14 +81,14 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
               onClick={() => onSelectRun(item.run_id)}
               aria-label={`View analysis for ${item.ticker}`}
             >
-              <span className="sp-hrow-ticker sp-display">
+              <span className="sp-hrow-ticker">
                 {formatTickerLabel(item.ticker, item.asset_type)}
               </span>
 
               <div className="sp-hrow-tags">
                 {getVerdictBadge(item.decision)}
                 {item.asset_type && item.asset_type !== 'EQUITY' && (
-                  <span className="sp-tag font-mono">{item.asset_type}</span>
+                  <span className="sp-tag sp-tag--asset font-mono">{item.asset_type}</span>
                 )}
                 {item.data_status === 'NO_FRESH_NEWS' && (
                   <span className="sp-tag sp-tag--hatch font-mono">No News</span>
@@ -101,7 +101,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
                 )}
               </div>
 
-              <div />
+              <div className="sp-hrow-spacer" />
 
               <span className="sp-mono sp-hrow-time">
                 {formatTimeWithTz(item.run_timestamp_utc)}

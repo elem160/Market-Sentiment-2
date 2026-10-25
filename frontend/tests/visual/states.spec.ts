@@ -243,6 +243,20 @@ test.describe('Visual States Harness', () => {
         await captureState(page, 'history-expanded', vp.width);
       });
 
+      test(`history row hovered (${vp.width})`, async ({ page }) => {
+        await setupDefaultMocks(page);
+
+        await page.goto('/');
+        const historyToggle = page.locator('.history-toggle-btn');
+        await expect(historyToggle).toBeVisible();
+        await historyToggle.click();
+        await expect(page.locator('#recent-history-grid')).toBeVisible();
+        const secondRow = page.locator('.history-item-row').nth(1);
+        await expect(secondRow).toBeVisible();
+        await secondRow.hover();
+        await captureState(page, 'history-hovered', vp.width);
+      });
+
       test(`error state (${vp.width})`, async ({ page }) => {
         await setupDefaultMocks(page);
 
