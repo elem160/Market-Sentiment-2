@@ -50,7 +50,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
   if (history.length === 0) return null;
 
   return (
-    <div className="glass-panel" style={{ padding: '16px 20px' }} id="recent-history-panel">
+    <section className="glass-panel" style={{ padding: '16px 20px' }} id="recent-history-panel" aria-label="Recent analysis history">
       <button
         type="button"
         className="history-toggle-btn"
@@ -68,13 +68,14 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
           cursor: 'pointer',
           color: 'inherit',
           fontFamily: 'inherit',
+          minHeight: '44px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600 }}>
-          <History size={16} style={{ color: 'var(--accent-cyan)' }} />
+          <History size={16} style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
           <span>Recent Analysis Queries ({history.length})</span>
         </div>
-        <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>
+        <span style={{ fontSize: '0.8rem', color: 'var(--color-accent)' }}>
           {isOpen ? 'Collapse ▲' : 'Expand ▼'}
         </span>
       </button>
@@ -97,43 +98,42 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
               onClick={() => onSelectRun(item.run_id)}
               aria-label={`View analysis for ${item.ticker}`}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="font-display" style={{ fontWeight: 800, fontSize: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span className="font-display" style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-ink)' }}>
                   {formatTickerLabel(item.ticker, item.asset_type)}
                 </span>
                 {getVerdictBadge(item.decision)}
                 {item.asset_type && item.asset_type !== 'EQUITY' && (
-                  <span className="badge badge-neutral font-mono" style={{ fontSize: '0.68rem' }}>
+                  <span className="badge badge-neutral font-mono">
                     {item.asset_type}
                   </span>
                 )}
                 {item.data_status === 'NO_FRESH_NEWS' && (
-                  <span className="badge badge-hold font-mono" style={{ fontSize: '0.68rem' }}>
+                  <span className="badge badge-hold font-mono">
                     No News
                   </span>
                 )}
                 {item.data_status === 'NO_RELEVANT_NEWS' && (
-                  <span className="badge badge-hold font-mono" style={{ fontSize: '0.68rem' }}>
+                  <span className="badge badge-hold font-mono">
                     No Relevant
                   </span>
                 )}
                 {item.data_status === 'DEGRADED' && (
-                  <span className="badge badge-hold font-mono" style={{ fontSize: '0.68rem', borderColor: 'var(--sell-rose)', color: 'var(--sell-rose)' }}>
+                  <span className="badge badge-sell font-mono">
                     Degraded
                   </span>
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                <Clock size={11} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--color-ink-muted)' }}>
+                <Clock size={11} aria-hidden="true" />
                 <span>{formatTimeWithTz(item.run_timestamp_utc)}</span>
-                <ArrowRight size={13} style={{ color: 'var(--accent-cyan)' }} />
+                <ArrowRight size={13} style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
               </div>
             </button>
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 };
-
