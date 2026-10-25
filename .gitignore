@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -36,6 +36,8 @@ data/
 *.db
 *.sqlite
 *.sqlite3
+*.bak*
+data/*.bak*
 
 # Frontend
 frontend/node_modules/

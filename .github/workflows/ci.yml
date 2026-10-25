@@ -68,6 +68,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Lint with ESLint
+        run: npm run lint
+
       - name: Run unit and regression tests
         run: npm test
 
