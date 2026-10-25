@@ -312,212 +312,7 @@
 
 /* Search, Stepper, and Session Window rules migrated to input.css, loading.css, context.css in Phase 2 */
 
-/* ==========================================================================
-   Decision Hero (Signal Focal Point)
-   ========================================================================== */
-
-.hero-decision-card {
-  padding: var(--space-8);
-  position: relative;
-  background: var(--color-surface);
-  border: var(--border-default);
-  border-radius: var(--radius-2);
-  box-shadow: none;
-}
-
-.hero-decision-card.buy {
-  border-top: 3px solid var(--color-positive);
-}
-
-.hero-decision-card.hold {
-  border-top: 3px solid var(--color-caution);
-}
-
-.hero-decision-card.sell {
-  border-top: 3px solid var(--color-negative);
-}
-
-.sp-hero-eyebrow {
-  font-size: var(--font-size-00);
-  font-weight: 600;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  color: var(--color-ink-muted);
-  margin-bottom: var(--space-2);
-}
-
-.decision-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--space-6);
-  flex-wrap: wrap;
-  gap: var(--space-4);
-}
-
-.asset-identity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.asset-ticker-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-
-.asset-ticker {
-  font-family: var(--font-ui);
-  font-size: var(--font-size-5);
-  font-weight: 700;
-  line-height: var(--line-tight);
-  letter-spacing: -0.03em;
-  color: var(--color-ink);
-}
-
-.asset-exchange {
-  font-family: var(--font-data);
-  font-size: var(--font-size-00);
-  background: var(--color-canvas-raised);
-  padding: 2px 6px;
-  border-radius: var(--radius-1);
-  border: var(--border-default);
-  color: var(--color-ink-muted);
-}
-
-.asset-name {
-  font-size: var(--font-size-2);
-  color: var(--color-ink-soft);
-  font-weight: 400;
-}
-
-.verdict-box {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-2);
-}
-
-.verdict-pill {
-  font-family: var(--font-ui);
-  font-size: var(--font-size-4);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 8px 20px;
-  border-radius: var(--radius-1);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  box-shadow: none;
-  border: 1px solid transparent;
-}
-
-.verdict-pill.buy {
-  background: var(--color-positive-wash);
-  color: var(--color-positive-ink);
-  border-color: var(--color-positive);
-  box-shadow: none;
-}
-
-.verdict-pill.hold {
-  background: var(--color-caution-wash);
-  color: var(--color-caution-ink);
-  border-color: var(--color-caution);
-  box-shadow: none;
-}
-
-.verdict-pill.sell {
-  background: var(--color-negative-wash);
-  color: var(--color-negative-ink);
-  border-color: var(--color-negative);
-  box-shadow: none;
-}
-
-.hold-reason-sub {
-  font-size: var(--font-size-00);
-  color: var(--color-caution-ink);
-  font-weight: 500;
-}
-
-/* Informational / Warning Banners */
-.no-fresh-news-banner {
-  background: var(--color-caution-wash);
-  border: 1px solid var(--color-caution);
-  border-radius: var(--radius-1);
-  padding: 10px 14px;
-  margin: var(--space-3) 0 var(--space-4);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-caution-ink);
-  font-size: var(--font-size-0);
-}
-
-.no-fresh-news-banner.degraded {
-  background: var(--color-negative-wash);
-  border-color: var(--color-negative);
-  color: var(--color-negative-ink);
-}
-
-/* Key Metrics Strip (4 Equal Cells) */
-.metrics-strip {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-4);
-  padding-top: var(--space-6);
-  border-top: var(--border-default);
-}
-
-.metric-item {
-  background: var(--color-canvas);
-  border: var(--border-default);
-  border-radius: var(--radius-1);
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.metric-label {
-  font-size: var(--font-size-00);
-  color: var(--color-ink-muted);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
-  font-weight: 600;
-}
-
-.metric-val {
-  font-family: var(--font-data);
-  font-size: var(--font-size-score);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-ink);
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  line-height: var(--line-tight);
-}
-
-.metric-sub {
-  font-size: var(--font-size-00);
-  color: var(--color-ink-muted);
-}
-
-.heuristic-footnote {
-  margin-top: var(--space-6);
-  font-size: var(--font-size-0);
-  color: var(--color-ink-soft);
-  background: var(--color-canvas);
-  border: var(--border-default);
-  border-left: 3px solid var(--color-line-strong);
-  border-radius: var(--radius-1);
-  padding: 12px 18px;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  line-height: 1.5;
-}
+/* Decision Hero rules migrated to signal.css in Phase 3 */
 
 /* ==========================================================================
    Rationale & Facts Grid
@@ -845,9 +640,6 @@
    ========================================================================== */
 
 @media (max-width: 1199px) {
-  .metrics-strip {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .telemetry-strip {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -882,32 +674,12 @@
     min-height: 48px;
   }
 
-  .hero-decision-card {
-    padding: var(--space-5);
-  }
-
-  .decision-top {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-4);
-  }
-
-  .verdict-box {
-    align-items: flex-start;
-    width: 100%;
-  }
-
-  .metrics-strip {
-    grid-template-columns: 1fr;
-  }
-
   .telemetry-strip {
     grid-template-columns: 1fr;
   }
 }
 
 /* Scroll Margins for Sticky Header Offset */
-#decision-hero-card,
 #rationale-section,
 #evidence-explorer,
 #pipeline-telemetry-strip,
@@ -942,7 +714,7 @@
   :focus-visible {
     outline: 2px solid Highlight;
   }
-  .verdict-pill, .badge, .btn-primary, .btn-secondary, .btn-chip {
+  .badge, .btn-primary, .btn-secondary, .btn-chip {
     border: 1px solid CanvasText;
   }
 }

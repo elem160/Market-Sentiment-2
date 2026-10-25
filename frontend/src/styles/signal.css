@@ -1,0 +1,328 @@
+/* ==========================================================================
+   03 Signal — Split Signal Slab (Spec Sheet v2)
+   ========================================================================== */
+
+#decision-hero-card.sp-signal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sheet-gap);
+}
+
+/* Section Header */
+.sp-signal-head {
+  padding: 0 0 var(--sp-2) 0;
+}
+
+/* 12-col Signal Main Sheet (8 / 4 Split) */
+.sp-signal-main {
+  display: grid;
+  grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  gap: 1px;
+  background: var(--sp-rule);
+  border: 1px solid var(--sp-rule-strong);
+  border-top-width: 3px;
+}
+
+.sp-signal-id {
+  padding: var(--sp-cell-pad);
+  background: var(--sp-cell);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.sp-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.sp-tag--accent {
+  background: var(--sp-accent);
+  color: var(--sp-on-accent);
+  border-color: var(--sp-ink);
+  font-weight: 600;
+}
+
+/* Big Display Ticker */
+.sp-ticker {
+  font-family: var(--sp-font-display);
+  font-size: var(--sp-fs-ticker);
+  font-weight: 800;
+  letter-spacing: var(--sp-track-display);
+  line-height: 0.82;
+  text-transform: uppercase;
+  color: var(--sp-ink);
+  margin: var(--sp-2) 0;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.sp-ticker[data-len="long"] {
+  font-size: var(--sp-fs-ticker-long);
+}
+
+.sp-company {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  color: var(--sp-ink-2);
+  letter-spacing: 0.02em;
+}
+
+/* Classification / Verdict Slab */
+.sp-verdict {
+  padding: var(--sp-cell-pad);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.sp-verdict.buy {
+  background: var(--sp-buy) !important;
+  color: #FFFFFF;
+}
+
+.sp-verdict.buy .sp-label {
+  color: rgb(255 255 255 / 80%);
+}
+
+.sp-verdict.sell {
+  background: var(--sp-sell) !important;
+  color: #FFFFFF;
+}
+
+.sp-verdict.sell .sp-label {
+  color: rgb(255 255 255 / 80%);
+}
+
+.sp-verdict.hold {
+  background: var(--sp-slab) !important;
+  background-image: var(--sp-hatch-on-slab) !important;
+  color: var(--sp-on-slab);
+}
+
+.sp-verdict.hold .sp-label {
+  color: var(--sp-on-slab-2);
+}
+
+.sp-verdict-word {
+  font-family: var(--sp-font-display);
+  font-size: var(--sp-fs-verdict);
+  font-weight: 800;
+  letter-spacing: var(--sp-track-display);
+  line-height: 0.88;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.sp-verdict-word svg {
+  width: 1em;
+  height: 1em;
+  stroke-width: 2.5;
+  flex-shrink: 0;
+}
+
+.sp-hold-reason {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  color: var(--sp-on-slab-2);
+  text-transform: uppercase;
+  letter-spacing: var(--sp-track-label);
+}
+
+/* Data Status Notices (Caution / Degraded) */
+.sp-notice {
+  background-image: var(--sp-hatch);
+  background-color: var(--sp-cell);
+  border: 1px solid var(--sp-rule-strong);
+  border-left: 6px solid var(--sp-ink);
+  padding: var(--sp-cell-pad);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--sp-fs-small);
+  color: var(--sp-ink);
+  line-height: 1.4;
+}
+
+.sp-notice--degraded {
+  border-left-color: var(--sp-sell);
+}
+
+.sp-notice strong {
+  font-weight: 700;
+}
+
+/* Supporting Metrics Sheet */
+.sp-metrics {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--sp-rule);
+  border: 1px solid var(--sp-rule-strong);
+  border-top-width: 3px;
+}
+
+.sp-metric {
+  padding: var(--sp-cell-pad);
+  background: var(--sp-cell);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.sp-metric--wide {
+  justify-content: space-between;
+}
+
+.sp-metric-sub {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-label);
+  color: var(--sp-ink-3);
+  letter-spacing: 0.02em;
+}
+
+/* Scores & Meters */
+.sp-score {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-score);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.sp-score.is-pos {
+  color: var(--sp-buy);
+}
+
+.sp-score.is-neg {
+  color: var(--sp-sell);
+}
+
+.sp-score.is-flat {
+  color: var(--sp-ink);
+}
+
+.sp-score-sm {
+  font-family: var(--sp-font-mono);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--sp-ink);
+}
+
+/* Composite Sentiment Gauge */
+.sp-gauge {
+  height: 28px;
+  width: 100%;
+  position: relative;
+  background: var(--sp-ticks);
+  border: 1px solid var(--sp-ink);
+  margin: var(--sp-1) 0;
+  overflow: hidden;
+}
+
+.sp-gauge-zone {
+  position: absolute;
+  left: 37.5%;
+  width: 25%;
+  top: 0;
+  bottom: 0;
+  background-image: var(--sp-hatch);
+  border-left: 1px dashed var(--sp-ink);
+  border-right: 1px dashed var(--sp-ink);
+  pointer-events: none;
+}
+
+.sp-gauge-marker {
+  position: absolute;
+  top: -4px;
+  width: 14px;
+  height: 36px;
+  background: var(--sp-ink);
+  transform: translateX(-50%);
+  border-top: 3px solid var(--sp-accent);
+}
+
+.sp-gauge-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--sp-fs-label);
+  color: var(--sp-ink-3);
+  margin-top: -0.25rem;
+}
+
+/* 10-Segment Confidence & Evidence Meter */
+.sp-seg {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  width: 100%;
+  height: 10px;
+  margin: var(--sp-1) 0;
+}
+
+.sp-seg span {
+  background: var(--sp-rule);
+  display: block;
+  height: 100%;
+}
+
+.sp-seg span.on {
+  background: var(--sp-ink);
+}
+
+/* Research Footnote */
+.sp-footnote {
+  padding: var(--sp-cell-pad);
+  background: var(--sp-slab) !important;
+  color: var(--sp-on-slab);
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-meta);
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  border: 1px solid var(--sp-rule-strong);
+  border-top: 1px solid var(--sp-rule);
+  flex-wrap: wrap;
+}
+
+.sp-footnote strong {
+  color: var(--sp-on-slab);
+}
+
+/* Responsive Overrides */
+@media (max-width: 1023px) {
+  .sp-signal-main {
+    grid-template-columns: 1fr;
+  }
+
+  .sp-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sp-metric--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 639px) {
+  .sp-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .sp-metric--wide {
+    grid-column: auto;
+  }
+}
