@@ -1,3 +1,5 @@
+> **SUPERSEDED.** This plan produced PR #1, which only recolored the UI.
+> Do not follow it. Current plan: `docs/sentiment-pulse-spec-sheet-rebuild-plan.md`.
 # Sentiment Pulse — Minimal UI/UX Overhaul Implementation Plan
 
 **Status:** implementation-ready plan only; no product code has been changed.  
