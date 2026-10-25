@@ -73,4 +73,19 @@
   --sp-t-fast: 120ms;
   --sp-t-base: 200ms;
   --sp-t-enter: 420ms;
+
+  /* Fallback & extended aliases */
+  --sp-paper: var(--sp-cell);
+  --sp-orange: var(--sp-accent);
+  --sp-rule-on-slab: #2A2D31;
+  --sp-buy-ink: var(--sp-buy);
+  --sp-sell-ink: var(--sp-sell);
+  --sp-fs-micro: var(--sp-fs-label);
+  --sp-space-1: var(--sp-1);
+  --sp-space-2: var(--sp-2);
+  --sp-space-3: var(--sp-3);
+  --sp-space-4: var(--sp-4);
+  --sp-space-5: var(--sp-5);
+  --sp-space-6: var(--sp-6);
+  --sp-space-8: var(--sp-8);
 }
