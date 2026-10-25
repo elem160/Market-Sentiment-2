@@ -68,6 +68,7 @@ class FinBERTService:
                     canonical_url=art.canonical_url,
                     title=art.title,
                     published_at_utc=art.published_at_utc,
+                    retrieved_at_utc=art.retrieved_at_utc,
                     lead_text=lead_text,
                     finbert_positive=p_pos,
                     finbert_negative=p_neg,

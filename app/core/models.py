@@ -99,6 +99,7 @@ class ScoredArticle(BaseModel):
     canonical_url: str
     title: str
     published_at_utc: datetime | None = None # Timezone-aware UTC timestamp or None if undated
+    retrieved_at_utc: datetime | None = None # Timezone-aware UTC timestamp when ingested
     lead_text: str
     finbert_positive: float
     finbert_negative: float

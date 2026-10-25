@@ -936,6 +936,18 @@
             "title": "Publisher Inferred",
             "type": "boolean"
           },
+          "retrieved_at_utc": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At Utc"
+          },
           "source_name": {
             "title": "Source Name",
             "type": "string"

@@ -28,7 +28,7 @@ from app.core.models import (
     ProviderOutcome,
     ScoredArticle,
 )
-from app.core.session_window import compute_session_window
+from app.core.session_window import rebuild_session_window
 from app.db.models import AnalysisJobDB, AnalysisRunDB, ArticleEvidenceDB, ObservedFactDB
 
 
@@ -204,7 +204,7 @@ class SentimentRepository:
                 canonical_url=art.canonical_url,
                 title=art.title,
                 published_at_utc=art.published_at_utc,
-                retrieved_at_utc=datetime.now(timezone.utc),
+                retrieved_at_utc=art.retrieved_at_utc if art.retrieved_at_utc is not None else datetime.now(timezone.utc),
                 lead_text=art.lead_text,
                 finbert_positive=art.finbert_positive,
                 finbert_negative=art.finbert_negative,
@@ -276,7 +276,12 @@ class SentimentRepository:
 
     @staticmethod
     def _to_analysis_result(record: AnalysisRunDB, cache_status: CacheStatus) -> AnalysisResult:
-        session = compute_session_window(record.run_timestamp_utc)
+        session = rebuild_session_window(
+            session_type=record.session_type,
+            window_start_utc=record.window_start_utc,
+            window_end_utc=record.window_end_utc,
+            run_timestamp_utc=record.run_timestamp_utc,
+        )
 
         articles = [
             ScoredArticle(
@@ -287,6 +292,7 @@ class SentimentRepository:
                 canonical_url=a.canonical_url,
                 title=a.title,
                 published_at_utc=a.published_at_utc,
+                retrieved_at_utc=a.retrieved_at_utc,
                 lead_text=a.lead_text,
                 finbert_positive=a.finbert_positive,
                 finbert_negative=a.finbert_negative,

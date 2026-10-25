@@ -14,6 +14,7 @@ from app.core.session_window import (
     EASTERN_TZ,
     compute_session_bucket,
     compute_session_window,
+    rebuild_session_window,
     validate_cache_bucket_minutes,
 )
 
@@ -220,3 +221,28 @@ def test_is_timestamp_in_window():
     # Old timestamp prior to Tuesday 16:00 ET (which was Tuesday 20:00 UTC)
     old_ts = datetime(2026, 10, 13, 18, 0, 0, tzinfo=timezone.utc)
     assert window.is_timestamp_in_window(old_ts) is False
+
+
+def test_rebuild_session_window_preserves_historical_boundaries():
+    """Verify that rebuild_session_window accurately reconstructs stored window columns (Finding L4)."""
+    start_utc = datetime(2026, 9, 15, 20, 0, 0, tzinfo=timezone.utc)
+    end_utc = datetime(2026, 9, 16, 14, 30, 0, tzinfo=timezone.utc)
+    run_utc = datetime(2026, 9, 16, 14, 30, 0, tzinfo=timezone.utc)
+
+    window = rebuild_session_window(
+        session_type="REGULAR_HOURS",
+        window_start_utc=start_utc,
+        window_end_utc=end_utc,
+        run_timestamp_utc=run_utc,
+    )
+
+    assert window.session_type == SessionType.REGULAR_HOURS
+    assert window.is_market_open is True
+    assert window.window_start_utc == start_utc
+    assert window.window_end_utc == end_utc
+    assert window.run_timestamp_utc == run_utc
+    assert window.market_timezone == "America/New_York"
+    assert window.window_duration_hours == 18.5
+    assert window.window_start_et == datetime(2026, 9, 15, 16, 0, 0, tzinfo=EASTERN_TZ)
+    assert window.window_end_et == datetime(2026, 9, 16, 10, 30, 0, tzinfo=EASTERN_TZ)
+

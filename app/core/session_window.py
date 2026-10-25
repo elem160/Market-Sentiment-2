@@ -118,6 +118,55 @@ def compute_session_window(reference_time: datetime | None = None) -> SessionWin
     )
 
 
+def rebuild_session_window(
+    *,
+    session_type: SessionType | str,
+    window_start_utc: datetime,
+    window_end_utc: datetime,
+    run_timestamp_utc: datetime,
+) -> SessionWindow:
+    """
+    Rebuild a SessionWindow directly from stored database columns and derived ET values.
+    Preserves exact historical window boundaries without re-evaluating calendar rules (Finding L4).
+    """
+    st = SessionType(session_type) if isinstance(session_type, str) else session_type
+
+    if window_start_utc.tzinfo is None:
+        start_utc = window_start_utc.replace(tzinfo=timezone.utc)
+    else:
+        start_utc = window_start_utc.astimezone(timezone.utc)
+
+    if window_end_utc.tzinfo is None:
+        end_utc = window_end_utc.replace(tzinfo=timezone.utc)
+    else:
+        end_utc = window_end_utc.astimezone(timezone.utc)
+
+    if run_timestamp_utc.tzinfo is None:
+        run_utc = run_timestamp_utc.replace(tzinfo=timezone.utc)
+    else:
+        run_utc = run_timestamp_utc.astimezone(timezone.utc)
+
+    start_et = start_utc.astimezone(EASTERN_TZ)
+    end_et = end_utc.astimezone(EASTERN_TZ)
+    run_et = run_utc.astimezone(EASTERN_TZ)
+
+    duration_hours = round((end_utc - start_utc).total_seconds() / 3600.0, 2)
+    is_market_open = (st == SessionType.REGULAR_HOURS)
+
+    return SessionWindow(
+        market_timezone="America/New_York",
+        session_type=st,
+        is_market_open=is_market_open,
+        window_start_utc=start_utc,
+        window_start_et=start_et,
+        window_end_utc=end_utc,
+        window_end_et=end_et,
+        window_duration_hours=duration_hours,
+        run_timestamp_utc=run_utc,
+        run_timestamp_et=run_et,
+    )
+
+
 def validate_cache_bucket_minutes(minutes: int) -> int:
     """Validates that bucket minutes is between 1 and 1440 and divides 1440 evenly."""
     if minutes < 1 or minutes > 1440:

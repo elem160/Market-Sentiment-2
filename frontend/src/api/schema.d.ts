@@ -610,6 +610,8 @@ export interface components {
              * @default false
              */
             publisher_inferred: boolean;
+            /** Retrieved At Utc */
+            retrieved_at_utc?: string | null;
             /** Source Name */
             source_name: string;
             /** Title */
