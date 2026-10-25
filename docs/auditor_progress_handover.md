@@ -213,8 +213,11 @@ All Phase 3 tasks (P3.1 through P3.8) are complete. The remaining work belongs t
    - CSS cleanup: added `.btn-link`, `.no-fresh-news-banner` and `.no-fresh-news-banner.degraded`, removed unused `@keyframes pulseGlow` and `@keyframes shimmer`, and added narrow-screen `@media (max-width: 768px)` rules.
    - Configured ESLint flat config (`eslint.config.js`) with `typescript-eslint`, `react-hooks`, and `jsx-a11y`; added `"lint": "eslint ."`.
    - Frontend tests expanded to 23 tests across 4 suites (`formatters.test.ts`, `DecisionHero.test.tsx`, `api.test.ts`, `App.test.tsx`).
-5. **P4.5 Repository Hygiene (Finding: L9):**
-   - Update `.gitignore`: change `lib/` to `/lib/` and add `data/*.bak*`; clean untracked caches; create `Dockerfile` and `.dockerignore`.
+5. **P4.5 Repository Hygiene (Finding: L9):** **COMPLETE** (`86586c8`)
+   - Cleaned untracked root `__pycache__/` directory.
+   - Updated `.gitignore` anchoring `/lib/` to root and adding explicit backup patterns (`*.bak*`, `data/*.bak*`).
+   - Created production-grade `Dockerfile` (Python 3.12-slim, non-root user `appuser`, CPU PyTorch, unbuffered logs, and python healthcheck) and `.dockerignore`.
+   - Added ESLint step (`npm run lint`) to frontend CI pipeline in `.github/workflows/ci.yml`.
 6. **P4.6 Persistence Details (Finding: L4):**
    - Carry `ScoredArticle.retrieved_at_utc` from ingestion into database; rebuild `SessionWindow` in `SentimentRepository._to_analysis_result()` from stored columns rather than recomputing from calendar.
 

@@ -341,6 +341,13 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Configured ESLint flat config (`eslint.config.js`) with `typescript-eslint`, `eslint-plugin-react-hooks`, and `eslint-plugin-jsx-a11y`; added `"lint": "eslint ."` script to `package.json`.
   - Verification: `npm.cmd run lint` passed (0 errors, 0 warnings); `npm.cmd test` passed (23 passed across 4 files); `npm.cmd run typecheck` clean; `npm.cmd run build` clean; backend test suite passed (284 passed, 86.20% coverage); `ruff check .` clean; `alembic check` clean.
 
+- **Task P4.5 — Repository hygiene, Dockerfile, and bundle enforcement (`86586c8`):**
+  - Cleaned untracked root `__pycache__/` directory.
+  - Updated `.gitignore` to anchor `/lib/` to repository root and added explicit backup patterns (`*.bak*`, `data/*.bak*`).
+  - Created production-ready `Dockerfile` (Python 3.12-slim, non-root system user `appuser`, pre-installed CPU PyTorch 2.14.1, unbuffered logs, and python healthcheck against `/api/v1/health`) and comprehensive `.dockerignore`.
+  - Added ESLint verification (`npm run lint`) to frontend CI pipeline in `.github/workflows/ci.yml`.
+  - Verification: `git diff --exit-code app/static` clean (0 bundle drift); `ruff check .` clean; `pytest --cov=app --cov-fail-under=85` passed at 86.20% (284 passed); `npm.cmd test` passed (23 passed); `npm.cmd run lint` passed.
+
 ## Deviations
 
 _None._
