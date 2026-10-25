@@ -218,14 +218,18 @@ All Phase 3 tasks (P3.1 through P3.8) are complete. The remaining work belongs t
    - Updated `.gitignore` anchoring `/lib/` to root and adding explicit backup patterns (`*.bak*`, `data/*.bak*`).
    - Created production-grade `Dockerfile` (Python 3.12-slim, non-root user `appuser`, CPU PyTorch, unbuffered logs, and python healthcheck) and `.dockerignore`.
    - Added ESLint step (`npm run lint`) to frontend CI pipeline in `.github/workflows/ci.yml`.
-6. **P4.6 Persistence Details (Finding: L4):**
-   - Carry `ScoredArticle.retrieved_at_utc` from ingestion into database; rebuild `SessionWindow` in `SentimentRepository._to_analysis_result()` from stored columns rather than recomputing from calendar.
+6. **P4.6 Persistence Details (Finding: L4):** **COMPLETE** (`af01784`)
+   - Added `retrieved_at_utc: datetime | None = None` to `ScoredArticle` model, preserving ingestion timestamp in database instead of overwriting with `datetime.now(timezone.utc)`.
+   - Created `rebuild_session_window` in `app/core/session_window.py` to faithfully reconstruct `SessionWindow` from stored columns (`session_type`, `window_start_utc`, `window_end_utc`, `run_timestamp_utc`) and derived ET values, eliminating calendar re-evaluation drift on historical runs.
+   - Updated `SentimentRepository._to_analysis_result` to use `rebuild_session_window` and load `retrieved_at_utc` from evidence records.
+   - Synchronized OpenAPI snapshot schema in `frontend/src/api/openapi.json` and generated updated TypeScript interfaces in `frontend/src/api/schema.d.ts`.
+   - Added unit tests in `tests/unit/test_session_window.py` and `tests/unit/test_timezone_integrity.py` asserting exact timestamp preservation and historical session window reconstruction.
 
 ---
 
 ## 5. Auditor Verification Instructions
 
-To independently verify the integrity of the repository and confirm that Phase 2 and all audit findings remediation were completed properly, run the following commands:
+To independently verify the integrity of the repository and confirm that Phase 4 and all audit findings remediation were completed properly, run the following commands:
 
 ### Backend Checks
 ```powershell
@@ -238,8 +242,8 @@ pytest --cov=app --cov-report=term-missing --cov-fail-under=85
 # 3. Database Schema & Migration Drift
 alembic check
 
-# 4. Migration 002 Downgrade Safety Test
-pytest tests/integration/test_migration_002_downgrade.py -v
+# 4. Orchestrator Golden Snapshot Tests
+pytest tests/integration/test_orchestrator_golden_snapshot.py -v
 
 # 5. OpenAPI Contract Snapshot Check
 pytest tests/contract/test_openapi_snapshot.py -v
@@ -247,20 +251,21 @@ pytest tests/contract/test_openapi_snapshot.py -v
 
 ### Frontend Checks
 ```powershell
-# Set Node and npm in environment PATH (if needed)
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 cd frontend
 
-# 6. TypeScript Typecheck
+# 6. ESLint Linting
+npm.cmd run lint
+
+# 7. TypeScript Typecheck
 npm.cmd run typecheck
 
-# 7. Frontend Unit and Regression Tests
+# 8. Frontend Unit and Regression Tests
 npm.cmd test
 
-# 8. Rebuild Static Distribution Bundle
+# 9. Rebuild Static Distribution Bundle
 npm.cmd run build
 
-# 9. Verify Static Bundle Matches Committed Assets (Bundle Drift Check)
+# 10. Verify Static Bundle Matches Committed Assets (Bundle Drift Check)
 git diff --exit-code ../app/static
 ```
 
@@ -268,6 +273,7 @@ git diff --exit-code ../app/static
 
 ## 6. Audit Verdict & Recommendation
 
-- **Direction Assessment:** The implementation strictly adheres to the approved architectural blueprint in [docs/implementation_plan.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md) (§7 Phase 3, Tasks P3.1 through P3.8), and accurately records all engineering deliverables in [docs/implementation_log.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_log.md).
-- **Integrity Assessment:** Zero regressions introduced; test coverage stands at **85.76%** (satisfying the $\ge 85\%$ strict requirement); 282 offline backend tests and 14 frontend tests pass cleanly; FinBERT throughput speedup measured at 1.81x; 0 ruff errors; 0 alembic migration drift.
-- **Recommended Next Step:** Approve Phase 3 sign-off on branch `fix/phase-3-performance-reliability` and proceed to create branch `fix/phase-4-code-quality` for Phase 4 (Task P4.1 Orchestrator refactor).
+- **Direction Assessment:** The implementation strictly adheres to the approved architectural blueprint in [docs/implementation_plan.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md) (§8 Phase 4, Tasks P4.1 through P4.6), and accurately records all engineering deliverables in [docs/implementation_log.md](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_log.md).
+- **Integrity Assessment:** Zero regressions introduced; test coverage stands at **86.22%** (satisfying the $\ge 85\%$ strict requirement); 286 offline backend tests and 23 frontend tests pass cleanly; 0 ruff errors; 0 alembic migration drift; 0 OpenAPI contract drift; 0 frontend bundle drift.
+- **Recommended Next Step:** Approve Phase 4 sign-off on branch `fix/phase-4-code-quality` and proceed to merge or open pull request into `main`.
+

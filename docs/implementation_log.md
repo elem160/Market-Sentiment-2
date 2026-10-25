@@ -348,6 +348,15 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Added ESLint verification (`npm run lint`) to frontend CI pipeline in `.github/workflows/ci.yml`.
   - Verification: `git diff --exit-code app/static` clean (0 bundle drift); `ruff check .` clean; `pytest --cov=app --cov-fail-under=85` passed at 86.20% (284 passed); `npm.cmd test` passed (23 passed); `npm.cmd run lint` passed.
 
+- **Task P4.6 — Persistence details: retrieved_at_utc and SessionWindow reconstruction (`af01784`):**
+  - Added `retrieved_at_utc: datetime | None = None` to `ScoredArticle` model; carried `retrieved_at_utc` from `IngestedArticle` through `build_excluded_article` and `FinBERTService._batch_score_articles_sync`.
+  - Updated `SentimentRepository.save_analysis_run` to preserve `art.retrieved_at_utc` in `ArticleEvidenceDB` rather than overwriting with `datetime.now(timezone.utc)`.
+  - Created `rebuild_session_window` in `app/core/session_window.py` to reconstruct `SessionWindow` faithfully from stored database columns (`session_type`, `window_start_utc`, `window_end_utc`, `run_timestamp_utc`) and derived ET values, eliminating calendar re-evaluation drift on historical runs.
+  - Updated `SentimentRepository._to_analysis_result` to use `rebuild_session_window` and load `retrieved_at_utc` from evidence records.
+  - Exported updated OpenAPI contract snapshot to `frontend/src/api/openapi.json` and generated updated TypeScript interfaces in `frontend/src/api/schema.d.ts`.
+  - Added unit tests in `tests/unit/test_session_window.py` and `tests/unit/test_timezone_integrity.py` asserting exact timestamp preservation and historical session window reconstruction.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.22% (286 passed); `ruff check .` clean (0 errors); `alembic check` clean (0 drift); `npm.cmd test` passed (23 passed); `npm.cmd run typecheck` clean; `git diff --exit-code app/static` clean.
+
 ## Deviations
 
 _None._
