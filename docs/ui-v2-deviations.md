@@ -27,3 +27,30 @@ This file tracks design and implementation decisions, edge cases, and any deviat
   - Added `SiteFooter.tsx` (static black slab footer).
   - Updated `App.tsx` layout structure to `.sp-app` > `Header` > `.sp-page` > `.sp-rail` + `.sp-main` > `SiteFooter`, with `.sp-error` alert block.
   - Added test suites `SectionRail.test.tsx` and `LandingHero.test.tsx`.
+
+## Phase 2: Input, Loading, Context
+- **Deviations**: None.
+- **Notes**:
+  - Created `frontend/src/styles/input.css` implementing Section 7.4 `#search-section.sp-input.sp-sheet`, `.sp-sec-head`, `.sp-input-main`, `.sp-input-form`, `.sp-input-field` (borderless, 3px solid ink underline, uppercase display font, caret orange, placeholder `--sp-rule`), `.sp-btn--xl`, `.sp-chip-strip` (grid with min 3.5rem chips and hover inversion), and `.sp-options` with custom 20px `.sp-toggle-box` and focus rings.
+  - Created `frontend/src/styles/loading.css` implementing Section 7.5 `#analysis-stepper.sp-loading.sp-sheet`, `.sp-loading-top`, giant `.sp-counter` display, 20px `.sp-ruler` progress bar with tick background and orange fill, `.sp-loading-msg`, `.sp-stages` 6-cell grid, and active stage tag 1Hz blinking square (`::before`). Spinners completely removed.
+  - Created `frontend/src/styles/context.css` implementing Section 7.6 `#session-window-banner.sp-context.sp-sheet`, 6-cell spec strip, solid green square for `OPEN (RTH)` and hollow ink square on hatch background for `CLOSED`.
+  - Rebuilt `SearchBar.tsx`, `LoadingStepper.tsx`, and `SessionWindowBanner.tsx` matching all spec sheet v2 markup and class names, preserving all state, handlers, props, and contract IDs/classes (`form.search-form`).
+  - Removed migrated search, stepper, and session banner rules from `frontend/src/styles/legacy.css`.
+  - Added unit test suites `SearchBar.test.tsx`, `LoadingStepper.test.tsx`, and `SessionWindowBanner.test.tsx` (all passing).
+  - Rebuilt production static bundle in `app/static/`.
+
+## Phase 3: Signal
+- **Deviations**: None.
+- **Notes**:
+  - Created `frontend/src/styles/signal.css` implementing Section 7.7 `#decision-hero-card.sp-signal`, `.sp-sec-head.sp-signal-head`, `.sp-signal-main` 12-column grid (8 / 4 split on desktop), `.sp-signal-id` containing `#result-ticker-symbol` (with `data-len="long"` for tickers over 8 characters, `overflow-wrap: anywhere`), `.sp-company`, and `.sp-tags`.
+  - Rebuilt `.sp-verdict` as a slab cell: BUY in `--sp-buy` (solid green), SELL in `--sp-sell` (solid red), and HOLD in black slab with hatch pattern (`--sp-hatch-on-slab`).
+  - Implemented `.sp-notice` warning and caution banners (1px ink border, hatch background, 6px ink or `--sp-sell` left bar).
+  - Implemented `.sp-metrics` 4-cell spec grid (`2fr 1fr 1fr 1fr` on desktop, `1fr 1fr` on tablet, `1fr` on mobile):
+    - Wide Composite Sentiment cell with `.sp-score` (`is-pos`, `is-neg`, `is-flat` classes with zero inline color styles), 28px tick gauge with hatch zone and marker (`left` mapped accurately to score from 0% to 100%), and mono scale labels.
+    - Confidence Level cell with 10-segment meter (`.sp-seg`).
+    - Evidence Quality cell with 10-segment meter and retained articles count.
+    - Publisher Corroboration cell with exact corroboration strings (`Corroborated`, `Uncorroborated`, `Single Publisher`, `Insufficient Corroboration`).
+  - Preserved the legal and heuristic footnote in a black slab cell directly under metrics with new static tag `Research use only` (without the word "corroborated").
+  - Removed migrated Decision Hero styles and media queries from `frontend/src/styles/legacy.css`.
+  - Added new test cases to `DecisionHero.test.tsx` verifying `data-len="long"`, gauge marker `left` at 0%, 50%, and 100%, and composite tone classes `is-pos`, `is-neg`, and `is-flat`. All 12 tests passed.
+  - Rebuilt production static bundle in `app/static/`.

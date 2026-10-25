@@ -1,0 +1,251 @@
+/* ==========================================================================
+   01 Input — Spec Sheet v2 Search & Options Form
+   ========================================================================== */
+
+#search-section.sp-input {
+  /* Sheet container */
+  position: relative;
+}
+
+/* Section Header */
+.sp-input .sp-sec-head {
+  padding: var(--sp-cell-pad);
+  border-bottom: 1px solid var(--sp-rule);
+  background: var(--sp-cell);
+}
+
+/* Main Input Area */
+.sp-input-main {
+  padding: var(--sp-cell-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  background: var(--sp-cell);
+}
+
+.sp-input-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-6);
+  align-items: end;
+  position: relative;
+}
+
+.sp-input-field {
+  width: 100%;
+  border: 0;
+  border-bottom: 3px solid var(--sp-ink);
+  background: transparent;
+  padding: 0.25rem 0;
+  caret-color: var(--sp-accent);
+  font-family: var(--sp-font-display);
+  font-size: clamp(2.25rem, 7vw, 5.5rem);
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: var(--sp-track-display);
+  color: var(--sp-ink);
+  border-radius: 0;
+  transition: border-color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-input-field::placeholder {
+  color: var(--sp-rule);
+  opacity: 1;
+}
+
+.sp-input-field:focus {
+  outline: none;
+  border-bottom-color: var(--sp-accent);
+}
+
+.sp-input-field:focus-visible {
+  outline: none;
+  border-bottom-color: var(--sp-accent);
+}
+
+.sp-input-field:disabled {
+  color: var(--sp-ink-3);
+  border-bottom-color: var(--sp-rule);
+  cursor: not-allowed;
+}
+
+.sp-btn--xl {
+  min-height: 4.5rem;
+  padding: 0 2rem;
+  font-size: 1rem;
+}
+
+.sp-helper {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-label);
+  color: var(--sp-ink-3);
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+/* Quick Chips Strip */
+.sp-chip-strip {
+  display: grid;
+  grid-template-columns: auto repeat(6, 1fr);
+  gap: 1px;
+  background: var(--sp-rule);
+  border-top: 1px solid var(--sp-rule);
+}
+
+.sp-chip-label {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-cell-pad);
+  background: var(--sp-cell);
+}
+
+.sp-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  padding: 0 var(--sp-3);
+  background: var(--sp-cell);
+  border: 0;
+  border-radius: 0;
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  font-weight: 500;
+  color: var(--sp-ink);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-chip:hover:not(:disabled) {
+  background: var(--sp-ink);
+  color: var(--sp-on-slab);
+}
+
+.sp-chip:disabled {
+  color: var(--sp-ink-3);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Run Options & Custom Checkboxes */
+.sp-options {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-cell-pad);
+  background: var(--sp-cell);
+  border-top: 1px solid var(--sp-rule);
+  flex-wrap: wrap;
+}
+
+.sp-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  min-width: 44px;
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  font-weight: 500;
+  color: var(--sp-ink-2);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.sp-toggle:hover:not(:has(input:disabled)) {
+  color: var(--sp-ink);
+}
+
+/* Visually hidden native input to retain keyboard and a11y support */
+.sp-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Custom 20px square check indicator */
+.sp-toggle-box {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--sp-ink);
+  background: var(--sp-cell);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 0;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              border-color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-toggle input[type="checkbox"]:checked + .sp-toggle-box {
+  background: var(--sp-ink);
+  color: var(--sp-on-slab);
+}
+
+.sp-toggle input[type="checkbox"]:checked + .sp-toggle-box::after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 9px;
+  border: solid var(--sp-on-slab);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-top: -2px;
+}
+
+.sp-toggle input[type="checkbox"]:focus-visible + .sp-toggle-box {
+  outline: 3px solid var(--sp-ink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--sp-accent);
+}
+
+.sp-toggle input[type="checkbox"]:disabled ~ * {
+  color: var(--sp-ink-3);
+  cursor: not-allowed;
+}
+
+.sp-toggle input[type="checkbox"]:disabled + .sp-toggle-box {
+  border-color: var(--sp-rule);
+  background: var(--sp-canvas);
+}
+
+/* Responsive Overrides */
+@media (max-width: 899px) {
+  .sp-chip-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .sp-chip-label {
+    grid-column: 1 / -1;
+    min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .sp-input-form {
+    grid-template-columns: 1fr;
+    gap: var(--sp-4);
+  }
+
+  .sp-btn--xl {
+    width: 100%;
+    min-height: 56px;
+  }
+
+  .sp-chip-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .sp-options {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-3);
+  }
+}

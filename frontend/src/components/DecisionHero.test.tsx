@@ -153,4 +153,55 @@ describe('DecisionHero Corroboration Badge (Finding 2 Verification)', () => {
     expect(screen.getByText('GC=F')).toBeDefined();
     expect(screen.queryByText('$GC=F')).toBeNull();
   });
+
+  it('sets data-len="long" on ticker symbol for a 12-character ticker', () => {
+    const result = createHeroResult('BUY', 2, 2);
+    result.ticker = 'VERYLONGTICK';
+    result.asset_type = 'FOREX';
+    const { container } = render(<DecisionHero result={result} />);
+
+    const tickerEl = container.querySelector('#result-ticker-symbol');
+    expect(tickerEl?.getAttribute('data-len')).toBe('long');
+  });
+
+  it('computes gauge marker left as 0%, 50%, and 100% for scores -1, 0, and +1', () => {
+    const rMin = createHeroResult('SELL', 2, 2);
+    rMin.sentiment_score = -1.0;
+    const { container: cMin, unmount: uMin } = render(<DecisionHero result={rMin} />);
+    const markerMin = cMin.querySelector('.sp-gauge-marker') as HTMLElement;
+    expect(markerMin.style.left).toBe('0%');
+    uMin();
+
+    const rMid = createHeroResult('HOLD', 2, 0);
+    rMid.sentiment_score = 0.0;
+    const { container: cMid, unmount: uMid } = render(<DecisionHero result={rMid} />);
+    const markerMid = cMid.querySelector('.sp-gauge-marker') as HTMLElement;
+    expect(markerMid.style.left).toBe('50%');
+    uMid();
+
+    const rMax = createHeroResult('BUY', 2, 2);
+    rMax.sentiment_score = 1.0;
+    const { container: cMax } = render(<DecisionHero result={rMax} />);
+    const markerMax = cMax.querySelector('.sp-gauge-marker') as HTMLElement;
+    expect(markerMax.style.left).toBe('100%');
+  });
+
+  it('applies composite tone class is-pos, is-neg, and is-flat at 0.26, -0.26, and 0.25', () => {
+    const rPos = createHeroResult('BUY', 2, 2);
+    rPos.sentiment_score = 0.26;
+    const { container: cPos, unmount: uPos } = render(<DecisionHero result={rPos} />);
+    expect(cPos.querySelector('#result-composite-score')?.classList.contains('is-pos')).toBe(true);
+    uPos();
+
+    const rNeg = createHeroResult('SELL', 2, 2);
+    rNeg.sentiment_score = -0.26;
+    const { container: cNeg, unmount: uNeg } = render(<DecisionHero result={rNeg} />);
+    expect(cNeg.querySelector('#result-composite-score')?.classList.contains('is-neg')).toBe(true);
+    uNeg();
+
+    const rFlat = createHeroResult('HOLD', 2, 0);
+    rFlat.sentiment_score = 0.25;
+    const { container: cFlat } = render(<DecisionHero result={rFlat} />);
+    expect(cFlat.querySelector('#result-composite-score')?.classList.contains('is-flat')).toBe(true);
+  });
 });

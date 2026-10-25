@@ -6,7 +6,6 @@ import {
   TrendingDown,
   MinusCircle,
   AlertTriangle,
-  Info,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -21,20 +20,16 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
   const getVerdictIcon = () => {
     switch (verdict) {
       case 'BUY':
-        return <TrendingUp size={24} aria-hidden="true" />;
+        return <TrendingUp size={28} aria-hidden="true" />;
       case 'SELL':
-        return <TrendingDown size={24} aria-hidden="true" />;
+        return <TrendingDown size={28} aria-hidden="true" />;
       case 'HOLD':
       default:
-        return <MinusCircle size={24} aria-hidden="true" />;
+        return <MinusCircle size={28} aria-hidden="true" />;
     }
   };
 
-  const getCompositeColor = (score: number) => {
-    if (score > 0.25) return 'var(--color-positive)';
-    if (score < -0.25) return 'var(--color-negative)';
-    return 'var(--color-caution)';
-  };
+  const compositeTone = (s: number) => (s > 0.25 ? 'is-pos' : s < -0.25 ? 'is-neg' : 'is-flat');
 
   const formatScore = (val: number) => {
     return (val > 0 ? '+' : '') + (val || 0).toFixed(3);
@@ -68,51 +63,55 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       result.data_status === 'NO_RELEVANT_NEWS' ||
       (result.decision_confidence || 0) === 0);
 
+  const tickerLabel = formatTickerLabel(result.ticker, result.asset_type);
+
   return (
     <section
-      className={`hero-decision-card ${verdictClass} animate-fade-in`}
       id="decision-hero-card"
+      className={`sp-signal ${verdictClass}`}
       aria-label="Directional market sentiment classification"
     >
-      <div className="decision-top">
-        <div className="asset-identity">
-          <div className="sp-hero-eyebrow">Current Algorithmic Classification</div>
-          <div className="asset-ticker-row">
-            <h2 className="asset-ticker" id="result-ticker-symbol">
-              {formatTickerLabel(result.ticker, result.asset_type)}
-            </h2>
-            <span className="asset-exchange">{result.asset_type || 'US Equity'}</span>
+      <div className="sp-sec-head sp-signal-head">
+        <span className="sp-sec-index">03</span>
+        <span className="sp-label">Signal</span>
+        <span className="sp-label">Current algorithmic classification</span>
+      </div>
+
+      <div className="sp-signal-main sp-sheet">
+        <div className="sp-cell sp-signal-id">
+          <div className="sp-tags">
+            <span className="sp-tag">{result.asset_type || 'US Equity'}</span>
             {result.cache_status === 'HIT' && (
-              <span className="badge badge-neutral" style={{ color: 'var(--color-accent)' }}>
-                Cached Result
-              </span>
+              <span className="sp-tag sp-tag--accent">Cached Result</span>
             )}
             {result.data_status === 'NO_FRESH_NEWS' && (
-              <span className="badge badge-hold">
-                No Fresh News
-              </span>
+              <span className="sp-tag sp-tag--hatch">No Fresh News</span>
             )}
             {result.data_status === 'NO_RELEVANT_NEWS' && (
-              <span className="badge badge-hold">
-                No Relevant News
-              </span>
+              <span className="sp-tag sp-tag--hatch">No Relevant News</span>
             )}
             {result.data_status === 'DEGRADED' && (
-              <span className="badge badge-sell">
-                Degraded
-              </span>
+              <span className="sp-tag sp-tag--sell">Degraded</span>
             )}
           </div>
-          <div className="asset-name">{result.company_name}</div>
+          <h2
+            id="result-ticker-symbol"
+            className="sp-display sp-ticker"
+            data-len={tickerLabel.length > 8 ? 'long' : 'short'}
+          >
+            {tickerLabel}
+          </h2>
+          <div className="sp-company">{result.company_name}</div>
         </div>
 
-        <div className="verdict-box">
-          <div className={`verdict-pill ${verdictClass}`} id="result-verdict-pill">
+        <div className={`sp-cell sp-cell--slab sp-verdict ${verdictClass}`}>
+          <span className="sp-label">Classification</span>
+          <div id="result-verdict-pill" className="sp-verdict-word sp-display">
             {getVerdictIcon()}
             <span>{verdict}</span>
           </div>
           {verdict === 'HOLD' && result.hold_reason && (
-            <div className="hold-reason-sub">
+            <div className="sp-hold-reason sp-mono">
               Reason: {formatHoldReason(result.hold_reason)}
             </div>
           )}
@@ -120,8 +119,8 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       </div>
 
       {result.data_status === 'NO_FRESH_NEWS' && (
-        <div className="no-fresh-news-banner" role="status">
-          <AlertTriangle size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+        <div className="sp-notice" role="status">
+          <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
           <span>
             <strong>NO FRESH NEWS IN SESSION:</strong> Zero articles satisfied current session window freshness criteria. The HOLD verdict is an uncorroborated default for zero active headlines.
           </span>
@@ -129,8 +128,8 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       )}
 
       {result.data_status === 'NO_RELEVANT_NEWS' && (
-        <div className="no-fresh-news-banner" role="status">
-          <AlertTriangle size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+        <div className="sp-notice" role="status">
+          <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
           <span>
             <strong>NO RELEVANT NEWS IN SESSION:</strong> Ingested articles did not pass multi-asset entity relevance filters for this symbol. The HOLD verdict is an evidence-free default.
           </span>
@@ -138,35 +137,56 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       )}
 
       {result.data_status === 'DEGRADED' && (
-        <div className="no-fresh-news-banner degraded" role="alert">
-          <AlertTriangle size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
+        <div className="sp-notice sp-notice--degraded" role="alert">
+          <AlertTriangle size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
           <span>
             <strong>DEGRADED INGESTION:</strong> All external RSS news feeds failed during ingestion sweep. Analysis was completed using partial sources only and will not be cached.
           </span>
         </div>
       )}
 
-      <div className="metrics-strip" role="group" aria-label="Supporting metrics">
-        <div className="metric-item">
-          <div className="metric-label">Composite Sentiment</div>
+      <div className="sp-metrics sp-sheet" role="group" aria-label="Supporting metrics">
+        <div className="sp-cell sp-metric sp-metric--wide">
+          <span className="sp-label">Composite Sentiment</span>
           <div
-            className="metric-val"
-            style={{ color: getCompositeColor(result.sentiment_score) }}
             id="result-composite-score"
+            className={`sp-score sp-mono ${compositeTone(result.sentiment_score)}`}
           >
             {formatScore(result.sentiment_score)}
           </div>
-          <div className="metric-sub">
-            Range [-1.00 to +1.00]
+          <div className="sp-gauge" aria-hidden="true">
+            <div className="sp-gauge-zone" />
+            <div
+              className="sp-gauge-marker"
+              style={{
+                left: `${Math.min(100, Math.max(0, ((result.sentiment_score + 1) / 2) * 100))}%`,
+              }}
+            />
           </div>
+          <div className="sp-gauge-scale sp-mono" aria-hidden="true">
+            <span>&minus;1.00</span>
+            <span>0</span>
+            <span>+1.00</span>
+          </div>
+          <div className="sp-metric-sub">Range [-1.00 to +1.00]</div>
         </div>
 
-        <div className="metric-item">
-          <div className="metric-label">Confidence Level</div>
-          <div className="metric-val" id="result-confidence-score">
+        <div className="sp-cell sp-metric">
+          <span className="sp-label">Confidence Level</span>
+          <div id="result-confidence-score" className="sp-score-sm sp-mono">
             {isEvidenceFreeHold ? 'n/a' : `${((result.decision_confidence || 0) * 100).toFixed(0)}%`}
           </div>
-          <div className="metric-sub">
+          {!isEvidenceFreeHold && (
+            <div className="sp-seg" aria-hidden="true">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <span
+                  key={i}
+                  className={i < Math.round((result.decision_confidence || 0) * 10) ? 'on' : ''}
+                />
+              ))}
+            </div>
+          )}
+          <div className="sp-metric-sub">
             {isEvidenceFreeHold
               ? (result.hold_reason === 'SPARSE_EVIDENCE' ? 'Sparse Evidence' : 'Evidence-Free HOLD')
               : result.decision_confidence >= 0.7
@@ -177,35 +197,43 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
           </div>
         </div>
 
-        <div className="metric-item">
-          <div className="metric-label">Evidence Quality</div>
-          <div className="metric-val">
+        <div className="sp-cell sp-metric">
+          <span className="sp-label">Evidence Quality</span>
+          <div className="sp-score-sm sp-mono">
             {((result.evidence_quality || 0) * 100).toFixed(0)}%
           </div>
-          <div className="metric-sub">
+          <div className="sp-seg" aria-hidden="true">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <span
+                key={i}
+                className={i < Math.round((result.evidence_quality || 0) * 10) ? 'on' : ''}
+              />
+            ))}
+          </div>
+          <div className="sp-metric-sub">
             {result.metrics?.articles_retained ?? (result.articles?.filter(a => !a.exclusion_reason).length || 0)} Retained Articles
           </div>
         </div>
 
-        <div className="metric-item">
-          <div className="metric-label">Publisher Corroboration</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+        <div className="sp-cell sp-metric">
+          <span className="sp-label">Publisher Corroboration</span>
+          <div>
             {isCorroborated ? (
-              <span className="badge badge-buy">
+              <span className="sp-tag sp-tag--buy">
                 <CheckCircle2 size={13} aria-hidden="true" /> Corroborated
               </span>
             ) : (
-              <span className="badge badge-hold">
+              <span className="sp-tag sp-tag--hatch">
                 <AlertTriangle size={13} aria-hidden="true" />{' '}
                 {result.hold_reason === 'INSUFFICIENT_CORROBORATION'
                   ? 'Insufficient Corroboration'
                   : distinctPubs <= 1
-                    ? 'Single Publisher'
-                    : 'Uncorroborated'}
+                  ? 'Single Publisher'
+                  : 'Uncorroborated'}
               </span>
             )}
           </div>
-          <div className="metric-sub" style={{ marginTop: '6px' }}>
+          <div className="sp-metric-sub">
             {verdict === 'BUY' || verdict === 'SELL'
               ? `${supportingPubs} Supporting Source(s)`
               : `${distinctPubs} Distinct Source(s)`}
@@ -213,8 +241,8 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
         </div>
       </div>
 
-      <div className="heuristic-footnote" role="note" aria-label="Research disclaimer">
-        <Info size={15} style={{ flexShrink: 0, color: 'var(--color-ink-muted)' }} aria-hidden="true" />
+      <div className="sp-footnote sp-cell--slab" role="note" aria-label="Research disclaimer">
+        <span className="sp-tag sp-tag--accent">Research use only</span>
         <span>
           <strong>{result.disclaimer || 'Research & Market Sentiment Tool. Not Financial or Investment Advice.'}</strong> Decision formulation uses exponential recency decay (14-hour half-life) with strict corroboration gating. All thresholds are uncalibrated empirical defaults.
         </span>

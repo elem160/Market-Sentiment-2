@@ -1,0 +1,178 @@
+/* ==========================================================================
+   Loading Stepper — Giant Counter & Tick Ruler (Spec Sheet v2)
+   ========================================================================== */
+
+#analysis-stepper.sp-loading {
+  position: relative;
+}
+
+.sp-loading-top {
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  background: var(--sp-slab) !important;
+  color: var(--sp-on-slab);
+}
+
+.sp-loading-top .sp-label {
+  color: var(--sp-on-slab-2);
+}
+
+.sp-counter {
+  font-family: var(--sp-font-display);
+  font-size: var(--sp-fs-counter);
+  font-weight: 800;
+  line-height: 0.8;
+  letter-spacing: var(--sp-track-display);
+  color: var(--sp-on-slab);
+  margin: var(--sp-2) 0;
+  user-select: none;
+}
+
+.sp-counter span {
+  color: var(--sp-accent);
+}
+
+/* 20px Tick Ruler Progress Bar */
+.sp-ruler {
+  height: 20px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background: repeating-linear-gradient(90deg, var(--sp-on-slab-2) 0 1px, transparent 1px 8px);
+  border: 1px solid var(--sp-on-slab-2);
+}
+
+.sp-ruler-fill {
+  height: 100%;
+  background: var(--sp-accent);
+  mix-blend-mode: normal;
+  transition: width var(--sp-t-base) var(--sp-ease);
+}
+
+.sp-loading-msg {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  color: var(--sp-on-slab);
+  letter-spacing: 0.02em;
+}
+
+/* Stages 6-Cell Grid */
+.sp-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--sp-rule);
+}
+
+.sp-stage {
+  padding: var(--sp-cell-pad);
+  background: var(--sp-cell);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+  border-radius: 0;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-stage-name {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  font-weight: 600;
+  color: var(--sp-ink);
+}
+
+/* Stage States */
+.sp-stage.is-queued {
+  color: var(--sp-ink-3);
+}
+
+.sp-stage.is-queued .sp-stage-name {
+  color: var(--sp-ink-3);
+}
+
+.sp-stage.is-queued .sp-tag {
+  border-color: var(--sp-rule);
+  color: var(--sp-ink-3);
+  background: transparent;
+}
+
+.sp-stage.is-active {
+  background: var(--sp-accent);
+  color: var(--sp-on-accent);
+}
+
+.sp-stage.is-active .sp-label {
+  color: var(--sp-on-accent);
+}
+
+.sp-stage.is-active .sp-stage-name {
+  color: var(--sp-on-accent);
+}
+
+.sp-stage.is-active .sp-tag {
+  background: var(--sp-ink);
+  color: var(--sp-on-slab);
+  border-color: var(--sp-ink);
+}
+
+/* 1Hz blinking square on active stage */
+@keyframes sp-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.sp-stage.is-active .sp-tag::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  margin-right: 6px;
+  animation: sp-blink 1s steps(2) infinite;
+}
+
+.sp-stage.is-done .sp-stage-name::before {
+  content: "✓ ";
+  font-weight: 700;
+  color: var(--sp-buy);
+}
+
+.sp-stage.is-done .sp-tag {
+  color: var(--sp-buy);
+  border-color: var(--sp-buy);
+  background: var(--sp-buy-wash);
+}
+
+/* Responsive Stages */
+@media (max-width: 1023px) {
+  .sp-stages {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .sp-stages {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .sp-stage.is-active .sp-tag::before {
+    animation: none;
+  }
+  .sp-ruler-fill {
+    transition: none;
+  }
+}
