@@ -43,44 +43,53 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, activ
   };
 
   return (
-    <div className="glass-panel search-section animate-fade-in" id="search-section">
-      <form onSubmit={handleSubmit} className="search-form">
-        <div className="search-input-wrapper">
-          <Search size={22} className="search-icon" />
-          <input
-            id="ticker-search-input"
-            type="text"
-            className="search-input"
-            placeholder="ENTER TICKER (E.G. NVDA, EUR/USD, GC=F, BTC-USD, AAPL)..."
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value.toUpperCase())}
-            maxLength={16}
-            disabled={isLoading}
-          />
-        </div>
-        <button
-          id="run-analysis-btn"
-          type="submit"
-          className="btn btn-primary"
-          disabled={isLoading || !ticker.trim()}
-        >
-          {isLoading ? (
-            <>
-              <RefreshCw size={18} className="animate-spin-slow" />
-              <span>ANALYZING...</span>
-            </>
-          ) : (
-            <>
-              <Zap size={18} />
-              <span>RUN SENTIMENT</span>
-            </>
-          )}
-        </button>
-      </form>
+    <section className="search-section animate-fade-in" id="search-section" aria-label="Asset analysis input">
+      <div className="sp-field-group">
+        <label htmlFor="ticker-search-input" className="sp-field-label">
+          Asset symbol
+        </label>
+        <form onSubmit={handleSubmit} className="search-form">
+          <div className="search-input-wrapper">
+            <Search size={20} className="search-icon" aria-hidden="true" />
+            <input
+              id="ticker-search-input"
+              type="text"
+              className="search-input"
+              placeholder="ENTER TICKER (E.G. NVDA, EUR/USD, GC=F, BTC-USD, AAPL)..."
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value.toUpperCase())}
+              maxLength={16}
+              disabled={isLoading}
+              aria-describedby="ticker-format-helper"
+            />
+          </div>
+          <button
+            id="run-analysis-btn"
+            type="submit"
+            className="btn btn-primary"
+            disabled={isLoading || !ticker.trim()}
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw size={18} className="animate-spin-slow" aria-hidden="true" />
+                <span>ANALYZING...</span>
+              </>
+            ) : (
+              <>
+                <Zap size={18} aria-hidden="true" />
+                <span>RUN SENTIMENT</span>
+              </>
+            )}
+          </button>
+        </form>
+        <span id="ticker-format-helper" className="sp-helper-text">
+          Supported instruments: US equities, ETFs, Forex pairs (EUR/USD), Commodities/Futures (GC=F), and Cryptocurrencies (BTC-USD).
+        </span>
+      </div>
 
       <div className="search-options">
-        <div className="quick-chips-group">
-          <span className="quick-chips-label">MULTI-ASSET QUICK CHIPS:</span>
+        <div className="quick-chips-group" role="group" aria-label="Multi-asset quick chips">
+          <span className="quick-chips-label">Quick chips:</span>
           {POPULAR_TICKERS.map((chip) => (
             <button
               key={chip.value}
@@ -95,7 +104,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, activ
           ))}
         </div>
 
-        <div className="toggles-group">
+        <div className="toggles-group" role="group" aria-label="Run options">
+          <span className="sp-options-legend">Run options:</span>
           <label className="custom-checkbox" title="Bypasses the session cache to query live feeds immediately">
             <input
               id="force-refresh-checkbox"
@@ -104,7 +114,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, activ
               onChange={(e) => setForceRefresh(e.target.checked)}
               disabled={isLoading}
             />
-            <RefreshCw size={14} />
+            <RefreshCw size={14} aria-hidden="true" />
             <span>Force Fresh Run</span>
           </label>
 
@@ -116,12 +126,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, activ
               onChange={(e) => setEnableLlm(e.target.checked)}
               disabled={isLoading}
             />
-            <Sparkles size={14} style={{ color: '#a855f7' }} />
+            <Sparkles size={14} aria-hidden="true" />
             <span>Nemotron 3 Catalyst Filter</span>
           </label>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
-

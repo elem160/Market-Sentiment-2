@@ -42,7 +42,6 @@ export const App: React.FC = () => {
     };
   }, []);
 
-
   const handleSearch = async (
     ticker: string,
     forceRefresh: boolean = false,
@@ -156,19 +155,8 @@ export const App: React.FC = () => {
         />
 
         {errorMessage && (
-          <div
-            className="glass-panel animate-fade-in"
-            style={{
-              borderColor: 'rgba(244, 63, 94, 0.4)',
-              background: 'rgba(244, 63, 94, 0.08)',
-              padding: '16px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              color: '#fca5a5',
-            }}
-          >
-            <AlertCircle size={20} style={{ flexShrink: 0 }} />
+          <div className="analysis-error animate-fade-in" role="alert">
+            <AlertCircle size={20} style={{ flexShrink: 0 }} aria-hidden="true" />
             <div>
               <strong>Analysis Error:</strong> {errorMessage}
             </div>
@@ -214,12 +202,12 @@ export const App: React.FC = () => {
         />
 
         {!analysisResult && !isLoading && !errorMessage && (
-          <div className="glass-panel empty-state animate-fade-in">
-            <BarChart3 className="empty-state-icon" />
-            <h3 className="font-display" style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-              Live Market Sentiment & Catalyst Intelligence
-            </h3>
-            <p style={{ maxWidth: '620px', lineHeight: 1.6 }}>
+          <div className="empty-state animate-fade-in" role="region" aria-label="Welcome and usage introduction">
+            <BarChart3 className="empty-state-icon" aria-hidden="true" />
+            <h2 className="font-display" style={{ fontSize: '1.25rem', color: 'var(--color-ink)' }}>
+              Live Market Sentiment &amp; Catalyst Intelligence
+            </h2>
+            <p style={{ maxWidth: '620px', lineHeight: 1.6, color: 'var(--color-ink-soft)' }}>
               Enter any US equity, ETF, forex pair (e.g. EUR/USD), commodity future (e.g. GC=F), or crypto asset to execute session-anchored news ingestion, FinBERT neural scoring, and corroboration synthesis.
             </p>
           </div>

@@ -45,35 +45,47 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
   const excludedCountsMap = metrics?.excluded_counts ?? {};
 
   return (
-    <div className="glass-panel evidence-section animate-fade-in" id="evidence-explorer">
+    <section className="evidence-section animate-fade-in" id="evidence-explorer" aria-label="Evidence explorer">
       <div className="evidence-controls">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Layers size={20} style={{ color: 'var(--accent-cyan)' }} />
-          <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+          <Layers size={18} style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
+          <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--color-ink)' }}>
             Session News Evidence ({retainedArticles.length} Retained)
           </h3>
         </div>
 
-        <div className="filter-tabs">
+        <div className="filter-tabs" role="tablist" aria-label="Sentiment filters">
           <button
+            type="button"
+            role="tab"
+            aria-selected={filter === 'ALL'}
             className={`filter-tab ${filter === 'ALL' ? 'active' : ''}`}
             onClick={() => setFilter('ALL')}
           >
             All ({retainedArticles.length})
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={filter === 'POSITIVE'}
             className={`filter-tab ${filter === 'POSITIVE' ? 'active' : ''}`}
             onClick={() => setFilter('POSITIVE')}
           >
             Bullish ({bullishCount})
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={filter === 'NEGATIVE'}
             className={`filter-tab ${filter === 'NEGATIVE' ? 'active' : ''}`}
             onClick={() => setFilter('NEGATIVE')}
           >
             Bearish ({bearishCount})
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={filter === 'NEUTRAL'}
             className={`filter-tab ${filter === 'NEUTRAL' ? 'active' : ''}`}
             onClick={() => setFilter('NEUTRAL')}
           >
@@ -83,18 +95,18 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
       </div>
 
       {filteredArticles.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+        <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--color-ink-muted)' }}>
           No retained articles match the selected sentiment filter for this session window.
         </div>
       ) : (
-        <div className="article-list">
+        <div className="article-list" role="region" aria-label="Filtered articles">
           {filteredArticles.map((art) => {
             const pos = art.finbert_positive ?? 0.1;
             const neg = art.finbert_negative ?? 0.1;
             const neu = art.finbert_neutral ?? 0.8;
 
             return (
-              <div key={art.article_id} className="article-card">
+              <article key={art.article_id} className="article-card">
                 <div className="article-card-header">
                   {art.canonical_url ? (
                     <a
@@ -104,63 +116,63 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
                       className="article-title-link"
                     >
                       <span>{art.title}</span>
-                      <ExternalLink size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
+                      <ExternalLink size={13} style={{ opacity: 0.6, flexShrink: 0 }} aria-hidden="true" />
                     </a>
                   ) : (
-                    <span className="article-title-text" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    <span className="article-title-text">
                       {art.title}
                     </span>
                   )}
 
-                  <div className="finbert-breakdown-bar">
-                    <span className="score-pos">Pos: {(pos * 100).toFixed(0)}%</span>
-                    <span>|</span>
-                    <span className="score-neu">Neu: {(neu * 100).toFixed(0)}%</span>
-                    <span>|</span>
-                    <span className="score-neg">Neg: {(neg * 100).toFixed(0)}%</span>
+                  <div className="finbert-breakdown-bar" aria-label={`FinBERT scores: positive ${(pos * 100).toFixed(0)} percent, neutral ${(neu * 100).toFixed(0)} percent, negative ${(neg * 100).toFixed(0)} percent`}>
+                    <span className="score-pos">+{(pos * 100).toFixed(0)}%</span>
+                    <span style={{ color: 'var(--color-line)' }}>|</span>
+                    <span className="score-neu">{(neu * 100).toFixed(0)}%</span>
+                    <span style={{ color: 'var(--color-line)' }}>|</span>
+                    <span className="score-neg">-{(neg * 100).toFixed(0)}%</span>
                   </div>
                 </div>
 
                 {art.lead_text && (
-                  <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  <p style={{ fontSize: '0.86rem', color: 'var(--color-ink-soft)', lineHeight: 1.55 }}>
                     {art.lead_text.slice(0, 500)}
                   </p>
                 )}
 
                 <div className="article-meta-row">
-                  <span className="badge badge-neutral" style={{ color: 'var(--accent-cyan)' }}>
+                  <span className="badge badge-neutral" style={{ color: 'var(--color-accent)' }}>
                     {art.canonical_publisher || art.source_name}
                   </span>
-                  <span className="badge badge-neutral font-mono" style={{ fontSize: '0.72rem' }}>
+                  <span className="badge badge-neutral font-mono">
                     {art.provider}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={12} />
+                    <Clock size={12} aria-hidden="true" />
                     <span>{art.published_at_utc ? `${formatUtc(art.published_at_utc)} UTC` : 'Undated'}</span>
                   </div>
                   {art.age_hours !== undefined && art.age_hours !== null && (
-                    <span className="badge badge-neutral font-mono" style={{ fontSize: '0.72rem' }}>
-                      age at run: {art.age_hours.toFixed(1)}h
+                    <span className="badge badge-neutral font-mono">
+                      age: {art.age_hours.toFixed(1)}h
                     </span>
                   )}
                   {art.effective_weight !== undefined && art.effective_weight !== null ? (
-                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>
+                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-data)', fontSize: '0.78rem', color: 'var(--color-ink-soft)' }}>
                       Eff. Weight: {art.effective_weight.toFixed(3)}
                     </span>
                   ) : art.final_weight !== undefined && art.final_weight !== null ? (
-                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-data)', fontSize: '0.78rem', color: 'var(--color-ink-soft)' }}>
                       Weight: {art.final_weight.toFixed(3)}
                     </span>
                   ) : null}
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
       )}
 
       {excludedArticles.length > 0 && (
-        <div className="excluded-articles-wrapper" style={{ marginTop: '24px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
+        <div className="excluded-articles-wrapper">
           <button
             type="button"
             className="btn-link"
@@ -168,8 +180,8 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
             aria-controls="excluded-articles-list"
             onClick={() => setShowExcluded(!showExcluded)}
           >
-            {showExcluded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            <span>Excluded Articles ({totalExcludedCount} total)</span>
+            {showExcluded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+            <span>Excluded from scoring ({totalExcludedCount} total)</span>
           </button>
 
           {showExcluded && (
@@ -178,7 +190,7 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
                 const totalForReason = excludedCountsMap[reason] ?? groupArticles.length;
                 return (
                   <div key={reason} className="excluded-group">
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f59e0b', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-caution-ink)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span className="badge badge-hold" style={{ textTransform: 'uppercase' }}>
                         {reason.replace(/_/g, ' ')}
                       </span>
@@ -189,7 +201,7 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
 
                     <div className="article-list" style={{ opacity: 0.9 }}>
                       {groupArticles.map((art) => (
-                        <div key={art.article_id} className="article-card" style={{ borderLeft: '3px solid #f59e0b' }}>
+                        <article key={art.article_id} className="article-card" style={{ borderLeft: '3px solid var(--color-caution)' }}>
                           <div className="article-card-header">
                             {art.canonical_url ? (
                               <a
@@ -199,39 +211,39 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
                                 className="article-title-link"
                               >
                                 <span>{art.title}</span>
-                                <ExternalLink size={14} style={{ opacity: 0.6, flexShrink: 0 }} />
+                                <ExternalLink size={13} style={{ opacity: 0.6, flexShrink: 0 }} aria-hidden="true" />
                               </a>
                             ) : (
-                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                              <span className="article-title-text">
                                 {art.title}
                               </span>
                             )}
                           </div>
 
                           {art.lead_text && (
-                            <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                            <p style={{ fontSize: '0.84rem', color: 'var(--color-ink-muted)', lineHeight: 1.45 }}>
                               {art.lead_text.slice(0, 500)}
                             </p>
                           )}
 
                           <div className="article-meta-row">
-                            <span className="badge badge-neutral" style={{ color: 'var(--accent-cyan)' }}>
+                            <span className="badge badge-neutral" style={{ color: 'var(--color-accent)' }}>
                               {art.canonical_publisher || art.source_name}
                             </span>
-                            <span className="badge badge-neutral font-mono" style={{ fontSize: '0.72rem' }}>
+                            <span className="badge badge-neutral font-mono">
                               {art.provider}
                             </span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <Clock size={12} />
+                              <Clock size={12} aria-hidden="true" />
                               <span>{art.published_at_utc ? `${formatUtc(art.published_at_utc)} UTC` : 'Undated'}</span>
                             </div>
                             {art.age_hours !== undefined && art.age_hours !== null && (
-                              <span className="badge badge-neutral font-mono" style={{ fontSize: '0.72rem' }}>
-                                age at run: {art.age_hours.toFixed(1)}h
+                              <span className="badge badge-neutral font-mono">
+                                age: {art.age_hours.toFixed(1)}h
                               </span>
                             )}
                           </div>
-                        </div>
+                        </article>
                       ))}
                     </div>
                   </div>
@@ -241,6 +253,6 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 };
