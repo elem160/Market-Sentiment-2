@@ -1,0 +1,69 @@
+html {
+  background: var(--sp-canvas);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font: 400 var(--sp-fs-body)/1.5 var(--sp-font-ui);
+  color: var(--sp-ink);
+  background-color: var(--sp-canvas);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+h1, h2, h3, h4, p, dl, dd, dt, ul, ol, li, figure {
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  font: inherit;
+  border-radius: 0;
+}
+
+.sp-mono {
+  font-family: var(--sp-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-label {
+  font: 500 var(--sp-fs-label)/1.2 var(--sp-font-mono);
+  letter-spacing: var(--sp-track-label);
+  text-transform: uppercase;
+  color: var(--sp-ink-3);
+}
+
+.sp-display {
+  font-family: var(--sp-font-display);
+  font-weight: 800;
+  letter-spacing: var(--sp-track-display);
+  line-height: 0.88;
+  text-transform: uppercase;
+}
+
+::selection {
+  background: var(--sp-accent);
+  color: var(--sp-ink);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--sp-canvas);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--sp-rule);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sp-ink-3);
+}

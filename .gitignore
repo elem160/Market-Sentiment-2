@@ -52,6 +52,8 @@ scratch/
 .coverage
 htmlcov/
 coverage.xml
+__out__/
+test-results/
 
 # IDE & OS
 .vscode/

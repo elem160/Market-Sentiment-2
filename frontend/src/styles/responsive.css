@@ -1,0 +1,57 @@
+/* ==========================================================================
+   Responsive Architecture
+   ========================================================================== */
+
+/* Below 1200 px: Rail disappears, page becomes single column */
+@media (max-width: 1199px) {
+  .sp-page {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--sp-4);
+  }
+
+  .sp-rail {
+    display: none;
+  }
+}
+
+/* Below 1024 px */
+@media (max-width: 1023px) {
+  .sp-landing {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Below 900 px: Hide nav subtitle */
+@media (max-width: 899px) {
+  .sp-nav-sub {
+    display: none;
+  }
+}
+
+/* Below 640 px: Mobile stacked layouts */
+@media (max-width: 639px) {
+  .sp-nav {
+    padding: 0 var(--sp-3);
+  }
+
+  .sp-clock {
+    padding: 0 var(--sp-2);
+    min-width: 5rem;
+  }
+
+  .sp-legal {
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--sp-fs-label);
+  }
+
+  .sp-page {
+    padding: var(--sp-2);
+  }
+}
+
+/* 320 px safety: prevent any horizontal scroll */
+@media (max-width: 320px) {
+  body {
+    overflow-x: hidden;
+  }
+}
