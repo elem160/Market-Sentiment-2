@@ -324,6 +324,13 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Exported synchronized OpenAPI schema to `frontend/src/api/openapi.json` and generated updated TypeScript interfaces via `npm.cmd run gen:api` in `frontend/src/api/schema.d.ts`.
   - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.20% (284 passed); `ruff check .` clean (0 errors); `alembic check` clean (0 drift); `npm.cmd run typecheck` clean; `npm.cmd test` passed (14 passed); frontend production bundle built cleanly.
 
+- **Task P4.3 — Documentation, changelog, and version 1.1.0 release notes (`144a3bb`):**
+  - Archived legacy remediation plan from root `IMPLEMENTATION_PLAN.md` to `docs/history/2026-10_remediation_F01-F19.md`.
+  - Created `docs/CHANGELOG.md` adhering to Keep a Changelog format with comprehensive v1.1.0 release notes.
+  - Bumped application version to `1.1.0` in `app/main.py` and `frontend/package.json`; regenerated OpenAPI snapshot in `frontend/src/api/openapi.json`.
+  - Rewrote `README.md` with honest feature claims (removing inaccurate "2-3s", "token-sort", and "durable" claims; providing measured 9.5-16.5s timings), updated Mermaid architecture diagram detailing `JobManager` and dedicated thread pools (`db_executor`, `io_executor`), complete API reference with SSE contract and unified error models, comprehensive configuration reference table for all 39 `.env` settings, decision model mathematics, limitations, test markers, and accurate repository tree.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.20% (284 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+
 ## Deviations
 
 _None._

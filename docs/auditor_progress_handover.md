@@ -200,8 +200,11 @@ All Phase 3 tasks (P3.1 through P3.8) are complete. The remaining work belongs t
    - Removed unused `HttpUrl` import from models.py and resolved exception chaining (`raise ProviderException(...) from err`).
    - Tightened Ruff configuration in `pyproject.toml` and formatted/organized imports across all modules.
    - Synchronized OpenAPI snapshot schema in `frontend/src/api/openapi.json` and generated TypeScript schema in `frontend/src/api/schema.d.ts`.
-3. **P4.3 Documentation & Versioning (Finding: M18):**
-   - Archive legacy `IMPLEMENTATION_PLAN.md` to `docs/history/`; create `CHANGELOG.md` for v1.1.0; bump version numbers.
+3. **P4.3 Documentation & Versioning (Finding: M18):** **COMPLETE** (`144a3bb`)
+   - Archived legacy remediation plan from root `IMPLEMENTATION_PLAN.md` to `docs/history/2026-10_remediation_F01-F19.md`.
+   - Created `docs/CHANGELOG.md` adhering to Keep a Changelog format with comprehensive v1.1.0 release notes.
+   - Bumped application version to `1.1.0` in `app/main.py` and `frontend/package.json`; regenerated OpenAPI snapshot in `frontend/src/api/openapi.json`.
+   - Rewrote `README.md` with honest feature claims, Mermaid architecture diagram with `JobManager` and executors, complete API reference, configuration reference table, decision mathematics, limitations, test markers, and accurate repository tree.
 4. **P4.4 Frontend Quality (Finding: L8):**
    - Bundle self-hosted fonts; enforce strict TypeScript typing.
 5. **P4.5 Repository Hygiene (Finding: L9):**
