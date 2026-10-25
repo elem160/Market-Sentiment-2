@@ -66,3 +66,14 @@ This file tracks design and implementation decisions, edge cases, and any deviat
   - Added unit test suites `RationaleSection.test.tsx` (7 tests) and `EvidenceExplorer.test.tsx` (7 tests), covering summary uniqueness, inferences ledger, observed facts impact badges, LLM synthesis card, partition filter counts and filtering, row expand/collapse, contract classes, and excluded accordion.
   - Verified visual regression suite `npx playwright test states` passing all 36 tests across all 4 viewports.
   - Rebuilt production static bundle in `app/static/`.
+
+## Phase 5: Run Log, History, Polish
+- **Deviations**: None.
+- **Notes**:
+  - Created `frontend/src/styles/runlog.css` implementing Section 7.10 `#pipeline-telemetry-strip.sp-runlog.sp-sheet.sp-runlog--slab` black ribbon layout, index `06`, 5 metric cells (Execution Latency, Cache Status with `.is-hit` orange fill on HIT, Ingestion & Filtering, Estimated LLM Cost, Model Engine).
+  - Created `frontend/src/styles/history.css` implementing Section 7.11 `#recent-history-panel.sp-history.sp-sheet`, `.history-toggle-btn.sp-history-toggle` accordion with `07` index, count, and Expand/Collapse indicators, `#recent-history-grid.sp-history-list`, and single-ruled `.history-item-row.sp-hrow` rows with hover inversion, arrow glide, and styled verdict/status tags.
+  - Wrapped `HistorySidebar` in `<div id="history-drawer">` in `App.tsx` ensuring test contract selector `#history-drawer` exists.
+  - Removed obsolete `.history-item-row` and `.telemetry-strip` responsive and scroll-margin rules from `legacy.css`.
+  - Added unit test suites `TelemetryDrawer.test.tsx` (5 tests) and `HistorySidebar.test.tsx` (4 tests) verifying all contract IDs, classes, ARIA attributes, toggle behaviors, cache hit styling, and selection handlers.
+  - Verified visual regression suite `npx playwright test states` passing 36/36 tests across all 4 viewports.
+  - Rebuilt production static bundle in `app/static/`.

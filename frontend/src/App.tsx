@@ -205,10 +205,12 @@ export const App: React.FC = () => {
             </>
           )}
 
-          <HistorySidebar
-            onSelectRun={handleSelectHistoricalRun}
-            refreshTrigger={historyTrigger}
-          />
+          <div id="history-drawer">
+            <HistorySidebar
+              onSelectRun={handleSelectHistoricalRun}
+              refreshTrigger={historyTrigger}
+            />
+          </div>
         </main>
       </div>
 

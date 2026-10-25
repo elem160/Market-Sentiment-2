@@ -1,0 +1,135 @@
+/* ==========================================================================
+   Section 06: Run Log (Technical Run Telemetry Strip)
+   Spec Sheet v2 Aesthetic — Black slab ribbon with ruled cell dividers
+   ========================================================================== */
+
+.sp-runlog {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(130px, 1.1fr) repeat(5, 1fr);
+  background: var(--sp-slab);
+  border: 1px solid var(--sp-ink);
+  color: var(--sp-on-slab);
+  scroll-margin-top: 56px;
+}
+
+.sp-runlog-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-space-2);
+  padding: var(--sp-space-4) var(--sp-space-5);
+  background: var(--sp-slab);
+  color: var(--sp-on-slab);
+  border-right: 1px solid var(--sp-rule-on-slab);
+}
+
+.sp-runlog-cell:last-child {
+  border-right: none;
+}
+
+.sp-runlog-title {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-space-3);
+  padding: var(--sp-space-4) var(--sp-space-5);
+  border-right: 1px solid var(--sp-rule-on-slab);
+}
+
+.sp-runlog-title .sp-sec-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--sp-orange);
+  color: var(--sp-ink);
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-micro);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sp-runlog-title .sp-label {
+  color: var(--sp-on-slab);
+  font-size: var(--sp-fs-label);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sp-runlog-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-2);
+  color: var(--sp-on-slab-2);
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sp-runlog-val {
+  font-family: var(--sp-font-mono);
+  font-size: clamp(1rem, 1.2vw, 1.25rem);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--sp-on-slab);
+  overflow-wrap: break-word;
+}
+
+/* Cache Status HIT cell: Orange fill with dark ink */
+.sp-runlog-cell.is-hit {
+  background: var(--sp-orange);
+  color: var(--sp-ink);
+}
+
+.sp-runlog-cell.is-hit .sp-runlog-label {
+  color: var(--sp-ink);
+  opacity: 0.85;
+}
+
+.sp-runlog-cell.is-hit .sp-runlog-val {
+  color: var(--sp-ink);
+  font-weight: 700;
+}
+
+/* Responsive grid for Run Log */
+@media (max-width: 1199px) {
+  .sp-runlog {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .sp-runlog-title {
+    grid-column: 1 / -1;
+    border-right: none;
+    border-bottom: 1px solid var(--sp-rule-on-slab);
+  }
+
+  .sp-runlog-cell {
+    border-bottom: 1px solid var(--sp-rule-on-slab);
+  }
+
+  .sp-runlog-cell:nth-child(3n + 1) {
+    border-right: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .sp-runlog {
+    grid-template-columns: 1fr;
+  }
+
+  .sp-runlog-cell {
+    border-right: none;
+    border-bottom: 1px solid var(--sp-rule-on-slab);
+    padding: var(--sp-space-3) var(--sp-space-4);
+  }
+
+  .sp-runlog-cell:last-child {
+    border-bottom: none;
+  }
+}

@@ -347,32 +347,7 @@
 }
 
 /* ==========================================================================
-   History Sidebar / Drawer
-   ========================================================================== */
-
-.history-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 10px 14px;
-  min-height: 44px;
-  border-radius: var(--radius-1);
-  border: var(--border-default);
-  background: var(--color-canvas);
-  cursor: pointer;
-  color: inherit;
-  font-family: inherit;
-  font-size: inherit;
-  text-align: left;
-  transition: background-color var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out);
-}
-
-.history-item-row:hover {
-  background: var(--color-surface-hover);
-  border-color: var(--color-line-strong);
-}
+/* History Sidebar / Drawer migrated to history.css */
 
 /* ==========================================================================
    Empty & Error States
@@ -410,26 +385,7 @@
   font-size: var(--font-size-1);
 }
 
-/* ==========================================================================
-   Responsive Architecture
-   ========================================================================== */
 
-@media (max-width: 1199px) {
-  .telemetry-strip {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .telemetry-strip {
-    grid-template-columns: 1fr;
-  }
-}
-
-#pipeline-telemetry-strip,
-#recent-history-panel {
-  scroll-margin-top: 88px;
-}
 
 /* High Contrast / Forced Colors */
 @media (forced-colors: active) {

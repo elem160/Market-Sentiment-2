@@ -1,0 +1,190 @@
+/* ==========================================================================
+   Section 07: History (Recent Analysis History Ledger)
+   Spec Sheet v2 Aesthetic — Single-ruled rows, hover inversion, arrow glide
+   ========================================================================== */
+
+.sp-history {
+  position: relative;
+  background: var(--sp-paper);
+  border: 1px solid var(--sp-ink);
+  scroll-margin-top: 56px;
+}
+
+.sp-history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 54px;
+  padding: var(--sp-space-3) var(--sp-space-5);
+  background: var(--sp-paper);
+  border: none;
+  color: var(--sp-ink);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-history-toggle:hover {
+  background: var(--sp-ink);
+  color: var(--sp-paper);
+}
+
+.sp-history-toggle:hover .sp-sec-index {
+  background: var(--sp-paper);
+  color: var(--sp-ink);
+}
+
+.sp-history-toggle[aria-expanded="true"] {
+  border-bottom: 1px solid var(--sp-ink);
+}
+
+.sp-history-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-3);
+}
+
+.sp-history-title {
+  font-family: var(--sp-font-display);
+  font-size: var(--sp-fs-ui);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.sp-history-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* History Row Item */
+.sp-hrow {
+  display: grid;
+  grid-template-columns: 10rem auto 1fr auto 2rem;
+  align-items: center;
+  gap: var(--sp-space-4);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--sp-space-3) var(--sp-space-5);
+  background: var(--sp-paper);
+  border: none;
+  border-bottom: 1px solid var(--sp-rule);
+  color: var(--sp-ink);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-hrow:last-child {
+  border-bottom: none;
+}
+
+.sp-hrow:hover,
+.sp-hrow:focus-visible {
+  background: var(--sp-ink);
+  color: var(--sp-paper);
+}
+
+.sp-hrow:hover .sp-hrow-ticker,
+.sp-hrow:focus-visible .sp-hrow-ticker {
+  color: var(--sp-paper);
+}
+
+.sp-hrow:hover .sp-hrow-time,
+.sp-hrow:focus-visible .sp-hrow-time {
+  color: var(--sp-on-slab-2);
+}
+
+.sp-hrow:hover .sp-hrow-arrow,
+.sp-hrow:focus-visible .sp-hrow-arrow {
+  color: var(--sp-orange);
+  transform: translateX(4px);
+}
+
+.sp-hrow-ticker {
+  font-family: var(--sp-font-display);
+  font-size: var(--sp-fs-score);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--sp-ink);
+}
+
+.sp-hrow-tags {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-2);
+  flex-wrap: wrap;
+}
+
+.sp-hrow-time {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-micro);
+  color: var(--sp-ink-3);
+  white-space: nowrap;
+}
+
+.sp-hrow-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sp-ink-3);
+  transition: transform var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+/* Specific verdict tag styles for history ledger */
+.sp-tag--buy {
+  background: var(--sp-buy-wash);
+  color: var(--sp-buy-ink);
+  border-color: var(--sp-buy);
+}
+
+.sp-tag--sell {
+  background: var(--sp-sell-wash);
+  color: var(--sp-sell-ink);
+  border-color: var(--sp-sell);
+}
+
+.sp-tag--hatch {
+  background: var(--sp-hatch);
+  color: var(--sp-ink);
+  border-color: var(--sp-ink);
+}
+
+/* Inverted tags on row hover */
+.sp-hrow:hover .sp-tag--hatch,
+.sp-hrow:focus-visible .sp-tag--hatch {
+  background: var(--sp-hatch-on-slab);
+  color: var(--sp-paper);
+  border-color: var(--sp-rule-on-slab);
+}
+
+@media (max-width: 960px) {
+  .sp-hrow {
+    grid-template-columns: 8rem auto 1fr auto 2rem;
+    gap: var(--sp-space-3);
+  }
+}
+
+@media (max-width: 640px) {
+  .sp-hrow {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-space-2);
+    padding: var(--sp-space-3) var(--sp-space-4);
+  }
+
+  .sp-hrow-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .sp-hrow-arrow {
+    display: none;
+  }
+}
