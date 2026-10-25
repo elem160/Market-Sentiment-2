@@ -141,7 +141,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Market Sentiment Analysis API",
     description="Empirical research and directional market-sentiment classification for US Equities, ETFs, Forex pairs, Cryptocurrencies, and Commodities.",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
