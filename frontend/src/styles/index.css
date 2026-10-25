@@ -1441,6 +1441,50 @@ body {
   }
 }
 
+/* Scroll Margins for Sticky Header Offset */
+#search-section,
+#analysis-stepper,
+#session-window-banner,
+#decision-hero-card,
+#rationale-section,
+#evidence-explorer,
+#pipeline-telemetry-strip,
+#recent-history-panel {
+  scroll-margin-top: 88px;
+}
+
+/* Word wrapping safety for responsive widths */
+.article-title-link,
+.article-title-text,
+.asset-name,
+.fact-item span,
+.sp-helper-text {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+@media (max-width: 480px) {
+  .filter-tabs {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .filter-tab {
+    flex: 1 1 calc(50% - 4px);
+    text-align: center;
+    padding: 8px 10px;
+  }
+}
+
+/* High Contrast / Forced Colors */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight;
+  }
+  .verdict-pill, .badge, .btn-primary, .btn-secondary, .btn-chip {
+    border: 1px solid CanvasText;
+  }
+}
+
 /* ==========================================================================
    Accessibility: Reduced Motion
    ========================================================================== */
