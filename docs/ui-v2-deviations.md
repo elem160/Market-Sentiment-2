@@ -27,3 +27,14 @@ This file tracks design and implementation decisions, edge cases, and any deviat
   - Added `SiteFooter.tsx` (static black slab footer).
   - Updated `App.tsx` layout structure to `.sp-app` > `Header` > `.sp-page` > `.sp-rail` + `.sp-main` > `SiteFooter`, with `.sp-error` alert block.
   - Added test suites `SectionRail.test.tsx` and `LandingHero.test.tsx`.
+
+## Phase 2: Input, Loading, Context
+- **Deviations**: None.
+- **Notes**:
+  - Created `frontend/src/styles/input.css` implementing Section 7.4 `#search-section.sp-input.sp-sheet`, `.sp-sec-head`, `.sp-input-main`, `.sp-input-form`, `.sp-input-field` (borderless, 3px solid ink underline, uppercase display font, caret orange, placeholder `--sp-rule`), `.sp-btn--xl`, `.sp-chip-strip` (grid with min 3.5rem chips and hover inversion), and `.sp-options` with custom 20px `.sp-toggle-box` and focus rings.
+  - Created `frontend/src/styles/loading.css` implementing Section 7.5 `#analysis-stepper.sp-loading.sp-sheet`, `.sp-loading-top`, giant `.sp-counter` display, 20px `.sp-ruler` progress bar with tick background and orange fill, `.sp-loading-msg`, `.sp-stages` 6-cell grid, and active stage tag 1Hz blinking square (`::before`). Spinners completely removed.
+  - Created `frontend/src/styles/context.css` implementing Section 7.6 `#session-window-banner.sp-context.sp-sheet`, 6-cell spec strip, solid green square for `OPEN (RTH)` and hollow ink square on hatch background for `CLOSED`.
+  - Rebuilt `SearchBar.tsx`, `LoadingStepper.tsx`, and `SessionWindowBanner.tsx` matching all spec sheet v2 markup and class names, preserving all state, handlers, props, and contract IDs/classes (`form.search-form`).
+  - Removed migrated search, stepper, and session banner rules from `frontend/src/styles/legacy.css`.
+  - Added unit test suites `SearchBar.test.tsx`, `LoadingStepper.test.tsx`, and `SessionWindowBanner.test.tsx` (all passing).
+  - Rebuilt production static bundle in `app/static/`.

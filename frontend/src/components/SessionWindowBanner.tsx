@@ -1,6 +1,5 @@
 import React from 'react';
 import { SessionWindow } from '../types';
-import { Calendar, Clock, Globe, CheckCircle2, AlertCircle } from 'lucide-react';
 import { formatEt, formatUtc } from '../utils/time';
 
 interface SessionWindowBannerProps {
@@ -20,57 +19,54 @@ export const SessionWindowBanner: React.FC<SessionWindowBannerProps> = ({ sessio
 
   return (
     <aside
-      className={`session-banner animate-fade-in ${!isMarketOpen ? 'market-closed' : ''}`}
       id="session-window-banner"
+      className="sp-context sp-sheet"
       aria-label="Market session and news temporal window"
     >
-      <div className="session-info">
-        <span className="session-badge">{formatSessionName(session.session_type)}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Calendar size={14} aria-hidden="true" style={{ color: 'var(--color-ink-muted)' }} />
-          <span>
-            Market Status:{' '}
-            <strong style={{ color: isMarketOpen ? 'var(--color-positive)' : 'var(--color-caution)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              {isMarketOpen ? (
-                <>
-                  <CheckCircle2 size={13} aria-hidden="true" />
-                  <span>OPEN (RTH)</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle size={13} aria-hidden="true" />
-                  <span>CLOSED</span>
-                </>
-              )}
-            </strong>
-          </span>
-        </div>
+      <div className="sp-cell">
+        <span className="sp-label">Session</span>
+        <strong className="sp-display sp-ctx-big">{formatSessionName(session.session_type)}</strong>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-        <div className="session-time-text" title="Active news filter boundary in Eastern Time">
-          <Clock size={13} aria-hidden="true" style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
-          <span>ET: </span>
-          <span style={{ color: 'var(--color-ink)' }}>
-            {formatEt(session.window_start_utc)} &rarr; {formatEt(session.window_end_utc)}
-          </span>
-        </div>
+      <div className={`sp-cell ${!isMarketOpen ? 'sp-cell--hatch' : ''}`}>
+        <span className="sp-label">Market status</span>
+        <strong className={`sp-ctx-status ${isMarketOpen ? 'is-open' : 'is-closed'}`}>
+          {isMarketOpen ? (
+            <>
+              <span className="sp-status-sq sp-status-sq--open" aria-hidden="true" />
+              <span>OPEN (RTH)</span>
+            </>
+          ) : (
+            <>
+              <span className="sp-status-sq sp-status-sq--closed" aria-hidden="true" />
+              <span>CLOSED</span>
+            </>
+          )}
+        </strong>
+      </div>
 
-        <div className="session-time-text" title="Active news filter boundary in Coordinated Universal Time">
-          <Globe size={13} aria-hidden="true" style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
-          <span>UTC: </span>
-          <span style={{ color: 'var(--color-ink)' }}>
-            {formatUtc(session.window_start_utc)} &rarr; {formatUtc(session.window_end_utc)}
-          </span>
-        </div>
+      <div className="sp-cell" title="Active news filter boundary in Eastern Time">
+        <span className="sp-label">Window &middot; ET</span>
+        <span className="sp-mono">
+          {formatEt(session.window_start_utc)} &rarr; {formatEt(session.window_end_utc)}
+        </span>
+      </div>
 
-        <div className="badge badge-neutral font-mono">
-          {(session.window_duration_hours || 0).toFixed(1)}h lookback
-        </div>
+      <div className="sp-cell" title="Active news filter boundary in Coordinated Universal Time">
+        <span className="sp-label">Window &middot; UTC</span>
+        <span className="sp-mono">
+          {formatUtc(session.window_start_utc)} &rarr; {formatUtc(session.window_end_utc)}
+        </span>
+      </div>
 
-        <div className="badge badge-neutral font-mono" title="Pipeline execution timestamp">
-          Run: {formatUtc(session.run_timestamp_utc)}
-        </div>
+      <div className="sp-cell">
+        <span className="sp-label">Lookback</span>
+        <span className="sp-mono sp-ctx-num">{(session.window_duration_hours || 0).toFixed(1)}h</span>
+      </div>
+
+      <div className="sp-cell" title="Pipeline execution timestamp">
+        <span className="sp-label">Run</span>
+        <span className="sp-mono">{formatUtc(session.run_timestamp_utc)}</span>
       </div>
     </aside>
   );
