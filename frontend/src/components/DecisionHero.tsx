@@ -21,19 +21,19 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
   const getVerdictIcon = () => {
     switch (verdict) {
       case 'BUY':
-        return <TrendingUp size={36} />;
+        return <TrendingUp size={24} aria-hidden="true" />;
       case 'SELL':
-        return <TrendingDown size={36} />;
+        return <TrendingDown size={24} aria-hidden="true" />;
       case 'HOLD':
       default:
-        return <MinusCircle size={36} />;
+        return <MinusCircle size={24} aria-hidden="true" />;
     }
   };
 
   const getCompositeColor = (score: number) => {
-    if (score > 0.25) return 'var(--buy-green)';
-    if (score < -0.25) return 'var(--sell-rose)';
-    return 'var(--hold-amber)';
+    if (score > 0.25) return 'var(--color-positive)';
+    if (score < -0.25) return 'var(--color-negative)';
+    return 'var(--color-caution)';
   };
 
   const formatScore = (val: number) => {
@@ -69,29 +69,36 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       (result.decision_confidence || 0) === 0);
 
   return (
-    <div className={`glass-panel hero-decision-card ${verdictClass} animate-fade-in`} id="decision-hero-card">
+    <section
+      className={`hero-decision-card ${verdictClass} animate-fade-in`}
+      id="decision-hero-card"
+      aria-label="Directional market sentiment classification"
+    >
       <div className="decision-top">
         <div className="asset-identity">
+          <div className="sp-hero-eyebrow">Current Algorithmic Classification</div>
           <div className="asset-ticker-row">
-            <h2 className="asset-ticker" id="result-ticker-symbol">{formatTickerLabel(result.ticker, result.asset_type)}</h2>
+            <h2 className="asset-ticker" id="result-ticker-symbol">
+              {formatTickerLabel(result.ticker, result.asset_type)}
+            </h2>
             <span className="asset-exchange">{result.asset_type || 'US Equity'}</span>
             {result.cache_status === 'HIT' && (
-              <span className="badge badge-neutral" style={{ color: 'var(--accent-cyan)' }}>
+              <span className="badge badge-neutral" style={{ color: 'var(--color-accent)' }}>
                 Cached Result
               </span>
             )}
             {result.data_status === 'NO_FRESH_NEWS' && (
-              <span className="badge badge-neutral" style={{ color: '#f59e0b', borderColor: '#f59e0b' }}>
+              <span className="badge badge-hold">
                 No Fresh News
               </span>
             )}
             {result.data_status === 'NO_RELEVANT_NEWS' && (
-              <span className="badge badge-neutral" style={{ color: '#f59e0b', borderColor: '#f59e0b' }}>
+              <span className="badge badge-hold">
                 No Relevant News
               </span>
             )}
             {result.data_status === 'DEGRADED' && (
-              <span className="badge badge-neutral" style={{ color: '#ef4444', borderColor: '#ef4444' }}>
+              <span className="badge badge-sell">
                 Degraded
               </span>
             )}
@@ -105,7 +112,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
             <span>{verdict}</span>
           </div>
           {verdict === 'HOLD' && result.hold_reason && (
-            <div className="hold-reason-sub" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>
+            <div className="hold-reason-sub">
               Reason: {formatHoldReason(result.hold_reason)}
             </div>
           )}
@@ -114,7 +121,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
 
       {result.data_status === 'NO_FRESH_NEWS' && (
         <div className="no-fresh-news-banner" role="status">
-          <AlertTriangle size={18} style={{ flexShrink: 0, color: '#f59e0b' }} />
+          <AlertTriangle size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
           <span>
             <strong>NO FRESH NEWS IN SESSION:</strong> Zero articles satisfied current session window freshness criteria. The HOLD verdict is an uncorroborated default for zero active headlines.
           </span>
@@ -123,7 +130,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
 
       {result.data_status === 'NO_RELEVANT_NEWS' && (
         <div className="no-fresh-news-banner" role="status">
-          <AlertTriangle size={18} style={{ flexShrink: 0, color: '#f59e0b' }} />
+          <AlertTriangle size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
           <span>
             <strong>NO RELEVANT NEWS IN SESSION:</strong> Ingested articles did not pass multi-asset entity relevance filters for this symbol. The HOLD verdict is an evidence-free default.
           </span>
@@ -132,14 +139,14 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
 
       {result.data_status === 'DEGRADED' && (
         <div className="no-fresh-news-banner degraded" role="alert">
-          <AlertTriangle size={18} style={{ flexShrink: 0, color: '#ef4444' }} />
+          <AlertTriangle size={18} style={{ flexShrink: 0 }} aria-hidden="true" />
           <span>
             <strong>DEGRADED INGESTION:</strong> All external RSS news feeds failed during ingestion sweep. Analysis was completed using partial sources only and will not be cached.
           </span>
         </div>
       )}
 
-      <div className="metrics-strip">
+      <div className="metrics-strip" role="group" aria-label="Supporting metrics">
         <div className="metric-item">
           <div className="metric-label">Composite Sentiment</div>
           <div
@@ -184,12 +191,12 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
           <div className="metric-label">Publisher Corroboration</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
             {isCorroborated ? (
-              <span className="badge badge-buy" style={{ fontSize: '0.82rem' }}>
-                <CheckCircle2 size={14} /> Corroborated
+              <span className="badge badge-buy">
+                <CheckCircle2 size={13} aria-hidden="true" /> Corroborated
               </span>
             ) : (
-              <span className="badge badge-hold" style={{ fontSize: '0.82rem' }}>
-                <AlertTriangle size={14} />{' '}
+              <span className="badge badge-hold">
+                <AlertTriangle size={13} aria-hidden="true" />{' '}
                 {result.hold_reason === 'INSUFFICIENT_CORROBORATION'
                   ? 'Insufficient Corroboration'
                   : distinctPubs <= 1
@@ -198,7 +205,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
               </span>
             )}
           </div>
-          <div className="metric-sub" style={{ marginTop: '8px' }}>
+          <div className="metric-sub" style={{ marginTop: '6px' }}>
             {verdict === 'BUY' || verdict === 'SELL'
               ? `${supportingPubs} Supporting Source(s)`
               : `${distinctPubs} Distinct Source(s)`}
@@ -206,12 +213,12 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
         </div>
       </div>
 
-      <div className="heuristic-footnote">
-        <Info size={15} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+      <div className="heuristic-footnote" role="note" aria-label="Research disclaimer">
+        <Info size={15} style={{ flexShrink: 0, color: 'var(--color-ink-muted)' }} aria-hidden="true" />
         <span>
           <strong>{result.disclaimer || 'Research & Market Sentiment Tool. Not Financial or Investment Advice.'}</strong> Decision formulation uses exponential recency decay (14-hour half-life) with strict corroboration gating. All thresholds are uncalibrated empirical defaults.
         </span>
       </div>
-    </div>
+    </section>
   );
 };
