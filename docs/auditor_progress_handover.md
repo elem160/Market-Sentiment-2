@@ -186,11 +186,13 @@ All Phase 3 tasks (P3.1 through P3.8) are complete. The remaining work belongs t
 7. **P3.7 Data Lifecycle & Retention:** **COMPLETE** (`5959820`)
 8. **P3.8 Configuration, Path Anchoring & Startup:** **COMPLETE** (`99e9583`)
 
-### Phase 4: Code Quality & Documentation (Remaining)
-*Branch to create: `fix/phase-4-code-quality` | Detailed in [docs/implementation_plan.md §8](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L495-L535)*
+### Phase 4: Code Quality & Documentation
+*Active branch: `fix/phase-4-code-quality` | Detailed in [docs/implementation_plan.md §8](file:///d:/Code%20Projects/Market%20Sentiment%202/docs/implementation_plan.md#L495-L535)*
 
-1. **P4.1 Orchestrator Refactor (Finding: M16):**
-   - Decompose `run_pipeline` into discrete stage methods over a `PipelineContext`. Golden-snapshot test to guard against behavioral drift.
+1. **P4.1 Orchestrator Refactor (Finding: M16):** **COMPLETE** (`9a157b2`)
+   - Refactored `AnalysisOrchestrator.run_pipeline` into discrete stage methods over a `PipelineContext` dataclass (`_resolve_and_check_cache`, `_ingest`, `_filter_fresh`, `_select_relevant`, `_assert_freshness_invariants`, `_score`, `_synthesize`, `_aggregate`, `_build_result`, `_persist`).
+   - Consolidated duplicate exclusions into `build_excluded_article()` and metrics into `build_pipeline_metrics()`; unified disclaimer into module constant `DISCLAIMER`.
+   - Added golden snapshot test suite `tests/integration/test_orchestrator_golden_snapshot.py` asserting deterministic contract invariants, metrics, and rationale before and after refactoring.
 2. **P4.2 Dead Code & Lint (Finding: L1):**
    - Remove unused exceptions, enums (`FINNHUB`, `INDEX`), and dead models. Tighten Ruff rules.
 3. **P4.3 Documentation & Versioning (Finding: M18):**

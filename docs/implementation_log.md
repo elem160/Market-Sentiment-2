@@ -306,7 +306,14 @@ Addressing auditor review findings on branch `fix/phase-2-decision-integrity`:
   - Synchronized `.env.example` with 100% of `Settings` fields, default values, and descriptive comments.
   - Documented single-worker architecture and reverse proxy settings in `README.md`.
   - Created comprehensive test suite `tests/unit/test_config.py` (8 tests) covering path anchoring, cache bucket validation, config hash sensitivity, cache key integrity, timeout warnings, `.env.example` alignment, and `app.__main__` runner.
-  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 85.76% (282 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
+- **Task P4.1 — Orchestrator refactor and PipelineContext decomposition (`9a157b2`):**
+  - Defined module-level constant `DISCLAIMER = "Research & Market Sentiment Tool. Not Financial or Investment Advice."`, replacing three duplicate inline strings.
+  - Implemented `build_excluded_article(excl_art, reason, cluster_id="")` helper eliminating duplicate `ScoredArticle` construction across freshness and deduplication exclusion paths.
+  - Implemented `build_pipeline_metrics(...)` unifying `PipelineMetrics` construction across early-exit and normal pipeline completion paths.
+  - Created `PipelineContext` dataclass encapsulating mutable state across pipeline stages (`timing`, `asset`, `session`, `raw_articles`, `provider_outcomes`, `in_window_articles`, `retained_articles`, `scored_retained`, `llm_telemetry`, `metrics`, `result`).
+  - Refactored `AnalysisOrchestrator.run_pipeline()` into modular stage methods: `_resolve_and_check_cache`, `_ingest`, `_filter_fresh`, `_select_relevant`, `_assert_freshness_invariants`, `_score`, `_synthesize`, `_aggregate`, `_build_result`, and `_persist`.
+  - Added golden snapshot test suite `tests/integration/test_orchestrator_golden_snapshot.py` asserting deterministic contract invariants, metrics, and rationale before and after refactoring.
+  - Verification: `pytest --cov=app --cov-fail-under=85` passed at 86.20% (284 passed); `ruff check .` clean; `alembic check` clean; `test_openapi_matches_committed_snapshot` clean.
 
 ## Deviations
 
@@ -315,5 +322,6 @@ _None._
 ## Follow-ups
 
 _None._
+
 
 
