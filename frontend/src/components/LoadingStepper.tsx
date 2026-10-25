@@ -1,5 +1,6 @@
 import React from 'react';
 import { PipelineStage } from '../types';
+import { formatTickerLabel } from '../utils/formatters';
 import { Check, Loader2, Database, Search, Layers, Cpu, Sparkles, Scale } from 'lucide-react';
 
 interface LoadingStepperProps {
@@ -40,7 +41,7 @@ export const LoadingStepper: React.FC<LoadingStepperProps> = ({
       <div className="stepper-header">
         <div className="stepper-title">
           <Loader2 size={20} className="animate-spin-slow" style={{ color: 'var(--accent-cyan)' }} />
-          <span>RUNNING PIPELINE FOR ${ticker}</span>
+          <span>RUNNING PIPELINE FOR {formatTickerLabel(ticker)}</span>
         </div>
         <span className="font-mono" style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>
           {displayPct}%

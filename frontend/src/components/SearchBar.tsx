@@ -17,9 +17,15 @@ const POPULAR_TICKERS = [
 ];
 
 export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, activeTicker }) => {
+  const [prevActiveTicker, setPrevActiveTicker] = useState(activeTicker);
   const [ticker, setTicker] = useState<string>(activeTicker || '');
   const [forceRefresh, setForceRefresh] = useState<boolean>(false);
   const [enableLlm, setEnableLlm] = useState<boolean>(true);
+
+  if (activeTicker !== prevActiveTicker) {
+    setPrevActiveTicker(activeTicker);
+    setTicker(activeTicker || '');
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +56,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading, activ
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
             maxLength={16}
             disabled={isLoading}
-            autoFocus
           />
         </div>
         <button

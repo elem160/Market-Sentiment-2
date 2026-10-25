@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { HistoryItem, DecisionVerdict } from '../types';
 import { getHistory } from '../services/api';
+import { formatTickerLabel } from '../utils/formatters';
 import { History, ArrowRight, Clock } from 'lucide-react';
 
 interface HistorySidebarProps {
@@ -50,14 +51,24 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
 
   return (
     <div className="glass-panel" style={{ padding: '16px 20px' }} id="recent-history-panel">
-      <div
+      <button
+        type="button"
+        className="history-toggle-btn"
+        aria-expanded={isOpen}
+        aria-controls="recent-history-grid"
+        onClick={() => setIsOpen(!isOpen)}
         style={{
+          width: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          background: 'none',
+          border: 'none',
+          padding: 0,
           cursor: 'pointer',
+          color: 'inherit',
+          fontFamily: 'inherit',
         }}
-        onClick={() => setIsOpen(!isOpen)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600 }}>
           <History size={16} style={{ color: 'var(--accent-cyan)' }} />
@@ -66,10 +77,11 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
         <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)' }}>
           {isOpen ? 'Collapse ▲' : 'Expand ▼'}
         </span>
-      </div>
+      </button>
 
       {isOpen && (
         <div
+          id="recent-history-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -78,14 +90,16 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
           }}
         >
           {history.map((item) => (
-            <div
+            <button
+              type="button"
               key={item.run_id}
               className="history-item-row"
               onClick={() => onSelectRun(item.run_id)}
+              aria-label={`View analysis for ${item.ticker}`}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span className="font-display" style={{ fontWeight: 800, fontSize: '1rem' }}>
-                  ${item.ticker}
+                  {formatTickerLabel(item.ticker, item.asset_type)}
                 </span>
                 {getVerdictBadge(item.decision)}
                 {item.asset_type && item.asset_type !== 'EQUITY' && (
@@ -115,10 +129,11 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectRun, ref
                 <span>{formatTimeWithTz(item.run_timestamp_utc)}</span>
                 <ArrowRight size={13} style={{ color: 'var(--accent-cyan)' }} />
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
     </div>
   );
 };
+

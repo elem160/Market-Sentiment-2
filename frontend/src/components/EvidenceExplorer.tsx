@@ -164,18 +164,8 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
           <button
             type="button"
             className="btn-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              fontSize: '0.92rem',
-              fontWeight: 600,
-              padding: '6px 0',
-            }}
+            aria-expanded={showExcluded}
+            aria-controls="excluded-articles-list"
             onClick={() => setShowExcluded(!showExcluded)}
           >
             {showExcluded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -183,7 +173,7 @@ export const EvidenceExplorer: React.FC<EvidenceExplorerProps> = ({ articles, me
           </button>
 
           {showExcluded && (
-            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div id="excluded-articles-list" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {Object.entries(excludedByReason).map(([reason, groupArticles]) => {
                 const totalForReason = excludedCountsMap[reason] ?? groupArticles.length;
                 return (

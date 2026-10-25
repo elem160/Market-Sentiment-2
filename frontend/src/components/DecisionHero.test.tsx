@@ -125,4 +125,32 @@ describe('DecisionHero Corroboration Badge (Finding 2 Verification)', () => {
     expect(screen.getByText(/Uncorroborated/i)).toBeDefined();
     expect(screen.queryByText(/^Corroborated$/i)).toBeNull();
   });
+
+  it('formats equity ticker with dollar prefix', () => {
+    const result = createHeroResult('BUY', 2, 2);
+    result.ticker = 'AAPL';
+    result.asset_type = 'EQUITY';
+    render(<DecisionHero result={result} />);
+
+    expect(screen.getByText('$AAPL')).toBeDefined();
+  });
+
+  it('formats forex and commodity tickers without dollar prefix', () => {
+    const forexResult = createHeroResult('HOLD', 2, 0);
+    forexResult.ticker = 'EUR/USD';
+    forexResult.asset_type = 'FOREX';
+    const { unmount } = render(<DecisionHero result={forexResult} />);
+
+    expect(screen.getByText('EUR/USD')).toBeDefined();
+    expect(screen.queryByText('$EUR/USD')).toBeNull();
+    unmount();
+
+    const commodityResult = createHeroResult('BUY', 3, 2);
+    commodityResult.ticker = 'GC=F';
+    commodityResult.asset_type = 'COMMODITY';
+    render(<DecisionHero result={commodityResult} />);
+
+    expect(screen.getByText('GC=F')).toBeDefined();
+    expect(screen.queryByText('$GC=F')).toBeNull();
+  });
 });

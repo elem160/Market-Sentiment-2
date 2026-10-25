@@ -1,5 +1,6 @@
 import React from 'react';
 import { AnalysisResult } from '../types';
+import { formatTickerLabel } from '../utils/formatters';
 import {
   TrendingUp,
   TrendingDown,
@@ -72,7 +73,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       <div className="decision-top">
         <div className="asset-identity">
           <div className="asset-ticker-row">
-            <h2 className="asset-ticker" id="result-ticker-symbol">${result.ticker}</h2>
+            <h2 className="asset-ticker" id="result-ticker-symbol">{formatTickerLabel(result.ticker, result.asset_type)}</h2>
             <span className="asset-exchange">{result.asset_type || 'US Equity'}</span>
             {result.cache_status === 'HIT' && (
               <span className="badge badge-neutral" style={{ color: 'var(--accent-cyan)' }}>
@@ -112,21 +113,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       </div>
 
       {result.data_status === 'NO_FRESH_NEWS' && (
-        <div
-          className="no-fresh-news-banner"
-          style={{
-            background: 'rgba(245, 158, 11, 0.12)',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            margin: '12px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            color: '#fcd34d',
-            fontSize: '0.88rem',
-          }}
-        >
+        <div className="no-fresh-news-banner" role="status">
           <AlertTriangle size={18} style={{ flexShrink: 0, color: '#f59e0b' }} />
           <span>
             <strong>NO FRESH NEWS IN SESSION:</strong> Zero articles satisfied current session window freshness criteria. The HOLD verdict is an uncorroborated default for zero active headlines.
@@ -135,21 +122,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       )}
 
       {result.data_status === 'NO_RELEVANT_NEWS' && (
-        <div
-          className="no-fresh-news-banner"
-          style={{
-            background: 'rgba(245, 158, 11, 0.12)',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            margin: '12px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            color: '#fcd34d',
-            fontSize: '0.88rem',
-          }}
-        >
+        <div className="no-fresh-news-banner" role="status">
           <AlertTriangle size={18} style={{ flexShrink: 0, color: '#f59e0b' }} />
           <span>
             <strong>NO RELEVANT NEWS IN SESSION:</strong> Ingested articles did not pass multi-asset entity relevance filters for this symbol. The HOLD verdict is an evidence-free default.
@@ -158,21 +131,7 @@ export const DecisionHero: React.FC<DecisionHeroProps> = ({ result }) => {
       )}
 
       {result.data_status === 'DEGRADED' && (
-        <div
-          className="no-fresh-news-banner"
-          style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
-            borderRadius: '8px',
-            padding: '10px 14px',
-            margin: '12px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            color: '#fca5a5',
-            fontSize: '0.88rem',
-          }}
-        >
+        <div className="no-fresh-news-banner degraded" role="alert">
           <AlertTriangle size={18} style={{ flexShrink: 0, color: '#ef4444' }} />
           <span>
             <strong>DEGRADED INGESTION:</strong> All external RSS news feeds failed during ingestion sweep. Analysis was completed using partial sources only and will not be cached.
