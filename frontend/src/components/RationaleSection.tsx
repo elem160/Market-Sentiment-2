@@ -1,6 +1,5 @@
 import React from 'react';
 import { PipelineRationale, ScoredArticle } from '../types';
-import { Cpu, Newspaper, CheckCircle, Info, Sparkles } from 'lucide-react';
 import { formatUtc } from '../utils/time';
 
 interface RationaleSectionProps {
@@ -28,123 +27,112 @@ export const RationaleSection: React.FC<RationaleSectionProps> = ({
     }
   }
 
-  const getImpactBadgeClass = (impact?: string | null) => {
-    switch (impact) {
-      case 'POSITIVE':
-        return 'badge-buy';
-      case 'NEGATIVE':
-        return 'badge-sell';
-      default:
-        return 'badge-hold';
-    }
-  };
-
   return (
-    <section className="rationale-section animate-fade-in" id="rationale-section" aria-label="Analysis method and rationale">
-      {/* LLM Catalyst Synthesis Card (if available) */}
+    <section
+      id="rationale-section"
+      className="sp-rationale"
+      aria-label="Analysis method and rationale"
+    >
+      <div className="sp-sec-head">
+        <span className="sp-sec-index">04</span>
+        <span className="sp-label">Rationale</span>
+        <h3 className="sp-display sp-sec-word">
+          Why <em>this</em> call
+        </h3>
+      </div>
+
       {llmSummary && (
-        <div className="section-card" id="llm-synthesis-card" style={{ borderLeft: '3px solid var(--color-accent)' }}>
-          <div className="section-header">
-            <div className="section-title">
-              <Sparkles size={16} aria-hidden="true" style={{ color: 'var(--color-accent)' }} />
-              <span>Catalyst Synthesis</span>
+        <div id="llm-synthesis-card" className="sp-sheet sp-llm">
+          <div className="sp-cell sp-cell--slab">
+            <div className="sp-llm-head">
+              <span className="sp-label">Catalyst synthesis</span>
+              {modelVersions?.llm && (
+                <span className="sp-tag font-mono">Model: {modelVersions.llm}</span>
+              )}
             </div>
-            {modelVersions?.llm && (
-              <span className="badge badge-neutral font-mono">
-                Model: {modelVersions.llm}
-              </span>
-            )}
-          </div>
-          <div style={{ fontSize: '0.92rem', lineHeight: 1.6, color: 'var(--color-ink-soft)' }}>
-            {llmSummary}
+            <p className="sp-llm-body">{llmSummary}</p>
           </div>
         </div>
       )}
 
-      <div className="rationale-grid" id="rationale-grid">
-        {/* Column 1: Directly Observed Facts with cited article linkage */}
-        <div className="section-card">
-          <div className="section-header">
-            <div className="section-title">
-              <Newspaper size={16} aria-hidden="true" style={{ color: 'var(--color-accent)' }} />
-              <span>Observed &amp; Reported Facts</span>
-            </div>
-            <span className="badge badge-neutral font-mono">
-              {facts.length} Statements
-            </span>
+      <div id="rationale-grid" className="sp-sheet sp-rationale-grid">
+        <div className="sp-cell sp-rationale-left">
+          <span className="sp-label">Synthesized directional rationale</span>
+          <div id="synthesized-rationale-text">
+            <p className="sp-pull">{summary}</p>
+            {inferences.length > 0 && (
+              <ol className="sp-ledger">
+                {inferences.map((inf, i) => (
+                  <li key={i}>
+                    <span className="sp-mono sp-ledger-n">{String(i + 1).padStart(2, '0')}</span>
+                    <span>{inf}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+          <span className="sp-label sp-formula">Formula &amp; sentiment drivers</span>
+        </div>
+
+        <div className="sp-cell sp-rationale-right">
+          <div className="sp-facts-head">
+            <span className="sp-label">Observed &amp; reported facts</span>
+            <span className="sp-tag">{facts.length} Statements</span>
           </div>
 
           {facts.length === 0 ? (
-            <div style={{ color: 'var(--color-ink-muted)', fontSize: '0.88rem', padding: '16px 0' }}>
+            <p className="sp-empty">
               No verified catalyst statements extracted for this session window.
-            </div>
+            </p>
           ) : (
-            <ul className="facts-list" aria-label="Observed catalyst statements">
+            <ul className="sp-facts" aria-label="Observed catalyst statements">
               {facts.map((fact, idx) => {
-                const cited = fact.cited_article_id ? articlesMap.get(fact.cited_article_id) : undefined;
+                const cited = fact.cited_article_id
+                  ? articlesMap.get(fact.cited_article_id)
+                  : undefined;
+
+                const impactTone =
+                  fact.impact === 'POSITIVE'
+                    ? 'is-pos'
+                    : fact.impact === 'NEGATIVE'
+                    ? 'is-neg'
+                    : 'is-flat';
+
+                const impactPrefix =
+                  fact.impact === 'POSITIVE' ? '▲ ' : fact.impact === 'NEGATIVE' ? '▼ ' : '■ ';
+
                 return (
-                  <li key={fact.cited_article_id || idx} className="fact-item">
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                      <CheckCircle size={14} style={{ color: 'var(--color-accent)', marginTop: '3px', flexShrink: 0 }} aria-hidden="true" />
-                      <span>{fact.statement}</span>
-                    </div>
-                    <div className="fact-meta" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                      {cited && (
-                        <span className="badge badge-neutral" style={{ color: 'var(--color-accent)' }}>
-                          {cited.canonical_publisher || cited.source_name}
-                        </span>
-                      )}
-                      {cited?.published_at_utc && (
-                        <span>
-                          {formatUtc(cited.published_at_utc)} UTC
-                        </span>
-                      )}
-                      {fact.catalyst_category && (
-                        <span className="badge badge-neutral">
-                          {fact.catalyst_category}
-                        </span>
-                      )}
-                      {fact.impact && (
-                        <span className={`badge ${getImpactBadgeClass(fact.impact)}`}>
-                          {fact.impact}
-                        </span>
-                      )}
+                  <li key={fact.cited_article_id || idx}>
+                    <span className="sp-mono sp-fact-n">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
+                    <div className="sp-fact-content">
+                      <p>{fact.statement}</p>
+                      <div className="sp-fact-meta sp-mono">
+                        {cited && (
+                          <span className="sp-fact-pub">
+                            {cited.canonical_publisher || cited.source_name}
+                          </span>
+                        )}
+                        {cited?.published_at_utc && (
+                          <span>{formatUtc(cited.published_at_utc)} UTC</span>
+                        )}
+                        {fact.catalyst_category && (
+                          <span className="sp-tag sp-tag--cat">{fact.catalyst_category}</span>
+                        )}
+                        {fact.impact && (
+                          <span className={`sp-impact ${impactTone}`}>
+                            {impactPrefix}
+                            {fact.impact}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </li>
                 );
               })}
             </ul>
           )}
-        </div>
-
-        {/* Column 2: Synthesized Rationale & Inferences */}
-        <div className="section-card">
-          <div className="section-header">
-            <div className="section-title">
-              <Cpu size={16} aria-hidden="true" style={{ color: 'var(--color-accent)' }} />
-              <span>Synthesized Directional Rationale</span>
-            </div>
-            <span className="badge badge-neutral font-mono" style={{ fontSize: '0.72rem' }}>
-              Formula &amp; Drivers
-            </span>
-          </div>
-
-          <div className="rationale-body" id="synthesized-rationale-text">
-            <div style={{ fontWeight: 600, marginBottom: '12px', color: 'var(--color-ink)' }}>
-              {summary}
-            </div>
-
-            {inferences.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: 'var(--border-default)', paddingTop: '12px' }}>
-                {inferences.map((inf, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '0.88rem', color: 'var(--color-ink-soft)' }}>
-                    <Info size={14} style={{ color: 'var(--color-accent)', marginTop: '3px', flexShrink: 0 }} aria-hidden="true" />
-                    <span>{inf}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </section>

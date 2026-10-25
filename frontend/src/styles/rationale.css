@@ -1,0 +1,196 @@
+/* ==========================================================================
+   04 Rationale — Ledger & Observed Facts (Spec Sheet v2)
+   ========================================================================== */
+
+#rationale-section.sp-rationale {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sheet-gap);
+}
+
+/* LLM Catalyst Synthesis Sheet */
+.sp-llm {
+  border: 1px solid var(--sp-rule-strong);
+  border-top-width: 3px;
+}
+
+.sp-llm-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--sp-2);
+}
+
+.sp-llm-body {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  line-height: 1.6;
+  color: var(--sp-on-slab);
+}
+
+/* 5 / 7 Desktop Grid */
+.sp-rationale-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 1px;
+  background: var(--sp-rule);
+  border: 1px solid var(--sp-rule-strong);
+  border-top-width: 3px;
+}
+
+.sp-rationale-left {
+  padding: var(--sp-cell-pad);
+  background: var(--sp-cell);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.sp-rationale-right {
+  padding: var(--sp-cell-pad);
+  background: var(--sp-cell);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+/* Big Pull Text for Synthesized Rationale */
+.sp-pull {
+  font-family: var(--sp-font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 2.6vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--sp-ink);
+  margin: var(--sp-2) 0 var(--sp-4);
+}
+
+/* Inferences Ledger */
+.sp-ledger {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--sp-rule);
+}
+
+.sp-ledger li {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--sp-rule);
+  font-size: var(--sp-fs-small);
+  color: var(--sp-ink-2);
+  line-height: 1.4;
+}
+
+.sp-ledger-n {
+  font-family: var(--sp-font-mono);
+  font-weight: 700;
+  color: var(--sp-accent-deep);
+}
+
+.sp-formula {
+  margin-top: auto;
+  padding-top: var(--sp-3);
+  color: var(--sp-ink-3);
+}
+
+/* Facts List */
+.sp-facts-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--sp-rule);
+}
+
+.sp-empty {
+  color: var(--sp-ink-3);
+  font-size: var(--sp-fs-small);
+  padding: var(--sp-4) 0;
+}
+
+.sp-facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-facts li {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--sp-rule);
+}
+
+.sp-fact-n {
+  font-family: var(--sp-font-mono);
+  font-weight: 600;
+  color: var(--sp-ink-3);
+}
+
+.sp-fact-content p {
+  font-size: var(--sp-fs-small);
+  color: var(--sp-ink);
+  line-height: 1.45;
+  margin-bottom: var(--sp-1);
+}
+
+.sp-fact-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  font-size: var(--sp-fs-label);
+  color: var(--sp-ink-3);
+}
+
+.sp-fact-pub {
+  color: var(--sp-accent-deep);
+  font-weight: 600;
+}
+
+.sp-tag--cat {
+  border-color: var(--sp-rule);
+  color: var(--sp-ink-2);
+}
+
+/* Impact Badge */
+.sp-impact {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-label);
+  font-weight: 600;
+  letter-spacing: var(--sp-track-label);
+  text-transform: uppercase;
+}
+
+.sp-impact.is-pos {
+  color: var(--sp-buy);
+}
+
+.sp-impact.is-neg {
+  color: var(--sp-sell);
+}
+
+.sp-impact.is-flat {
+  color: var(--sp-ink-3);
+}
+
+/* Responsive Overrides */
+@media (max-width: 1023px) {
+  .sp-rationale-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -54,3 +54,15 @@ This file tracks design and implementation decisions, edge cases, and any deviat
   - Removed migrated Decision Hero styles and media queries from `frontend/src/styles/legacy.css`.
   - Added new test cases to `DecisionHero.test.tsx` verifying `data-len="long"`, gauge marker `left` at 0%, 50%, and 100%, and composite tone classes `is-pos`, `is-neg`, and `is-flat`. All 12 tests passed.
   - Rebuilt production static bundle in `app/static/`.
+
+## Phase 4: Rationale and Evidence
+- **Deviations**: None.
+- **Notes**:
+  - Created `frontend/src/styles/rationale.css` implementing Section 7.8 `#rationale-section.sp-rationale`, `.sp-sec-head`, optional `#llm-synthesis-card.sp-sheet.sp-llm` catalyst synthesis card, `.sp-rationale-grid` split ledger, `.sp-pull` directional summary (rendered once without duplicate titles), `.sp-ledger` numbered inference list with padded numbers (`01`, `02`), and `.sp-facts` observed facts list with publisher citation, UTC timestamp, catalyst category tag, and directional impact badges (`▲ POSITIVE`, `▼ NEGATIVE`, `■ NEUTRAL`).
+  - Created `frontend/src/styles/evidence.css` implementing Section 7.9 `#evidence-explorer.sp-evidence`, 4 filter tabs (`.filter-tab.sp-filter-tab`) with 3px solid `--sp-orange` bottom border when active (`.active`), `.sp-empty-filter` hatch box, `#evidence-articles-list.sp-ledger-table` with table head, presentational `.sp-row.evidence-item` with hover inversion (black background / white text / inverted link & toggle), tri-segment FinBERT bar (`.sp-tri` with positive, neutral, negative proportional widths and directional tone `is-pos`/`is-neg`/`is-flat`), detail drawer with lead text and percentage breakdown, and `.sp-excluded-wrap` accordion with hatch container, group tags, and show/hide toggle.
+  - Extracted `frontend/src/components/EvidenceRow.tsx` presentational component with local expand/collapse `useState`, full test contract classes (`.evidence-item`, `.article-title-link`, `.article-title-text`), tri-segment bar, and detail drawer.
+  - Rebuilt `frontend/src/components/RationaleSection.tsx` and `frontend/src/components/EvidenceExplorer.tsx` to match spec sheet v2 structure with zero inline styles.
+  - Removed migrated rationale, evidence, and filter tab rules and responsive overrides from `frontend/src/styles/legacy.css`.
+  - Added unit test suites `RationaleSection.test.tsx` (7 tests) and `EvidenceExplorer.test.tsx` (7 tests), covering summary uniqueness, inferences ledger, observed facts impact badges, LLM synthesis card, partition filter counts and filtering, row expand/collapse, contract classes, and excluded accordion.
+  - Verified visual regression suite `npx playwright test states` passing all 36 tests across all 4 viewports.
+  - Rebuilt production static bundle in `app/static/`.
