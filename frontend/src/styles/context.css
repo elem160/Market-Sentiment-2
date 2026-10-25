@@ -1,0 +1,77 @@
+/* ==========================================================================
+   02 Context — Session Window Banner Spec Strip (Spec Sheet v2)
+   ========================================================================== */
+
+#session-window-banner.sp-context {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1px;
+  background: var(--sp-rule);
+  position: relative;
+}
+
+.sp-ctx-big {
+  font-family: var(--sp-font-display);
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: var(--sp-track-display);
+  color: var(--sp-ink);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.sp-ctx-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.sp-ctx-status.is-open {
+  color: var(--sp-buy);
+}
+
+.sp-ctx-status.is-closed {
+  color: var(--sp-ink);
+}
+
+.sp-status-sq {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+
+.sp-status-sq--open {
+  background: var(--sp-buy);
+  border: 1px solid var(--sp-buy);
+}
+
+.sp-status-sq--closed {
+  background: transparent;
+  border: 1.5px solid var(--sp-ink);
+}
+
+.sp-ctx-num {
+  font-size: var(--sp-fs-lead);
+  font-weight: 600;
+  color: var(--sp-ink);
+}
+
+/* Responsive Overrides */
+@media (max-width: 1023px) and (min-width: 640px) {
+  #session-window-banner.sp-context {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  #session-window-banner.sp-context {
+    grid-template-columns: 1fr;
+  }
+}
