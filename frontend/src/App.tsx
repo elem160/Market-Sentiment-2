@@ -165,7 +165,7 @@ export const App: React.FC = () => {
           {errorMessage && (
             <div className="sp-error" role="alert">
               <span className="sp-error-tag">ERR</span>
-              <AlertCircle size={20} style={{ flexShrink: 0 }} aria-hidden="true" />
+              <AlertCircle size={20} aria-hidden="true" />
               <div className="sp-error-msg">
                 <strong>Analysis Error:</strong> {errorMessage}
               </div>
@@ -205,10 +205,12 @@ export const App: React.FC = () => {
             </>
           )}
 
-          <HistorySidebar
-            onSelectRun={handleSelectHistoricalRun}
-            refreshTrigger={historyTrigger}
-          />
+          <div id="history-drawer">
+            <HistorySidebar
+              onSelectRun={handleSelectHistoricalRun}
+              refreshTrigger={historyTrigger}
+            />
+          </div>
         </main>
       </div>
 

@@ -1,0 +1,315 @@
+/* ==========================================================================
+   Section 07: History (Recent Analysis History Ledger)
+   Spec Sheet v2 Aesthetic — Single-ruled rows, hover inversion, arrow glide
+   ========================================================================== */
+
+#recent-history-panel.sp-history {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--sp-rule);
+  border: 1px solid var(--sp-rule-strong);
+  border-top-width: 3px;
+  scroll-margin-top: 56px;
+}
+
+/* Accordion Toggle Header */
+.sp-history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 56px;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--sp-cell);
+  border: none;
+  border-radius: 0;
+  color: var(--sp-ink);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-history-toggle:hover {
+  background: var(--sp-cell-hi);
+  color: var(--sp-ink);
+}
+
+.sp-history-toggle[aria-expanded="true"] {
+  border-bottom: 1px solid var(--sp-rule-strong);
+}
+
+.sp-history-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.sp-history-toggle-left .sp-sec-index {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--sp-accent);
+  color: var(--sp-on-accent);
+  border: 1px solid var(--sp-ink);
+  font: 700 var(--sp-fs-label)/1 var(--sp-font-mono);
+  flex-shrink: 0;
+}
+
+.sp-history-title {
+  font-family: var(--sp-font-display);
+  font-size: var(--sp-fs-body);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sp-ink);
+  white-space: nowrap;
+}
+
+.sp-history-toggle-state {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-small);
+  font-weight: 600;
+  letter-spacing: var(--sp-track-label);
+  color: var(--sp-ink-3);
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sp-history-toggle:hover .sp-history-toggle-state {
+  color: var(--sp-ink);
+}
+
+/* History Ledger List */
+.sp-history-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--sp-cell);
+}
+
+/* History Row Item */
+.sp-hrow {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 9.5rem) auto 1fr auto 1.5rem;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--sp-4);
+  background: var(--sp-cell);
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--sp-rule);
+  color: var(--sp-ink);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+.sp-hrow:last-child {
+  border-bottom: none;
+}
+
+/* Row Hover / Focus Inversion */
+.sp-hrow:hover,
+.sp-hrow:focus-visible {
+  background: var(--sp-ink);
+  color: var(--sp-on-slab);
+  outline: none;
+}
+
+.sp-hrow:hover .sp-hrow-ticker,
+.sp-hrow:focus-visible .sp-hrow-ticker {
+  color: var(--sp-on-slab);
+}
+
+.sp-hrow:hover .sp-hrow-time,
+.sp-hrow:focus-visible .sp-hrow-time {
+  color: var(--sp-on-slab-2);
+}
+
+.sp-hrow:hover .sp-hrow-arrow,
+.sp-hrow:focus-visible .sp-hrow-arrow {
+  color: var(--sp-accent);
+  transform: translateX(4px);
+}
+
+/* Ticker Symbol (Crisp, tabular display with zero line-overlap) */
+.sp-hrow-ticker {
+  font-family: var(--sp-font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--sp-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Tags Container */
+.sp-hrow-tags {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.sp-hrow-spacer {
+  min-width: 0;
+}
+
+/* UTC Timestamp */
+.sp-hrow-time {
+  font-family: var(--sp-font-mono);
+  font-size: var(--sp-fs-label);
+  letter-spacing: 0.04em;
+  color: var(--sp-ink-3);
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Arrow Icon */
+.sp-hrow-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--sp-ink-3);
+  transition: transform var(--sp-t-fast) var(--sp-ease),
+              color var(--sp-t-fast) var(--sp-ease);
+}
+
+/* Base Tag Adjustments inside History Rows */
+.sp-hrow .sp-tag {
+  font-size: 0.6875rem;
+  padding: 0.15rem 0.45rem;
+  border-width: 1px;
+  line-height: 1.1;
+}
+
+/* Tag Color Variants */
+.sp-hrow .sp-tag--buy {
+  background: var(--sp-buy-wash);
+  color: var(--sp-buy);
+  border-color: var(--sp-buy);
+}
+
+.sp-hrow .sp-tag--sell {
+  background: var(--sp-sell-wash);
+  color: var(--sp-sell);
+  border-color: var(--sp-sell);
+}
+
+.sp-hrow .sp-tag--hatch {
+  background-image: var(--sp-hatch);
+  background-color: var(--sp-cell);
+  color: var(--sp-ink);
+  border-color: var(--sp-ink);
+}
+
+.sp-hrow .sp-tag--asset {
+  background: transparent;
+  color: var(--sp-ink-2);
+  border-color: var(--sp-rule-strong);
+}
+
+/* Inverted Tag States on Row Hover / Focus */
+.sp-hrow:hover .sp-tag--buy,
+.sp-hrow:focus-visible .sp-tag--buy {
+  background: rgba(10, 125, 67, 0.25);
+  color: #4ADE80;
+  border-color: #4ADE80;
+}
+
+.sp-hrow:hover .sp-tag--sell,
+.sp-hrow:focus-visible .sp-tag--sell {
+  background: rgba(200, 16, 46, 0.25);
+  color: #F87171;
+  border-color: #F87171;
+}
+
+.sp-hrow:hover .sp-tag--hatch,
+.sp-hrow:focus-visible .sp-tag--hatch {
+  background-image: var(--sp-hatch-on-slab);
+  background-color: var(--sp-slab-2);
+  color: var(--sp-on-slab);
+  border-color: var(--sp-rule);
+}
+
+.sp-hrow:hover .sp-tag--asset,
+.sp-hrow:focus-visible .sp-tag--asset {
+  background: transparent;
+  color: var(--sp-on-slab);
+  border-color: var(--sp-on-slab-2);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 960px) {
+  .sp-hrow {
+    grid-template-columns: minmax(6.5rem, 8.5rem) auto 1fr auto 1.5rem;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-3);
+  }
+}
+
+@media (max-width: 640px) {
+  .sp-history-toggle {
+    padding: var(--sp-2) var(--sp-3);
+    gap: var(--sp-2);
+  }
+
+  .sp-history-toggle-left {
+    gap: var(--sp-2);
+  }
+
+  .sp-history-toggle-left .sp-sec-index {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .sp-history-title {
+    font-size: var(--sp-fs-small);
+    white-space: normal;
+  }
+
+  .sp-hrow {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    row-gap: var(--sp-2);
+    column-gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-3);
+    min-height: 56px;
+  }
+
+  .sp-hrow-ticker {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+  }
+
+  .sp-hrow-time {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    justify-self: end;
+  }
+
+  .sp-hrow-tags {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+  }
+
+  .sp-hrow-arrow {
+    grid-column: 2 / 3;
+    grid-row: 2 / 3;
+    justify-self: end;
+  }
+
+  .sp-hrow-spacer {
+    display: none;
+  }
+}

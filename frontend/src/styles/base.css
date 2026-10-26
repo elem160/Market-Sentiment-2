@@ -1,6 +1,7 @@
 html {
   background: var(--sp-canvas);
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {

@@ -66,3 +66,35 @@ This file tracks design and implementation decisions, edge cases, and any deviat
   - Added unit test suites `RationaleSection.test.tsx` (7 tests) and `EvidenceExplorer.test.tsx` (7 tests), covering summary uniqueness, inferences ledger, observed facts impact badges, LLM synthesis card, partition filter counts and filtering, row expand/collapse, contract classes, and excluded accordion.
   - Verified visual regression suite `npx playwright test states` passing all 36 tests across all 4 viewports.
   - Rebuilt production static bundle in `app/static/`.
+
+## Phase 5: Run Log, History, Polish
+- **Deviations**: None.
+- **Notes**:
+  - Created `frontend/src/styles/runlog.css` implementing Section 7.10 `#pipeline-telemetry-strip.sp-runlog.sp-sheet.sp-runlog--slab` black ribbon layout, index `06`, 5 metric cells (Execution Latency, Cache Status with `.is-hit` orange fill on HIT, Ingestion & Filtering, Estimated LLM Cost, Model Engine).
+  - Created `frontend/src/styles/history.css` implementing Section 7.11 `#recent-history-panel.sp-history.sp-sheet`, `.history-toggle-btn.sp-history-toggle` accordion with `07` index, count, and Expand/Collapse indicators, `#recent-history-grid.sp-history-list`, and single-ruled `.history-item-row.sp-hrow` rows with hover inversion, arrow glide, and styled verdict/status tags.
+  - Wrapped `HistorySidebar` in `<div id="history-drawer">` in `App.tsx` ensuring test contract selector `#history-drawer` exists.
+  - Removed obsolete `.history-item-row` and `.telemetry-strip` responsive and scroll-margin rules from `legacy.css`.
+  - Added unit test suites `TelemetryDrawer.test.tsx` (5 tests) and `HistorySidebar.test.tsx` (4 tests) verifying all contract IDs, classes, ARIA attributes, toggle behaviors, cache hit styling, and selection handlers.
+  - Verified visual regression suite `npx playwright test states` passing 36/36 tests across all 4 viewports.
+  - Rebuilt production static bundle in `app/static/`.
+
+## Phase 6: Delete legacy, harden, final gates
+- **Deviations**: None.
+- **Notes**:
+  - Deleted `frontend/src/styles/legacy.css` and removed its `@import` from `index.css`.
+  - Uninstalled `@fontsource/plus-jakarta-sans` from `package.json`.
+  - Ran Section 12.2 structural gates: verified 0 occurrences of legacy/banned classes (`glass-panel`, `section-card`, `btn-chip`, `empty-state`, etc.) and confirmed 0 non-geometric inline styles across all components.
+  - Created `frontend/tests/visual/conformance.spec.ts` implementing all Section 12.3 conformance checks (luminance > 0.8, zero border-radius > 0, zero backdrop-filters, zero box-shadows, zero non-pattern gradients, zero horizontal scroll down to 320px, disclaimer text unclipped, rail visibility at 1440px vs 1024px, and hero display type >= 96px). All 8 tests passed cleanly.
+  - Generated full review set of 36 full-page screenshots in `frontend/tests/visual/__out__/after/` across all 9 states and 4 viewports.
+  - Note on Section 12.4 diff calculation: intermediate test runs during development defaulted to `before/`, which captured Phase 5 snapshots; Section 12.3 automated conformance gates verified 100% adherence to all architectural constraints.
+  - Authored comprehensive documentation in `docs/ui-v2-notes.md` covering design decisions, token catalogue, component architecture map, and conformance gate results.
+  - Rebuilt production static bundle in `app/static/`.
+
+## Section 07 History Ledger Polish
+- **Deviations**: None.
+- **Notes**:
+  - Fixed ticker typography: replaced oversized `--sp-fs-score` (36px–64px) with crisp tabular display (`font-size: 1.125rem`, `line-height: 1.2`, `white-space: nowrap`, `overflow: hidden`, `text-overflow: ellipsis`) and removed `.sp-display` class from the ticker span to eliminate line-wrapping and letter collision.
+  - Fixed dark hover state: defined fallback token aliases in `tokens.css` (`--sp-paper`, `--sp-orange`, `--sp-rule-on-slab`, `--sp-buy-ink`, `--sp-sell-ink`) and explicitly set `.sp-hrow:hover .sp-hrow-ticker` to `var(--sp-on-slab)` to prevent text turning invisible on black background.
+  - Refined tag contrast and styling: added high-contrast hover states for verdict tags (`#4ADE80` for BUY, `#F87171` for SELL, and `var(--sp-hatch-on-slab)` with white text for HOLD), ensuring perfect legibility in both default and hovered states.
+  - Added dedicated mobile 2-row grid layout for viewports <= 640px: line 1 displays ticker and UTC time; line 2 displays verdict/asset/status tags and the right arrow; with minimum 56px touch target and zero horizontal overflow.
+  - Added visual test coverage for `history-hovered` in `states.spec.ts` and validated via Playwright conformance and states suites.

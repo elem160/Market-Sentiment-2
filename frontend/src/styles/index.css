@@ -13,8 +13,7 @@
 @import './signal.css';
 @import './rationale.css';
 @import './evidence.css';
+@import './runlog.css';
+@import './history.css';
 @import './motion.css';
 @import './responsive.css';
-
-/* Temporary compatibility styles for unmigrated components (deleted in Phase 6) */
-@import './legacy.css';
